@@ -450,6 +450,46 @@
   .node-action.add:hover { color: var(--moss); }
   .node-action.del:hover { color: var(--accent); }
 
+  /* 노드 좌/우 방향 지정 버튼 — 루트 직계 자식에게만 표시 */
+  .node-side-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink-soft);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, color 0.15s, transform 0.1s;
+    z-index: 5;
+    user-select: none;
+  }
+  .node-side-btn.left { left: -14px; }
+  .node-side-btn.right { right: -14px; }
+  .node:hover .node-side-btn { opacity: 1; }
+  .node-side-btn:hover {
+    background: var(--ink);
+    color: white;
+    transform: translateY(-50%) scale(1.15);
+  }
+  /* 현재 고정된 방향은 항상 보이고 강조됨 */
+  .node-side-btn.active {
+    opacity: 1;
+    background: var(--navy);
+    color: white;
+    border-color: var(--navy);
+  }
+
   /* 노드 안 아이콘 줄 */
   .node-icons {
     display: flex;
@@ -945,7 +985,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.3.0';
+const APP_VERSION = '3.5.0';
 const APP_BUILD_DATE = '2026-05-29';
 
 /* ============================================================
@@ -2186,6 +2226,84 @@ function buildGoogleCalendarUrl(root, title) {
 }
 
 /* ============================================================
+   ★ AI 요약 — 마인드맵을 외부 AI 채팅에 보내기
+   ============================================================ */
+
+// 지원 AI 서비스 — 각각의 새 채팅 URL
+const AI_SERVICES = {
+  chatgpt: {
+    name: 'ChatGPT',
+    url: 'https://chat.openai.com/',
+    icon: '💬',
+  },
+  claude: {
+    name: 'Claude',
+    url: 'https://claude.ai/new',
+    icon: '🟠',
+  },
+  gemini: {
+    name: 'Gemini',
+    url: 'https://gemini.google.com/app',
+    icon: '✨',
+  },
+};
+
+// 기본 프롬프트 — 사용자가 설정에서 자유롭게 수정 가능
+// {tree} 위치에 마인드맵 마크다운이 들어감
+const DEFAULT_AI_PROMPT = `다음은 제가 오늘 브레인스토밍한 내용을 마인드맵으로 정리한 것입니다.
+이 내용을 다음 형식으로 정리해 주세요:
+
+1. 핵심 주제 한 줄 요약
+2. 주요 카테고리별 정리 (3~5개)
+3. 우선순위 정리 (가장 먼저 해야 할 일 3가지)
+4. 실행 가능한 다음 단계 제안
+
+---
+
+{tree}`;
+
+// 프롬프트 텍스트 만들기 — {tree}를 마인드맵 마크다운으로 치환
+function buildAIPromptText(promptTemplate, root) {
+  const template = (promptTemplate && promptTemplate.trim()) || DEFAULT_AI_PROMPT;
+  const markdown = treeToMarkdown(root);
+  // {tree}가 없으면 마크다운을 끝에 자동 부착 (사용자 실수 방어)
+  if (template.includes('{tree}')) {
+    return template.replace('{tree}', markdown);
+  }
+  return template + '\n\n---\n\n' + markdown;
+}
+
+// 클립보드 복사 — modern API + fallback
+async function copyToClipboard(text) {
+  // 우선 navigator.clipboard 시도 (HTTPS/localhost 환경)
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // 권한 거부 등 — fallback으로 시도
+    }
+  }
+  // Fallback: 임시 textarea + execCommand('copy')
+  // file:// 프로토콜이나 권한 거부 시
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* ============================================================
    ★ 메인 컴포넌트
    ============================================================ */
 function App() {
@@ -2217,6 +2335,8 @@ function App() {
   //   quoteSource: 'sample' | 'custom' | 'both'  (오늘의 격언 출처)
   //   customQuotes: 사용자가 직접 입력한 격언 목록
   //   calendarEventTitle: 구글 캘린더에 등록할 일정 제목 (기본: "브레인스토밍")
+  //   aiService: 'chatgpt' | 'claude' | 'gemini'  (AI 요약 서비스 선택)
+  //   aiPrompt: AI에게 보낼 프롬프트 템플릿 ({tree} 위치에 마인드맵 들어감)
   const [settings, setSettings] = useState({
     filenameBase: 'brainbloom',
     startupBehavior: 'ask',
@@ -2224,6 +2344,8 @@ function App() {
     quoteSource: 'sample',
     customQuotes: [],
     calendarEventTitle: '브레인스토밍',
+    aiService: 'chatgpt',
+    aiPrompt: DEFAULT_AI_PROMPT,
   });
   const [showSettings, setShowSettings] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);   // 마지막 저장 시각
@@ -2510,6 +2632,13 @@ function App() {
           // 캘린더 제목 누락 방어
           if (!merged.calendarEventTitle || typeof merged.calendarEventTitle !== 'string') {
             merged.calendarEventTitle = '브레인스토밍';
+          }
+          // AI 요약 설정 누락 방어
+          if (!merged.aiService || !AI_SERVICES[merged.aiService]) {
+            merged.aiService = 'chatgpt';
+          }
+          if (!merged.aiPrompt || typeof merged.aiPrompt !== 'string') {
+            merged.aiPrompt = DEFAULT_AI_PROMPT;
           }
           return merged;
         });
@@ -3224,6 +3353,36 @@ function App() {
     }
   };
 
+  // ─────────── AI 요약: 프롬프트+마인드맵을 클립보드에 복사하고 AI 새 탭 열기 ───────────
+  // 사용자가 새 탭에 붙여넣기(Ctrl+V)해서 요약 받음
+  // 설정의 aiService(어느 AI), aiPrompt(프롬프트 템플릿)를 사용
+  const sendToAI = async () => {
+    if (!tree) return;
+    const serviceKey = settings.aiService || 'chatgpt';
+    const service = AI_SERVICES[serviceKey] || AI_SERVICES.chatgpt;
+    const promptText = buildAIPromptText(settings.aiPrompt, tree);
+
+    // 1) 클립보드 복사 — 사용자 클릭 이벤트 직후에 실행되므로 권한 OK
+    const copied = await copyToClipboard(promptText);
+
+    // 2) 새 탭 열기 (클립보드 결과와 무관하게)
+    const win = window.open(service.url, '_blank', 'noopener,noreferrer');
+
+    // 3) 결과 안내
+    if (!win) {
+      // 팝업 차단됨
+      if (copied) {
+        showToast(`내용 복사 완료. ${service.name}에서 붙여넣기(Ctrl+V) 하세요. (팝업 차단됨 — 직접 열기: ${service.url})`);
+      } else {
+        showToast('팝업·복사 모두 차단되었습니다. 브라우저 설정을 확인해주세요.');
+      }
+    } else if (copied) {
+      showToast(`📋 복사 완료 — ${service.name} 새 탭에서 Ctrl+V 후 엔터`);
+    } else {
+      showToast(`${service.name}이 열렸지만 클립보드 복사 실패. 수동 복사가 필요합니다.`);
+    }
+  };
+
   // ─────────── 통합 저장 함수 (수동/자동 공통) ───────────
   const saveAll = async (formats, opts = {}) => {
     if (!tree) return;
@@ -3422,6 +3581,13 @@ function App() {
           >
             📅 <span className="btn-label">캘린더에 추가</span>
           </button>
+          <button
+            className="btn icon-btn"
+            onClick={() => sendToAI()}
+            title={`${(AI_SERVICES[settings.aiService] || AI_SERVICES.chatgpt).name}으로 요약 요청 (클립보드 복사 + 새 탭)`}
+          >
+            🤖 <span className="btn-label">AI 요약</span>
+          </button>
           <div className="header-divider" />
           <button
             className="btn icon-btn"
@@ -3553,8 +3719,11 @@ function App() {
 
                   {(() => {
                     const nodeEls = [];
+                    // 루트의 직계 자식 id 집합 — 좌/우 이동 버튼 표시 여부 판정용 (O(1) lookup)
+                    const rootChildIds = new Set((tree.children || []).map(c => c.id));
                     walk(tree, n => {
                       const isRoot = n.id === tree.id;
+                      const isRootChild = rootChildIds.has(n.id);
                       const isSelected = selectedId === n.id;
                       const isDropTarget = dropTargetId === n.id;
                       const isEditing = editingId === n.id;
@@ -3564,6 +3733,7 @@ function App() {
                           key={n.id}
                           node={n}
                           isRoot={isRoot}
+                          isRootChild={isRootChild}
                           isSelected={isSelected}
                           isDropTarget={isDropTarget}
                           isEditing={isEditing}
@@ -3581,6 +3751,7 @@ function App() {
                           onAddChild={() => addChild(n.id, { label: '', startEditing: true })}
                           onDelete={() => deleteNode(n.id)}
                           onToggleIcon={(ic) => toggleNodeIcon(n.id, ic)}
+                          onSetSide={(side) => setNodeSide(n.id, side)}
                           onDragStart={(e) => handleDragStart(e, n.id)}
                           onDragOver={(e) => handleDragOver(e, n.id)}
                           onDrop={(e) => handleDrop(e, n.id)}
@@ -3944,6 +4115,55 @@ function SettingsModal({ settings, onSettingsChange, onClose }) {
             </div>
           </div>
 
+          {/* AI 요약 */}
+          <div className="settings-section">
+            <div className="settings-section-title">🤖 AI 요약</div>
+            <div className="settings-row">
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">사용할 AI 서비스</div>
+                <div className="settings-desc">
+                  "🤖 AI 요약" 버튼을 누르면 마인드맵을 클립보드에 복사하고 선택한 AI 채팅 창을 새 탭으로 엽니다.
+                </div>
+              </div>
+              <select
+                className="text-field"
+                style={{ maxWidth: 180 }}
+                value={settings.aiService || 'chatgpt'}
+                onChange={(e) => update({ aiService: e.target.value })}
+              >
+                {Object.entries(AI_SERVICES).map(([key, svc]) => (
+                  <option key={key} value={key}>{svc.icon} {svc.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div className="settings-label">프롬프트 템플릿</div>
+              <div className="settings-desc" style={{ marginBottom: 6 }}>
+                <code>{'{tree}'}</code> 자리에 마인드맵이 들어갑니다. 비우면 기본 프롬프트가 사용됩니다.
+              </div>
+              <textarea
+                className="text-field"
+                style={{ width: '100%', minHeight: 140, fontFamily: 'inherit', fontSize: 12, lineHeight: 1.5, resize: 'vertical' }}
+                placeholder={DEFAULT_AI_PROMPT}
+                value={settings.aiPrompt || ''}
+                onChange={(e) => update({ aiPrompt: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  // 포커스 잃을 때 빈 값이면 기본 프롬프트로 복구
+                  if (!e.target.value.trim()) update({ aiPrompt: DEFAULT_AI_PROMPT });
+                }}
+              />
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button
+                  className="btn"
+                  style={{ fontSize: 11 }}
+                  onClick={() => update({ aiPrompt: DEFAULT_AI_PROMPT })}
+                  title="프롬프트를 기본값으로 되돌리기"
+                >↺ 기본 프롬프트로 되돌리기</button>
+              </div>
+            </div>
+          </div>
+
           {/* 시작 시 동작 */}
           <div className="settings-section">
             <div className="settings-section-title">시작 시 동작 (어제 이전에 작업한 것이 있을 때)</div>
@@ -4129,9 +4349,9 @@ function StartupDialog({ info, onRestore, onNew, onSetDefaultBehavior }) {
    ★ NodeView — 인라인 편집 가능한 노드 컴포넌트
    ============================================================ */
 function NodeView({
-  node, isRoot, isSelected, isDropTarget, isEditing, color,
+  node, isRoot, isRootChild, isSelected, isDropTarget, isEditing, color,
   onSelect, onStartEdit, onFinishEdit, onCancelEmpty,
-  onAddChild, onDelete, onToggleIcon,
+  onAddChild, onDelete, onToggleIcon, onSetSide,
   onDragStart, onDragOver, onDrop, onDragEnd
 }) {
   const [editValue, setEditValue] = useState(node.label || '');
@@ -4264,6 +4484,32 @@ function NodeView({
               onClick={(e) => { e.stopPropagation(); onDelete(); }}>×</button>
           )}
         </div>
+      )}
+      {/* 루트 자식만: 좌/우 방향 지정 버튼 (호버 시 노드 양 옆 바깥에 표시) */}
+      {!isEditing && isRootChild && (
+        <>
+          <button
+            className={`node-side-btn left ${node.pinnedSide === 'left' ? 'active' : ''}`}
+            title={node.pinnedSide === 'left' ? '왼쪽 고정 해제' : '왼쪽으로 이동'}
+            draggable={false}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              // 이미 왼쪽 고정이면 해제, 아니면 왼쪽으로 고정
+              onSetSide(node.pinnedSide === 'left' ? null : 'left');
+            }}
+          >‹</button>
+          <button
+            className={`node-side-btn right ${node.pinnedSide === 'right' ? 'active' : ''}`}
+            title={node.pinnedSide === 'right' ? '오른쪽 고정 해제' : '오른쪽으로 이동'}
+            draggable={false}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetSide(node.pinnedSide === 'right' ? null : 'right');
+            }}
+          >›</button>
+        </>
       )}
     </div>
   );
