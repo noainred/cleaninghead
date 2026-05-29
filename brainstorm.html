@@ -985,7 +985,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.6.0';
 const APP_BUILD_DATE = '2026-05-29';
 
 /* ============================================================
@@ -1334,18 +1334,19 @@ function layoutTree(root) {
   // 앞에서부터 오른쪽에 쌓다가, 누적 높이가 임계치를 넘는 순간부터 왼쪽으로 보냄
   // 왼쪽도 임계치를 넘어가면 그대로 왼쪽에 계속 쌓음 (요구사항)
   //
-  // ★ 사용자 수동 지정(pinnedSide) 우선 처리:
-  //   - pinnedSide === 'left' → 무조건 왼쪽
-  //   - pinnedSide === 'right' → 무조건 오른쪽
-  //   - 미지정(undefined) → 남은 오른쪽 공간을 자동으로 채우다가 넘치면 왼쪽
-  //   (입력 순서는 모든 경우에 보존)
+  // ★ 우선순위:
+  //   1) pinnedSide (사용자 수동 지정) — 항상 존중
+  //   2) autoSide (이전에 자동 분배로 결정된 위치) — 트리 변경에도 유지 (점프 방지)
+  //   3) 미지정 — 남은 오른쪽 공간을 자동으로 채우다가 넘치면 왼쪽 (입력 순서 보존)
+  //   ↑ 결정된 위치는 autoSide에 기록되어 다음 레이아웃에서도 안정 유지
   const rightChildren = [];
   const leftChildren = [];
   if (root.children) {
-    // 1) 먼저 사용자 수동 지정 자식들의 누적 높이 측정 (오른쪽에 이미 얼마 점유했는지)
+    // 1) 먼저 이미 위치가 정해진(pinnedSide 또는 autoSide) 자식들의 오른쪽 누적 높이 측정
     let rightAccH = 0;
     root.children.forEach(child => {
-      if (child.pinnedSide === 'right') {
+      const fixed = child.pinnedSide || child.autoSide;
+      if (fixed === 'right') {
         rightAccH += (rightAccH > 0 ? V_SPACING : 0) + child._subH;
       }
     });
@@ -1353,25 +1354,27 @@ function layoutTree(root) {
     // 2) 입력 순서대로 순회하며 분류
     let rightFull = false;
     root.children.forEach(child => {
-      if (child.pinnedSide === 'right') {
-        // 무조건 오른쪽 (이미 1)에서 높이 계산됨)
+      // 우선순위: pinnedSide > autoSide > 자동 분배
+      const fixedSide = child.pinnedSide || child.autoSide;
+      if (fixedSide === 'right') {
         rightChildren.push(child);
         child._side = 'right';
-      } else if (child.pinnedSide === 'left') {
-        // 무조건 왼쪽
+      } else if (fixedSide === 'left') {
         leftChildren.push(child);
         child._side = 'left';
       } else {
-        // 자동 분배: 오른쪽이 차지 않았으면 오른쪽으로
+        // 처음 분배되는 노드 — 남은 오른쪽 공간을 채우다 넘치면 왼쪽
         const need = (rightChildren.length > 0 ? V_SPACING : 0) + child._subH;
         if (!rightFull && rightAccH + need <= SIDE_SPLIT_HEIGHT) {
           rightChildren.push(child);
           rightAccH += need;
           child._side = 'right';
+          child.autoSide = 'right';   // 다음 번에도 안정적으로 오른쪽 유지
         } else {
           rightFull = true;
           leftChildren.push(child);
           child._side = 'left';
+          child.autoSide = 'left';
         }
       }
     });
@@ -1441,6 +1444,8 @@ function layoutTree(root) {
   place(root, 0, overallH / 2, 'center');
 
   // ── 4단계: 좌표 정규화 (음수 X 방지)
+  // 모든 노드의 좌표를 양수로 만들기 위해 가장 왼쪽 노드를 기준으로 시프트.
+  // 점프 방지는 addChild/addSibling에서 새 노드에 autoSide를 미리 부여해서 해결.
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   walk(root, n => {
     minX = Math.min(minX, n._x);
@@ -1455,6 +1460,24 @@ function layoutTree(root) {
 function walk(node, fn) {
   fn(node);
   if (node.children) node.children.forEach(c => walk(c, fn));
+}
+
+// 새 노드의 기본 placeholder 라벨 생성
+// 트리 전체에서 "새로운 아이디어 NN" 패턴 중 가장 큰 번호 + 1을 zero-padded(01, 02, ...)로 반환
+// - 사용자가 직접 "새로운 아이디어 05"라고 지은 이름도 카운트에 포함되어 충돌 방지
+// - 빈 자리(예: 03 삭제)는 채우지 않음 — 항상 max + 1 (예측 가능성 우선)
+function nextIdeaLabel(tree) {
+  let maxNum = 0;
+  const pattern = /^새로운\s+아이디어\s+(\d+)$/;
+  walk(tree, node => {
+    const m = (node.label || '').trim().match(pattern);
+    if (m) {
+      const num = parseInt(m[1], 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  });
+  const next = maxNum + 1;
+  return `새로운 아이디어 ${String(next).padStart(2, '0')}`;
 }
 
 /* ============================================================
@@ -1745,6 +1768,99 @@ const SAMPLE_QUOTES = [
   "세 살 버릇 여든까지 간다. — 한국 속담",
 ];
 
+/* ============================================================
+   ★ 트렌디 단어 — 새 노드의 placeholder 라벨용 200개
+   ────────────────────────────────────────────────────────────
+   기준: 한국어 위주, 너무 진부하지 않고 너무 유행 안 타는 영감 단어.
+   짧게(2~10자 정도). 노드 안에 들어갈 거니까 한 줄에 깔끔히 들어가야 함.
+   카테고리: 영감/창의 / 액션/실행 / 감성/관계 / 트렌디 / 일상/관찰
+   ============================================================ */
+const SAMPLE_IDEA_WORDS = [
+  // 영감 / 창의 (40개)
+  "번뜩이는 발상", "엉뚱한 시도", "기발한 한 수", "딴짓의 가능성",
+  "어떤 가능성", "오늘의 발견", "새로운 시선", "다른 각도",
+  "한 줄 영감", "스쳐간 생각", "이상한 직감", "꿈틀대는 아이디어",
+  "조용한 영감", "오늘의 한 수", "느낌 있는 무언가", "다음 챕터",
+  "작은 불꽃", "신선한 발견", "별난 발상", "오늘의 키워드",
+  "한 끗 다름", "특이한 시도", "마음에 든 것", "주머니 속 아이디어",
+  "갑자기 떠오른", "이게 뭐지", "오늘만 보이는", "내일의 씨앗",
+  "잡힐 듯 잡힐 듯", "한 줄로 정리", "괜찮은 흐름", "재미있는 발견",
+  "예감이 좋은", "묘하게 끌리는", "왠지 모르게", "처음 본 단어",
+  "메모해둘 것", "다음에 시도", "오늘의 가설", "또 다른 길",
+
+  // 액션 / 실행 (40개)
+  "지금 시작", "한 걸음만 더", "오늘 끝낼 일", "오늘 시작할 일",
+  "당장 해볼까", "지금 해볼까", "오늘의 도전", "한 번 해보자",
+  "바로 실행", "미루지 말기", "내일이 아니라 지금", "딱 5분만",
+  "작은 실험", "오늘의 미션", "당장 메모", "체크할 것",
+  "정리할 것", "끝낼 것", "마무리할 것", "시작할 것",
+  "한 번에 끝내기", "오늘 안에", "이번 주에", "다음 단계",
+  "한 단계 더", "또 한 번", "다시 시도", "이번엔 다르게",
+  "방법 바꾸기", "관점 바꾸기", "순서 바꾸기", "속도 조절",
+  "쉬어가는 시점", "체크포인트", "중간 점검", "다음 행동",
+  "오늘의 결심", "지금 결정", "더 미루지 말 것", "행동으로",
+
+  // 감성 / 관계 (40개)
+  "마음의 결", "조용한 시간", "느슨한 연결", "오늘의 기분",
+  "그리운 무언가", "왠지 좋은 날", "한가한 마음", "마음 둘 곳",
+  "오랜만에", "보고 싶은 사람", "전하고 싶은 말", "고마운 사람",
+  "미안한 마음", "기쁜 일", "위로의 한 마디", "함께할 사람",
+  "응원할 사람", "도와줄 사람", "기다리는 사람", "곁에 둘 사람",
+  "마음 가는 곳", "마음이 머무는", "오늘의 감정", "잔잔한 행복",
+  "작은 다정함", "은은한 기쁨", "마음에 남은 것", "오늘의 위로",
+  "조심스러운 말", "솔직한 마음", "표현하고 싶은", "전해야 할 말",
+  "묻고 싶은 것", "들어보고 싶은", "나누고 싶은", "공감되는 순간",
+  "이해받고 싶은", "혼자 두기 싫은", "함께 보내는", "마음 한 켠",
+
+  // 트렌디 / 라이프스타일 (40개)
+  "바이브 체크", "마이크로 챌린지", "디지털 디톡스", "주말 프로젝트",
+  "사이드 프로젝트", "미니멀하게", "정리의 미학", "비우는 연습",
+  "취향 발견", "내 취향", "오늘의 무드", "분위기 전환",
+  "리프레시", "리셋 버튼", "다시 시작", "프리워크아웃",
+  "워크 라이프", "느린 아침", "조용한 저녁", "주말의 여유",
+  "퇴근 후 할 일", "출근 전 할 일", "점심시간에", "쉬는 시간에",
+  "이번 주 목표", "이번 달 목표", "올해의 키워드", "올해의 결심",
+  "버킷리스트", "위시리스트", "장바구니", "관심 목록",
+  "다음 여행지", "가보고 싶은 곳", "먹어보고 싶은", "배워보고 싶은",
+  "도전하고 싶은", "만들어보고 싶은", "써보고 싶은", "해보고 싶은",
+
+  // 일상 / 관찰 (40개)
+  "오늘의 한 컷", "오늘 본 것", "오늘 들은 것", "오늘 먹은 것",
+  "오늘 한 일", "오늘의 메모", "오늘 산 것", "오늘 만난 사람",
+  "오늘의 풍경", "오늘의 한 마디", "오늘의 책", "오늘의 음악",
+  "오늘의 영화", "오늘의 운동", "오늘의 식단", "오늘의 컨디션",
+  "어제와 다른 점", "내일 할 것", "이번 주 정리", "이번 달 정리",
+  "오늘의 습관", "고치고 싶은", "이어가고 싶은", "그만두고 싶은",
+  "처음 해본 것", "익숙해진 것", "지겨워진 것", "여전히 좋은",
+  "다시 보고 싶은", "한 번 더", "잊고 싶은", "기억하고 싶은",
+  "사진으로 남길", "글로 남길", "기록할 가치", "오늘의 한 줄",
+  "사소한 행복", "별것 아닌 일", "특별한 순간", "평범한 하루",
+];
+
+// 큐레이션 + 사용자 단어를 합치되, 설정에 따라 출처 선택
+// settings.ideaWordSource: 'sample' (기본만) / 'custom' (내 것만) / 'both' (둘 다)
+// 사용자가 'custom'으로 했는데 단어가 없으면 기본으로 안전 폴백
+function getIdeaWordPool(settings) {
+  const src = settings?.ideaWordSource || 'sample';
+  const custom = Array.isArray(settings?.customIdeaWords) ? settings.customIdeaWords : [];
+  if (src === 'custom' && custom.length > 0) return custom;
+  if (src === 'both') return [...SAMPLE_IDEA_WORDS, ...custom];
+  return SAMPLE_IDEA_WORDS;
+}
+
+// 랜덤 단어 선택 — recentWords 안에 있는 단어는 회피(연속 중복 방지)
+function pickRandomIdeaWord(settings, recentWords) {
+  const pool = getIdeaWordPool(settings);
+  if (pool.length === 0) return '새로운 아이디어';
+  // 풀이 너무 작으면 회피 불가 — 그냥 랜덤
+  const recent = Array.isArray(recentWords) ? recentWords : [];
+  const avoidSet = new Set(recent);
+  const candidates = pool.filter(w => !avoidSet.has(w));
+  // 모든 단어가 최근에 나왔으면 전체에서 다시 뽑음
+  const finalPool = candidates.length > 0 ? candidates : pool;
+  return finalPool[Math.floor(Math.random() * finalPool.length)];
+}
+
 // 날짜 기반으로 "오늘의" 항목을 고름 (같은 날엔 같은 격언, 매일 바뀜)
 function dayIndex() {
   const now = new Date();
@@ -1887,7 +2003,13 @@ function isBeforeToday(timestamp) {
 // 트리에서 임시 레이아웃 필드 제거 후 JSON 직렬화
 function serializeTree(root) {
   const clean = cloneTree(root);
-  walk(clean, n => { delete n._x; delete n._y; delete n._subH; });
+  // 레이아웃 계산용 임시 필드 모두 제거 (저장 시 깔끔하게)
+  // autoSide와 pinnedSide는 사용자/시스템 결정이므로 보존 (다음 세션 복원에도 필요)
+  walk(clean, n => {
+    delete n._x; delete n._y; delete n._w; delete n._h;
+    delete n._subH; delete n._subW; delete n._side;
+    delete n._autoLabel;
+  });
   return clean;
 }
 
@@ -2337,15 +2459,19 @@ function App() {
   //   calendarEventTitle: 구글 캘린더에 등록할 일정 제목 (기본: "브레인스토밍")
   //   aiService: 'chatgpt' | 'claude' | 'gemini'  (AI 요약 서비스 선택)
   //   aiPrompt: AI에게 보낼 프롬프트 템플릿 ({tree} 위치에 마인드맵 들어감)
+  //   ideaWordSource: 'sample' | 'custom' | 'both'  (새 노드 트렌디 단어 출처)
+  //   customIdeaWords: 사용자가 직접 추가한 단어 목록
   const [settings, setSettings] = useState({
     filenameBase: 'brainbloom',
     startupBehavior: 'ask',
-    visibleSaveButtons: ['pdf', 'jpg', 'svg', 'csv', 'json'], // 기본: 5개 전부 표시
+    visibleSaveButtons: ['pdf', 'jpg', 'svg', 'csv', 'json'],
     quoteSource: 'sample',
     customQuotes: [],
     calendarEventTitle: '브레인스토밍',
     aiService: 'chatgpt',
     aiPrompt: DEFAULT_AI_PROMPT,
+    ideaWordSource: 'sample',
+    customIdeaWords: [],
   });
   const [showSettings, setShowSettings] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);   // 마지막 저장 시각
@@ -2372,6 +2498,9 @@ function App() {
   // 'text' = 텍스트박스에서 변경 → 트리 업데이트해야 함
   // null = 아무것도 안 함 (사용자 입력 대기)
   const syncSourceRef = useRef('text');
+
+  // 최근에 사용한 트렌디 단어 5개 — 연속 중복 방지용 (휘발성, 세션 내)
+  const recentIdeaWordsRef = useRef([]);
 
   // 히스토리 스냅샷 저장 (변경 직전의 상태를 저장)
   const pushHistory = useCallback((label) => {
@@ -2584,7 +2713,10 @@ function App() {
     const oldMap = new Map();
     function collect(node, path) {
       const key = path ? path + '|' + node.label : node.label;
-      oldMap.set(key, { color: node.color, meta: node.meta, icons: node.icons, pinnedSide: node.pinnedSide });
+      oldMap.set(key, {
+        color: node.color, meta: node.meta, icons: node.icons,
+        pinnedSide: node.pinnedSide, autoSide: node.autoSide,
+      });
       if (node.children) node.children.forEach(c => collect(c, key));
     }
     collect(oldTree, '');
@@ -2600,6 +2732,10 @@ function App() {
         // 사용자 수동 지정 좌/우 위치 보존
         if (old.pinnedSide && !node.pinnedSide) {
           node.pinnedSide = old.pinnedSide;
+        }
+        // 자동 분배 기록(autoSide) 보존 — 좌/우 점프 방지
+        if (old.autoSide && !node.autoSide) {
+          node.autoSide = old.autoSide;
         }
       }
       if (node.children) node.children.forEach(c => apply(c, key));
@@ -2640,6 +2776,11 @@ function App() {
           if (!merged.aiPrompt || typeof merged.aiPrompt !== 'string') {
             merged.aiPrompt = DEFAULT_AI_PROMPT;
           }
+          // 트렌디 단어 설정 누락 방어
+          if (!merged.ideaWordSource || !['sample', 'custom', 'both'].includes(merged.ideaWordSource)) {
+            merged.ideaWordSource = 'sample';
+          }
+          if (!Array.isArray(merged.customIdeaWords)) merged.customIdeaWords = [];
           return merged;
         });
       }
@@ -2794,13 +2935,32 @@ function App() {
     const parent = findNode(newTree, parentId);
     if (parent) {
       if (!parent.children) parent.children = [];
+      // 라벨 결정:
+      // - opts.label이 비어있거나 undefined면 자동 생성 ("새로운 아이디어 NN")
+      // - 명시적으로 라벨이 주어지면 그대로 사용 (예: 파서가 텍스트에서 노드 생성)
+      const givenLabel = opts.label;
+      const isAutoLabel = (givenLabel === undefined || givenLabel === '');
+      const autoLabel = isAutoLabel ? pickRandomIdeaWord(settings, recentIdeaWordsRef.current) : null;
       const newNode = {
         id: genId(),
-        // 빈 문자열도 그대로 보존해야 ESC 취소 판정이 동작함 (|| 쓰면 ''이 falsy로 '새 항목'이 들어감)
-        label: opts.label !== undefined ? opts.label : '새 항목',
+        label: isAutoLabel ? autoLabel : givenLabel,
         children: [], meta: {},
         color: parent.color || PALETTE_ORDER[parent.children.length % PALETTE_ORDER.length],
       };
+      // 자동 생성 라벨 표시 — ESC 시 취소 판정에 사용
+      if (isAutoLabel) {
+        newNode._autoLabel = true;
+        // 최근 사용 단어에 기록 (최근 5개 유지)
+        recentIdeaWordsRef.current.push(autoLabel);
+        if (recentIdeaWordsRef.current.length > 5) recentIdeaWordsRef.current.shift();
+      }
+      // 부모가 루트면 새 자식은 루트 직계 자식이 되므로 좌/우 분배 대상.
+      // 기존 형제들의 다수파(autoSide) 쪽을 따라가게 해서 점프 방지.
+      if (parent === newTree && parent.children.length > 0) {
+        const rightCount = parent.children.filter(c => (c.pinnedSide || c.autoSide) === 'right').length;
+        const leftCount = parent.children.filter(c => (c.pinnedSide || c.autoSide) === 'left').length;
+        newNode.autoSide = (rightCount >= leftCount) ? 'right' : 'left';
+      }
       parent.children.push(newNode);
       setTree(newTree);
       setSelectedId(newNode.id);
@@ -2817,13 +2977,27 @@ function App() {
     if (parent) {
       const idx = parent.children.findIndex(c => c.id === id);
       const current = parent.children[idx];
+      const givenLabel = opts.label;
+      const isAutoLabel = (givenLabel === undefined || givenLabel === '');
+      const autoLabel = isAutoLabel ? pickRandomIdeaWord(settings, recentIdeaWordsRef.current) : null;
       const newNode = {
         id: genId(),
-        // 빈 문자열도 그대로 보존 (|| 사용 시 ''이 falsy로 처리되어 '새 항목'이 들어가는 버그 방지)
-        label: opts.label !== undefined ? opts.label : '새 항목',
+        label: isAutoLabel ? autoLabel : givenLabel,
         children: [], meta: {},
         color: current.color,
       };
+      if (isAutoLabel) {
+        newNode._autoLabel = true;
+        recentIdeaWordsRef.current.push(autoLabel);
+        if (recentIdeaWordsRef.current.length > 5) recentIdeaWordsRef.current.shift();
+      }
+      // 옆 형제(current)와 같은 쪽으로 배치하면 자연스럽고 점프 없음
+      if (parent === newTree) {
+        const sideOfCurrent = current.pinnedSide || current.autoSide;
+        if (sideOfCurrent) {
+          newNode.autoSide = sideOfCurrent;
+        }
+      }
       parent.children.splice(idx + 1, 0, newNode);
       setTree(newTree);
       setSelectedId(newNode.id);
@@ -2839,12 +3013,29 @@ function App() {
       showToast('루트는 삭제할 수 없습니다');
       return;
     }
+    // 삭제 전에 다음 선택할 노드 결정
+    // 우선순위: 1) 이전 형제 (위쪽), 2) 다음 형제 (아래쪽), 3) 부모
+    const parent = findParent(tree, id);
+    let nextSelectedId = null;
+    if (parent) {
+      const siblings = parent.children || [];
+      const idx = siblings.findIndex(c => c.id === id);
+      if (idx > 0) {
+        nextSelectedId = siblings[idx - 1].id; // 이전 형제
+      } else if (idx >= 0 && idx + 1 < siblings.length) {
+        nextSelectedId = siblings[idx + 1].id; // 다음 형제 (첫째였을 때)
+      } else {
+        nextSelectedId = parent.id; // 외동이었으면 부모
+      }
+    }
+
     maybePushHistory('노드 삭제');
     syncSourceRef.current = 'tree';
     const newTree = cloneTree(tree);
     removeNode(newTree, id);
     setTree(newTree);
-    if (selectedId === id) setSelectedId(null);
+    // 선택을 다음 노드로 옮김 (연속 삭제·이동 편리)
+    setSelectedId(nextSelectedId);
     if (editingId === id) setEditingId(null);
   };
 
@@ -2943,7 +3134,10 @@ function App() {
     const node = findNode(newTree, id);
     if (!node) return;
     if (side === null) {
+      // 자동 분배로 되돌리기 — pinnedSide와 autoSide 모두 제거
+      // (autoSide도 지워야 다음 layoutTree에서 새로 분배됨)
       delete node.pinnedSide;
+      delete node.autoSide;
     } else {
       node.pinnedSide = side;
     }
@@ -2984,10 +3178,11 @@ function App() {
     oldParent.children = oldParent.children.filter(c => c.id !== dragInfo.id);
     if (!newParent.children) newParent.children = [];
     newParent.children.push(moving);
-    // 부모가 바뀌었으면 사용자 수동 좌/우 지정은 무의미해지므로 제거
+    // 부모가 바뀌었으면 좌/우 지정 데이터는 무의미해지므로 제거
     // (루트 자식이었던 게 다른 부모로 가거나, 다른 부모 밑에서 루트로 올라오거나 등)
     if (oldParent !== newParent) {
       delete moving.pinnedSide;
+      delete moving.autoSide;
     }
     setTree(newTree);
     setDragInfo(null);
@@ -3742,7 +3937,12 @@ function App() {
                           onStartEdit={() => setEditingId(n.id)}
                           onFinishEdit={(newLabel) => {
                             setEditingId(null);
-                            updateNode(n.id, nn => { nn.label = newLabel; }, { label: '라벨 변경' });
+                            updateNode(n.id, nn => {
+                              nn.label = newLabel;
+                              // 사용자가 편집을 끝냈으니 더 이상 "자동 라벨" 상태가 아님
+                              // → 다음 편집 시 ESC가 노드를 삭제하지 않고 라벨만 원래대로
+                              delete nn._autoLabel;
+                            }, { label: '라벨 변경' });
                           }}
                           onCancelEmpty={() => {
                             setEditingId(null);
@@ -4217,6 +4417,42 @@ function SettingsModal({ settings, onSettingsChange, onClose }) {
             />
           </div>
 
+          {/* 새 노드 트렌디 단어 */}
+          <div className="settings-section">
+            <div className="settings-section-title">새 노드 단어 (Tab/Enter로 추가될 때)</div>
+            <div className="settings-desc" style={{ marginBottom: 10 }}>
+              Tab이나 Enter로 새 노드를 만들 때 자동으로 채워질 영감 단어들입니다.
+              그대로 두고 Enter 누르면 그 단어로 저장되고, 입력하면 새 내용으로 대체됩니다.
+            </div>
+            <div className="radio-list" style={{ marginBottom: 12 }}>
+              {[
+                { v: 'sample', t: '기본 단어 (200개)', d: '엄선된 영감·트렌디 단어 중에서 매번 다른 하나' },
+                { v: 'custom', t: '내가 입력한 단어만', d: '아래에 직접 추가한 단어만 사용 (없으면 기본)' },
+                { v: 'both', t: '기본 + 내 단어 함께', d: '기본 단어와 내 단어를 모두 섞어서' },
+              ].map(opt => (
+                <div
+                  key={opt.v}
+                  className={`radio-option ${(settings.ideaWordSource || 'sample') === opt.v ? 'active' : ''}`}
+                  onClick={() => update({ ideaWordSource: opt.v })}
+                >
+                  <div className="radio-dot" />
+                  <div className="radio-content">
+                    <div className="radio-title">{opt.t}</div>
+                    <div className="radio-desc">{opt.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <QuoteEditor
+              quotes={settings.customIdeaWords || []}
+              onChange={(list) => update({ customIdeaWords: list })}
+              label="내 단어 추가"
+              placeholder="예: 오늘의 발견 / 작은 도약 / 멋진 시도"
+              emptyText="아직 추가한 단어가 없습니다. 영감을 주는 단어를 적어보세요."
+            />
+          </div>
+
         </div>
 
         <div className="modal-footer">
@@ -4230,7 +4466,7 @@ function SettingsModal({ settings, onSettingsChange, onClose }) {
 /* ============================================================
    ★ QuoteEditor - 사용자 격언 추가/삭제
    ============================================================ */
-function QuoteEditor({ quotes, onChange }) {
+function QuoteEditor({ quotes, onChange, label, placeholder, emptyText }) {
   const [draft, setDraft] = useState('');
 
   const add = () => {
@@ -4246,12 +4482,12 @@ function QuoteEditor({ quotes, onChange }) {
 
   return (
     <div className="quote-editor">
-      <div className="settings-label" style={{ marginBottom: 6 }}>내 격언 추가</div>
+      <div className="settings-label" style={{ marginBottom: 6 }}>{label || '내 격언 추가'}</div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <input
           className="text-field"
           style={{ flex: 1 }}
-          placeholder="예: 오늘도 한 걸음 — 나"
+          placeholder={placeholder || '예: 오늘도 한 걸음 — 나'}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -4272,7 +4508,7 @@ function QuoteEditor({ quotes, onChange }) {
           ))}
         </div>
       ) : (
-        <div className="quote-empty">아직 추가한 격언이 없습니다. 좋아하는 문구를 적어보세요.</div>
+        <div className="quote-empty">{emptyText || '아직 추가한 격언이 없습니다. 좋아하는 문구를 적어보세요.'}</div>
       )}
     </div>
   );
@@ -4376,12 +4612,14 @@ function NodeView({
     onFinishEdit(trimmed || '새 항목');
   };
 
-  // ESC 처리: 새로 만들어진 빈 노드라면 노드 자체를 취소(삭제), 아니면 편집만 취소
-  // 판정 기준: 원래 node.label이 비어 있었으면 "새로 만든 노드" → 삭제
+  // ESC 처리: 새로 만들어진 노드라면 노드 자체를 취소(삭제), 아니면 편집만 취소
+  // "새로 만든 노드"의 판정:
+  //   - 라벨이 비어 있음 (예전 동작 보존)
+  //   - 또는 _autoLabel 플래그가 있음 (자동 생성 "새로운 아이디어 NN" 노드를 한 번도 안 건드림)
   const cancelEdit = () => {
     const originalLabel = (node.label || '').trim();
-    if (originalLabel === '' && typeof onCancelEmpty === 'function') {
-      // 새로 만든 빈 노드 — 부모에게 삭제 요청
+    const isNewNode = (originalLabel === '') || node._autoLabel === true;
+    if (isNewNode && typeof onCancelEmpty === 'function') {
       onCancelEmpty();
     } else {
       // 기존 노드 — 라벨을 원래대로 유지하고 편집만 종료
@@ -4389,12 +4627,16 @@ function NodeView({
     }
   };
 
-  // 포커스를 잃을 때(다른 곳 클릭 등): 입력값과 원래 라벨이 모두 비어 있으면 노드 취소(삭제),
-  //   아니면 finish (입력값 저장, 비어있으면 '새 항목')
+  // 포커스를 잃을 때(다른 곳 클릭 등):
+  //   - 입력값을 안 바꿨고 자동 생성 라벨인 경우 → 취소(삭제) (사용자가 의도적으로 안 만진 것)
+  //   - 입력값이 있으면 finish (사용자가 새 텍스트를 친 것)
+  //   - 빈 입력 + 빈 원본 → 취소
   const handleBlur = () => {
     const trimmedInput = editValue.trim();
     const originalLabel = (node.label || '').trim();
-    if (trimmedInput === '' && originalLabel === '' && typeof onCancelEmpty === 'function') {
+    const unchangedAutoLabel = (node._autoLabel === true && trimmedInput === originalLabel);
+    const bothEmpty = (trimmedInput === '' && originalLabel === '');
+    if ((bothEmpty || unchangedAutoLabel) && typeof onCancelEmpty === 'function') {
       onCancelEmpty();
     } else {
       finish();
