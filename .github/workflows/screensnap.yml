@@ -1,0 +1,35 @@
+name: ScreenSnap Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ScreenSnap/**'
+      - '.github/workflows/screensnap.yml'
+  pull_request:
+    paths:
+      - 'ScreenSnap/**'
+      - '.github/workflows/screensnap.yml'
+
+jobs:
+  build:
+    name: Build (macOS)
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: ScreenSnap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build (debug)
+        run: swift build
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Assemble .app bundle
+        run: ./build.sh
