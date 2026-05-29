@@ -934,6 +934,21 @@
 const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = React;
 
 /* ============================================================
+   ★ 버전 정보
+   ──────────────────────────────────────────────
+   ⚠️ 새 버전 릴리즈 시 ↓ 두 줄을 함께 업데이트
+   1) APP_VERSION
+   2) CHANGELOG.md 최상단의 [x.y.z] 헤더
+   ──────────────────────────────────────────────
+   변경 규칙 (SemVer):
+   - 메이저(X.0.0): 기존 데이터/UI에 영향 주는 큰 변경
+   - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
+   - 패치(x.y.Z): 버그 수정, 미세 조정
+   ============================================================ */
+const APP_VERSION = '3.1.0';
+const APP_BUILD_DATE = '2026-05-29';
+
+/* ============================================================
    ★ 개발자 모듈: 텍스트 파서 (들여쓰기 기반 단순 파서)
    - 들여쓰기로 계층 표현
    - "AA-A" 같은 하이픈 표기도 지원 (들여쓰기 없을 때만)
@@ -3195,7 +3210,12 @@ function App() {
       <div className="header">
         <div className="brand">
           <div className="brand-mark">Brain<em>Bloom</em></div>
-          <div className="brand-tag">브레인스토밍 / v2.1</div>
+          <div
+            className="brand-tag"
+            title={`BrainBloom v${APP_VERSION} (빌드: ${APP_BUILD_DATE})\n변경 이력은 CHANGELOG.md 참고`}
+          >
+            브레인스토밍 / v{APP_VERSION}
+          </div>
         </div>
         <div className="header-actions">
           <button
