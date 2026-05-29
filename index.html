@@ -945,7 +945,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.1.0';
+const APP_VERSION = '3.2.0';
 const APP_BUILD_DATE = '2026-05-29';
 
 /* ============================================================
@@ -1261,41 +1261,123 @@ function countMetaLines(node) {
   return n;
 }
 
+// 루트의 자식 노드를 양방향으로 분배하는 기준 — 오른쪽 누적 높이가 이 값을 넘으면 그다음은 왼쪽
+// (화면 한 페이지를 넘지 않도록 하는 직관적 기준. 줌 100% 기준 약 800px)
+const SIDE_SPLIT_HEIGHT = 800;
+
 function layoutTree(root) {
+  // ── 1단계: 크기 측정 (부모 방향 의존 안 함)
   function measure(node, isRoot) {
     node._w = nodeWidth(node, isRoot);
     node._h = nodeHeight(node, isRoot);
     if (!node.children || node.children.length === 0) {
       node._subH = node._h;
+      // 가지 전체의 최대 너비 (X 방향 누적용)
+      node._subW = node._w;
       return node._subH;
     }
     let total = 0;
+    let maxChildSubW = 0;
     node.children.forEach((c, i) => {
       total += measure(c, false);
       if (i > 0) total += V_SPACING;
+      if (c._subW > maxChildSubW) maxChildSubW = c._subW;
     });
     node._subH = Math.max(node._h, total);
+    // 자식들이 차지하는 가로 폭 = 부모폭 + 간격 + 자식들 가지 최대폭
+    node._subW = node._w + H_SPACING + maxChildSubW;
     return node._subH;
   }
   measure(root, true);
 
-  function place(node, x, yCenter) {
+  // ── 2단계: 루트의 직계 자식을 좌/우로 분배
+  // 앞에서부터 오른쪽에 쌓다가, 누적 높이가 임계치를 넘는 순간부터 왼쪽으로 보냄
+  // 왼쪽도 임계치를 넘어가면 그대로 왼쪽에 계속 쌓음 (요구사항)
+  const rightChildren = [];
+  const leftChildren = [];
+  if (root.children) {
+    let rightAccH = 0;
+    let rightFull = false;
+    root.children.forEach(child => {
+      const need = (rightChildren.length > 0 ? V_SPACING : 0) + child._subH;
+      if (!rightFull && rightAccH + need <= SIDE_SPLIT_HEIGHT) {
+        // 오른쪽에 넣어도 한 화면 안에 들어감
+        rightChildren.push(child);
+        rightAccH += need;
+        child._side = 'right';
+      } else {
+        // 오른쪽이 꽉 차서 왼쪽으로
+        rightFull = true;
+        leftChildren.push(child);
+        child._side = 'left';
+      }
+    });
+  }
+  // _side는 모든 후손에게 상속
+  function inheritSide(node, side) {
+    node._side = side;
+    (node.children || []).forEach(c => inheritSide(c, side));
+  }
+  rightChildren.forEach(c => inheritSide(c, 'right'));
+  leftChildren.forEach(c => inheritSide(c, 'left'));
+  root._side = 'center'; // 루트는 중앙
+
+  // ── 3단계: 배치
+  // place(node, x, yCenter, side): node의 좌상단 x = x. 자식은 side 방향으로 뻗음
+  //  - side='right' → 자식의 x = node._x + node._w + H_SPACING
+  //  - side='left'  → 자식의 x = node._x - H_SPACING - child._w (자식 오른쪽 끝이 부모 왼쪽 끝과 정렬)
+  function place(node, x, yCenter, side) {
     node._x = x;
     node._y = yCenter - node._h / 2;
     if (!node.children || node.children.length === 0) return;
-    const totalChildH =
-      node.children.reduce((s, c) => s + c._subH, 0) +
-      V_SPACING * (node.children.length - 1);
-    let cursor = yCenter - totalChildH / 2;
-    node.children.forEach(c => {
-      const childCenter = cursor + c._subH / 2;
-      // 부모의 실제 너비만큼 띄워서 배치 (가변 너비 반영)
-      place(c, x + node._w + H_SPACING, childCenter);
+
+    // 루트가 아닌 경우 모든 자식이 같은 side로 뻗음
+    // 루트인 경우 자식들이 이미 _side를 가지고 있음 — rightChildren / leftChildren 분리해서 배치
+    if (node === root) {
+      // 오른쪽 가지 배치
+      if (rightChildren.length > 0) {
+        const totalH = rightChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * (rightChildren.length - 1);
+        let cursor = yCenter - totalH / 2;
+        rightChildren.forEach(c => {
+          const cc = cursor + c._subH / 2;
+          place(c, node._x + node._w + H_SPACING, cc, 'right');
+          cursor += c._subH + V_SPACING;
+        });
+      }
+      // 왼쪽 가지 배치
+      if (leftChildren.length > 0) {
+        const totalH = leftChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * (leftChildren.length - 1);
+        let cursor = yCenter - totalH / 2;
+        leftChildren.forEach(c => {
+          const cc = cursor + c._subH / 2;
+          place(c, node._x - H_SPACING - c._w, cc, 'left');
+          cursor += c._subH + V_SPACING;
+        });
+      }
+      return;
+    }
+
+    // 일반 노드: 모든 자식이 자신과 같은 side로 뻗음
+    const children = node.children;
+    const totalH = children.reduce((s, c) => s + c._subH, 0) + V_SPACING * (children.length - 1);
+    let cursor = yCenter - totalH / 2;
+    children.forEach(c => {
+      const cc = cursor + c._subH / 2;
+      const childX = (side === 'left')
+        ? node._x - H_SPACING - c._w
+        : node._x + node._w + H_SPACING;
+      place(c, childX, cc, side);
       cursor += c._subH + V_SPACING;
     });
   }
-  place(root, 0, root._subH / 2);
 
+  // 루트 전체 높이는 양쪽 중 더 큰 쪽
+  const rightH = rightChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * Math.max(0, rightChildren.length - 1);
+  const leftH = leftChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * Math.max(0, leftChildren.length - 1);
+  const overallH = Math.max(root._h, rightH, leftH);
+  place(root, 0, overallH / 2, 'center');
+
+  // ── 4단계: 좌표 정규화 (음수 X 방지)
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   walk(root, n => {
     minX = Math.min(minX, n._x);
@@ -1795,13 +1877,18 @@ function buildDiagramSVG(root) {
   parts.push(`<text x="${PADDING}" y="28" font-family="${fontFamily}" font-weight="700" font-size="16" fill="#1a1d24">${title}</text>`);
   parts.push(`<text x="${PADDING}" y="44" font-family="${monoFamily}" font-size="10" fill="#4a4f5c">${subtitle}</text>`);
 
-  // 연결선 (베지어)
+  // 연결선 (베지어) — 자식의 _side에 따라 좌/우 방향 결정
   walk(root, n => {
     if (!n.children) return;
-    const fromX = n._x + n._w + PADDING;
-    const fromY = n._y + n._h / 2 + PADDING + HEADER_H;
     n.children.forEach(c => {
-      const toX = c._x + PADDING;
+      const isLeft = c._side === 'left';
+      const fromX = isLeft
+        ? n._x + PADDING
+        : n._x + n._w + PADDING;
+      const fromY = n._y + n._h / 2 + PADDING + HEADER_H;
+      const toX = isLeft
+        ? c._x + c._w + PADDING
+        : c._x + PADDING;
       const toY = c._y + c._h / 2 + PADDING + HEADER_H;
       const cx1 = fromX + (toX - fromX) * 0.5;
       const cx2 = fromX + (toX - fromX) * 0.5;
@@ -3376,10 +3463,16 @@ function App() {
                       const lines = [];
                       walk(tree, n => {
                         if (!n.children) return;
-                        const fromX = n._x + (n._w || NODE_W);
-                        const fromY = n._y + (n._h || nodeHeight(n)) / 2;
+                        const nw = n._w || NODE_W;
+                        const nh = n._h || nodeHeight(n);
                         n.children.forEach(c => {
-                          const toX = c._x;
+                          // 자식의 _side를 보고 연결점 결정
+                          // - 왼쪽 자식: 부모의 좌측면 → 자식의 우측면
+                          // - 오른쪽 자식(또는 미설정): 부모의 우측면 → 자식의 좌측면
+                          const isLeft = c._side === 'left';
+                          const fromX = isLeft ? n._x : n._x + nw;
+                          const fromY = n._y + nh / 2;
+                          const toX = isLeft ? c._x + (c._w || NODE_W) : c._x;
                           const toY = c._y + (c._h || nodeHeight(c)) / 2;
                           const cx1 = fromX + (toX - fromX) * 0.5;
                           const cx2 = fromX + (toX - fromX) * 0.5;
