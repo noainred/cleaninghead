@@ -945,7 +945,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '3.3.0';
 const APP_BUILD_DATE = '2026-05-29';
 
 /* ============================================================
@@ -1293,27 +1293,50 @@ function layoutTree(root) {
   // ── 2단계: 루트의 직계 자식을 좌/우로 분배
   // 앞에서부터 오른쪽에 쌓다가, 누적 높이가 임계치를 넘는 순간부터 왼쪽으로 보냄
   // 왼쪽도 임계치를 넘어가면 그대로 왼쪽에 계속 쌓음 (요구사항)
+  //
+  // ★ 사용자 수동 지정(pinnedSide) 우선 처리:
+  //   - pinnedSide === 'left' → 무조건 왼쪽
+  //   - pinnedSide === 'right' → 무조건 오른쪽
+  //   - 미지정(undefined) → 남은 오른쪽 공간을 자동으로 채우다가 넘치면 왼쪽
+  //   (입력 순서는 모든 경우에 보존)
   const rightChildren = [];
   const leftChildren = [];
   if (root.children) {
+    // 1) 먼저 사용자 수동 지정 자식들의 누적 높이 측정 (오른쪽에 이미 얼마 점유했는지)
     let rightAccH = 0;
+    root.children.forEach(child => {
+      if (child.pinnedSide === 'right') {
+        rightAccH += (rightAccH > 0 ? V_SPACING : 0) + child._subH;
+      }
+    });
+
+    // 2) 입력 순서대로 순회하며 분류
     let rightFull = false;
     root.children.forEach(child => {
-      const need = (rightChildren.length > 0 ? V_SPACING : 0) + child._subH;
-      if (!rightFull && rightAccH + need <= SIDE_SPLIT_HEIGHT) {
-        // 오른쪽에 넣어도 한 화면 안에 들어감
+      if (child.pinnedSide === 'right') {
+        // 무조건 오른쪽 (이미 1)에서 높이 계산됨)
         rightChildren.push(child);
-        rightAccH += need;
         child._side = 'right';
-      } else {
-        // 오른쪽이 꽉 차서 왼쪽으로
-        rightFull = true;
+      } else if (child.pinnedSide === 'left') {
+        // 무조건 왼쪽
         leftChildren.push(child);
         child._side = 'left';
+      } else {
+        // 자동 분배: 오른쪽이 차지 않았으면 오른쪽으로
+        const need = (rightChildren.length > 0 ? V_SPACING : 0) + child._subH;
+        if (!rightFull && rightAccH + need <= SIDE_SPLIT_HEIGHT) {
+          rightChildren.push(child);
+          rightAccH += need;
+          child._side = 'right';
+        } else {
+          rightFull = true;
+          leftChildren.push(child);
+          child._side = 'left';
+        }
       }
     });
   }
-  // _side는 모든 후손에게 상속
+  // _side는 모든 후손에게 상속 (손자 이하는 부모 가지 방향을 따름)
   function inheritSide(node, side) {
     node._side = side;
     (node.children || []).forEach(c => inheritSide(c, side));
@@ -2439,7 +2462,7 @@ function App() {
     const oldMap = new Map();
     function collect(node, path) {
       const key = path ? path + '|' + node.label : node.label;
-      oldMap.set(key, { color: node.color, meta: node.meta, icons: node.icons });
+      oldMap.set(key, { color: node.color, meta: node.meta, icons: node.icons, pinnedSide: node.pinnedSide });
       if (node.children) node.children.forEach(c => collect(c, key));
     }
     collect(oldTree, '');
@@ -2451,6 +2474,10 @@ function App() {
         if (old.meta) node.meta = { ...old.meta, ...node.meta };
         if (Array.isArray(old.icons) && old.icons.length > 0 && !node.icons) {
           node.icons = [...old.icons];
+        }
+        // 사용자 수동 지정 좌/우 위치 보존
+        if (old.pinnedSide && !node.pinnedSide) {
+          node.pinnedSide = old.pinnedSide;
         }
       }
       if (node.children) node.children.forEach(c => apply(c, key));
@@ -2768,6 +2795,32 @@ function App() {
     setTree(newTree);
   };
 
+  // 노드를 왼쪽/오른쪽에 수동 고정 (또는 해제)
+  // side: 'left' | 'right' | null (null이면 자동 분배로 되돌림)
+  // 루트의 직계 자식에게만 의미 있음
+  const setNodeSide = (id, side) => {
+    if (!tree) return;
+    const parent = findParent(tree, id);
+    if (parent !== tree) {
+      showToast('루트의 직계 자식만 좌/우 이동할 수 있어요');
+      return;
+    }
+    const label = side === null
+      ? '자동 분배로 되돌리기'
+      : (side === 'left' ? '왼쪽으로 이동' : '오른쪽으로 이동');
+    maybePushHistory(label);
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const node = findNode(newTree, id);
+    if (!node) return;
+    if (side === null) {
+      delete node.pinnedSide;
+    } else {
+      node.pinnedSide = side;
+    }
+    setTree(newTree);
+  };
+
   // ─────────── 드래그 앤 드롭 ───────────
   const handleDragStart = (e, id) => {
     if (id === tree.id) { e.preventDefault(); return; }
@@ -2802,6 +2855,11 @@ function App() {
     oldParent.children = oldParent.children.filter(c => c.id !== dragInfo.id);
     if (!newParent.children) newParent.children = [];
     newParent.children.push(moving);
+    // 부모가 바뀌었으면 사용자 수동 좌/우 지정은 무의미해지므로 제거
+    // (루트 자식이었던 게 다른 부모로 가거나, 다른 부모 밑에서 루트로 올라오거나 등)
+    if (oldParent !== newParent) {
+      delete moving.pinnedSide;
+    }
     setTree(newTree);
     setDragInfo(null);
     setDropTargetId(null);
@@ -3645,6 +3703,35 @@ function App() {
                   <button className="btn" style={{flex:1}} onClick={() => moveSibling(selectedNode.id, -1)}>↑ 위로</button>
                   <button className="btn" style={{flex:1}} onClick={() => moveSibling(selectedNode.id, 1)}>↓ 아래로</button>
                 </div>
+                {/* 좌/우 이동 — 루트의 직계 자식에게만 의미 있음 */}
+                {tree && findParent(tree, selectedNode.id) === tree && (
+                  <>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                      <button
+                        className="btn"
+                        style={{flex:1, ...(selectedNode.pinnedSide === 'left' ? { background: 'var(--bg-2)', borderColor: 'var(--ink)' } : {})}}
+                        onClick={() => setNodeSide(selectedNode.id, 'left')}
+                        title="이 노드를 왼쪽에 고정 (자동 분배 무시)"
+                      >← 왼쪽</button>
+                      <button
+                        className="btn"
+                        style={{flex:1, ...(selectedNode.pinnedSide === 'right' ? { background: 'var(--bg-2)', borderColor: 'var(--ink)' } : {})}}
+                        onClick={() => setNodeSide(selectedNode.id, 'right')}
+                        title="이 노드를 오른쪽에 고정 (자동 분배 무시)"
+                      >오른쪽 →</button>
+                    </div>
+                    {selectedNode.pinnedSide && (
+                      <button
+                        className="btn"
+                        style={{ width: '100%', marginBottom: 8, fontSize: 11, color: 'var(--ink-soft)' }}
+                        onClick={() => setNodeSide(selectedNode.id, null)}
+                        title="자동 분배로 되돌리기"
+                      >
+                        ↺ 자동 분배로 되돌리기
+                      </button>
+                    )}
+                  </>
+                )}
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <button className="btn" style={{flex:1}} onClick={() => addChild(selectedNode.id, { label: '', startEditing: true })}>+ 자식</button>
                   <button className="btn" style={{flex:1}} onClick={() => selectedNode.id !== tree?.id && addSibling(selectedNode.id, { label: '', startEditing: true })}>+ 형제</button>
