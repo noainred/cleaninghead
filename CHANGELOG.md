@@ -13,6 +13,64 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.7.2] - 2026-05-29
+
+### Fixed
+- **편집 중 Enter가 형제 추가까지 발동되는 버그** — 노드 라벨을 편집하고 Enter로 마무리하면 그 노드 아래에 빈 형제 노드가 함께 추가되는 문제. 한글 IME 조합 종료와 React 이벤트 시스템 + window native listener의 타이밍 충돌이 원인
+- **전역 키 핸들러에 강화된 가드 추가**:
+  - `editingId` 체크 — 노드 편집 중이면 전역 단축키 모두 비활성화 (가장 강력한 방어선)
+  - `e.isComposing` / `keyCode 229` 체크 — 한글 IME 조합 중 Enter 무시
+- **NodeView input 핸들러에도 IME 가드 추가** — 조합 중 Enter는 finish() 호출 안 함 (한글 마지막 글자 확정과 충돌 방지)
+
+### Process
+- 사용자 스크린샷에서 "오늘 만난 사람" 노드가 편집 후 형제 노드 추가됨 → 한글 IME 시나리오 발견
+- 단위 테스트 7개 시나리오로 가드 동작 검증
+- 근본 원인: React SyntheticEvent의 `stopPropagation`은 window native listener를 막지 못함. React onKeyDown이 IME로 skip되는 동안 window listener가 Enter를 정상 키로 처리해서 형제 추가가 발동된 것
+
+---
+
+## [3.7.1] - 2026-05-29
+
+### Added
+- **노드 이동 시 가지 전체 색 통일** — outdent / indent / 드래그로 노드를 다른 부모 아래로 이동하면 그 노드와 모든 자손의 색이 새 부모의 색으로 자동 통일
+- **`colorForMovedNode(newParent, treeRoot)` 헬퍼** — 새 색 결정 로직
+  - 일반 부모: 그 부모의 색을 그대로 사용
+  - 루트로 이동: 기존 루트 자식이 안 쓰는 팔레트 색 우선 (네이비는 루트 전용이라 회피)
+- **`applyColorToBranch(node, color)` 헬퍼** — 가지 전체에 같은 색 일괄 적용
+
+### Changed
+- 3개 이동 경로(outdent / indent / 드래그) 모두 동일하게 색 통일 적용 — 일관성 확보
+- `pinnedSide` / `autoSide` 제거와 함께 색 적용도 부모 변경 후처리에 통합
+
+### Process
+- 단위 테스트 5개 시나리오 통과: 일반 부모 / 가지 전체 / 루트로 이동 / 팔레트 포화 / 사용자 보고 케이스 재현
+
+---
+
+## [3.7.0] - 2026-05-29
+
+### Added
+- **Alt + ← / →** 키보드 단축키로 계층 이동 (outdent / indent)
+  - **Alt + ←** : 한 단계 바깥으로 (부모의 형제가 됨, 부모 바로 다음 위치)
+  - **Alt + →** : 한 단계 안쪽으로 (이전 형제의 자식이 됨, 마지막 자식 위치)
+  - 위/아래(순서)와 좌/우(계층)의 직관적 짝 — Word/Notion/Workflowy 등에서 익숙한 패턴
+- **`outdentNode(id)` / `indentNode(id)` 함수** — 트리 조작 + 부모 변경 + 좌/우 지정 정리 + 히스토리 기록
+
+### Changed
+- 부모가 바뀌는 모든 경로(드래그 / outdent / indent)가 동일하게 `pinnedSide`/`autoSide` 자동 제거 — 새 위치에서 다시 결정되도록
+- 우측 패널 단축키 안내에 새 단축키 추가, 기존 항목도 설명 보강
+
+### Edge Cases Handled
+- 루트는 부모가 없으므로 outdent 불가 (무시)
+- 루트의 직계 자식을 outdent하면 "더 이상 바깥으로 이동할 수 없습니다" 토스트
+- 첫째 자식은 이전 형제가 없으므로 indent 시 "이전 형제가 없어 안쪽으로 이동할 수 없습니다" 토스트
+- textarea/input 포커스 시엔 브라우저 기본 동작(단어 단위 이동) 유지 — 가드 이미 존재
+
+### Process
+- 단위 테스트 7개 시나리오 통과: 일반 outdent / 루트 자식 막힘 / indent / 첫째 막힘 / 좌/우 지정 제거 / 연속 indent로 깊이 만들기 / 연속 outdent로 위로
+
+---
+
 ## [3.6.0] - 2026-05-29
 
 ### Added

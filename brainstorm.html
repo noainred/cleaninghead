@@ -985,7 +985,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.6.0';
+const APP_VERSION = '3.7.2';
 const APP_BUILD_DATE = '2026-05-29';
 
 /* ============================================================
@@ -3087,6 +3087,95 @@ function App() {
     setTree(newTree);
   };
 
+  // 부모가 바뀐 노드에게 적용할 새 색 결정
+  // - 새 부모가 루트(네이비)면 팔레트에서 새 색 (네이비는 루트 전용이라 자식에 쓰면 안 어울림)
+  //   기존 루트 자식들과 색이 안 겹치도록 미사용 색 우선
+  // - 일반 부모면 그 부모의 색을 그대로 (같은 가지는 같은 톤으로 통일)
+  function colorForMovedNode(newParent, treeRoot) {
+    const isParentRoot = (newParent.id === treeRoot.id);
+    if (!isParentRoot) {
+      return newParent.color || 'slate';
+    }
+    // 루트 자식이 되는 경우: 기존 루트 자식들이 사용 중인 색을 피해 팔레트 순환
+    const usedColors = new Set((treeRoot.children || []).map(c => c.color).filter(Boolean));
+    for (const color of PALETTE_ORDER) {
+      if (!usedColors.has(color)) return color;
+    }
+    // 모두 사용 중이면 자식 수 기준 순환
+    return PALETTE_ORDER[(treeRoot.children || []).length % PALETTE_ORDER.length];
+  }
+
+  // 노드와 모든 자손에게 같은 색 적용 (가지 전체 통일)
+  function applyColorToBranch(node, color) {
+    walk(node, n => { n.color = color; });
+  }
+
+  // outdent: 노드를 한 단계 위 계층으로 이동 (자기 부모의 형제가 됨)
+  // - 루트는 부모 없음 → 무시
+  // - 루트의 직계 자식은 outdent하면 루트의 형제가 되어야 하는데 루트는 형제 없음 → 토스트로 안내
+  // - 부모가 바뀌므로 pinnedSide/autoSide 제거 (드래그와 같은 처리)
+  // - 가지 전체 색을 새 부모 색으로 통일
+  const outdentNode = (id) => {
+    if (!tree || tree.id === id) return;
+    const newTree = cloneTree(tree);
+    const parent = findParent(newTree, id);
+    if (!parent) return;
+    // 부모가 루트면 outdent 불가 (루트의 형제 = 트리 밖)
+    if (parent.id === newTree.id) {
+      showToast('더 이상 바깥으로 이동할 수 없습니다');
+      return;
+    }
+    const grandparent = findParent(newTree, parent.id);
+    if (!grandparent) return; // 안전망
+
+    maybePushHistory('계층 이동 (바깥쪽)');
+    syncSourceRef.current = 'tree';
+
+    // 자기를 부모 자식 배열에서 제거하고, 조부모의 자식 배열에서 부모 다음에 삽입
+    const node = parent.children.find(c => c.id === id);
+    parent.children = parent.children.filter(c => c.id !== id);
+    const parentIdx = grandparent.children.findIndex(c => c.id === parent.id);
+    grandparent.children.splice(parentIdx + 1, 0, node);
+    // 부모가 바뀌었으므로 사용자/자동 좌-우 지정은 무의미
+    delete node.pinnedSide;
+    delete node.autoSide;
+    // 가지 전체 색을 새 부모 톤으로 통일 (루트 자식이 되는 경우는 팔레트 순환)
+    const newColor = colorForMovedNode(grandparent, newTree);
+    applyColorToBranch(node, newColor);
+    setTree(newTree);
+  };
+
+  // indent: 노드를 한 단계 아래 계층으로 이동 (이전 형제의 자식이 됨)
+  // - 이전 형제가 없으면(첫째 자식) 무시
+  // - 부모가 바뀌므로 pinnedSide/autoSide 제거
+  const indentNode = (id) => {
+    if (!tree || tree.id === id) return;
+    const newTree = cloneTree(tree);
+    const parent = findParent(newTree, id);
+    if (!parent) return;
+    const idx = parent.children.findIndex(c => c.id === id);
+    if (idx <= 0) {
+      showToast('이전 형제가 없어 안쪽으로 이동할 수 없습니다');
+      return;
+    }
+    const prevSibling = parent.children[idx - 1];
+
+    maybePushHistory('계층 이동 (안쪽)');
+    syncSourceRef.current = 'tree';
+
+    const node = parent.children[idx];
+    parent.children.splice(idx, 1); // 자기 제거
+    if (!Array.isArray(prevSibling.children)) prevSibling.children = [];
+    prevSibling.children.push(node); // 이전 형제의 마지막 자식으로
+    // 부모가 바뀌었으므로 좌-우 지정 제거
+    delete node.pinnedSide;
+    delete node.autoSide;
+    // 가지 전체 색을 새 부모 톤으로 통일
+    const newColor = colorForMovedNode(prevSibling, newTree);
+    applyColorToBranch(node, newColor);
+    setTree(newTree);
+  };
+
   // 노드 아이콘 토글 (카테고리당 1개만 유지)
   // - 이미 선택된 아이콘을 다시 클릭하면 제거 (토글 해제)
   // - 같은 카테고리의 다른 아이콘을 클릭하면 교체
@@ -3178,11 +3267,13 @@ function App() {
     oldParent.children = oldParent.children.filter(c => c.id !== dragInfo.id);
     if (!newParent.children) newParent.children = [];
     newParent.children.push(moving);
-    // 부모가 바뀌었으면 좌/우 지정 데이터는 무의미해지므로 제거
-    // (루트 자식이었던 게 다른 부모로 가거나, 다른 부모 밑에서 루트로 올라오거나 등)
+    // 부모가 바뀌었으면 좌/우 지정 데이터는 무의미해지므로 제거 + 색도 새 부모 톤으로
     if (oldParent !== newParent) {
       delete moving.pinnedSide;
       delete moving.autoSide;
+      // 가지 전체 색을 새 부모 톤으로 통일
+      const newColor = colorForMovedNode(newParent, newTree);
+      applyColorToBranch(moving, newColor);
     }
     setTree(newTree);
     setDragInfo(null);
@@ -3410,6 +3501,10 @@ function App() {
       const mod = isMac ? e.metaKey : e.ctrlKey;
       const inTextarea = e.target.tagName === 'TEXTAREA';
       const inInput = e.target.tagName === 'INPUT';
+      // 한글 IME 조합 중에는 어떤 단축키도 발동하지 않음 (Enter가 조합 종료용으로 쓰이는 케이스 방어)
+      // - keyCode 229: 일부 브라우저에서 조합 중 키 이벤트의 표시
+      // - isComposing: 표준 속성
+      const isComposing = e.isComposing || e.keyCode === 229;
 
       // ─── Undo / Redo (어디서든 동작, textarea 제외)
       // textarea는 브라우저 기본 undo를 사용 (텍스트 자체 되돌리기)
@@ -3432,7 +3527,10 @@ function App() {
       }
 
       // 입력 중이면 스킵 (Tab/Enter는 인라인 입력 처리에서 다룸)
-      if (inInput || inTextarea) return;
+      // - 모든 input/textarea
+      // - 노드 편집 중(editingId가 있음) — input 포커스 타이밍 이슈 방어
+      // - IME 조합 중
+      if (inInput || inTextarea || editingId || isComposing) return;
 
       // 화살표 키는 선택 노드가 없어도 동작 (루트부터 시작)
       // - Alt+화살표는 순서 이동이므로 selectedId 필요
@@ -3470,6 +3568,14 @@ function App() {
         e.preventDefault(); moveSibling(selectedId, -1);
       } else if (e.key === 'ArrowDown' && e.altKey) {
         e.preventDefault(); moveSibling(selectedId, 1);
+      } else if (e.key === 'ArrowLeft' && e.altKey) {
+        // Alt + ← : outdent (한 단계 위 계층으로)
+        e.preventDefault();
+        if (selectedId !== tree.id) outdentNode(selectedId);
+      } else if (e.key === 'ArrowRight' && e.altKey) {
+        // Alt + → : indent (이전 형제의 자식으로)
+        e.preventDefault();
+        if (selectedId !== tree.id) indentNode(selectedId);
       } else if (e.key === 'Escape') {
         setSelectedId(null);
         setEditingId(null);
@@ -4120,7 +4226,9 @@ function App() {
                   <div><b>← → ↑ ↓</b> — 노드 사이 이동</div>
                   <div><b>F2</b> — 라벨 편집</div>
                   <div><b>Delete</b> — 삭제</div>
-                  <div><b>Alt + ↑↓</b> — 순서 이동</div>
+                  <div><b>Alt + ↑↓</b> — 순서 이동 (위/아래 형제와 교환)</div>
+                  <div><b>Alt + ←</b> — 한 단계 바깥으로 (부모의 형제로)</div>
+                  <div><b>Alt + →</b> — 한 단계 안쪽으로 (이전 형제의 자식으로)</div>
                   <div><b>Ctrl/⌘ + Z</b> — 실행 취소</div>
                   <div><b>Ctrl/⌘ + Shift + Z</b> — 다시 실행</div>
                   <div><b>Ctrl + 휠</b> — 확대 / 축소</div>
@@ -4645,6 +4753,13 @@ function NodeView({
 
   const handleKeyDown = (e) => {
     e.stopPropagation();
+    // 한글 IME 조합 중 Enter는 조합 종료용. 편집 종료로 처리하면 사용자가 두 번 Enter를 쳐야 함.
+    // 보통은 한 번 Enter로 조합 종료 + 편집 종료가 되어야 자연스러우니, 조합 중 Enter는 무시하고
+    // 다음 Enter(또는 keyup)에서 finish 시키도록 한다.
+    if (e.isComposing || e.keyCode === 229) {
+      // IME 조합 중 — 기본 동작(조합 종료)에 맡기고 우리는 아무것도 하지 않음
+      return;
+    }
     if (e.key === 'Enter') {
       e.preventDefault();
       finish();
