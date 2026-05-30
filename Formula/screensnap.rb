@@ -13,7 +13,8 @@ class Screensnap < Formula
   # end
 
   depends_on :macos
-  depends_on xcode: :build
+  # Swift Package Manager(swift build)는 Command Line Tools 만으로 빌드 가능하므로
+  # 전체 Xcode.app 을 요구하지 않는다. (depends_on xcode 는 의도적으로 사용하지 않음)
 
   def install
     cd "ScreenSnap" do

@@ -62,8 +62,8 @@ ScreenSnap 은 다음을 단계적으로 확인해 최대한 검출합니다.
 # tap 추가 (저장소 이름이 homebrew- 접두사가 아니므로 URL 명시)
 brew tap noainred/cleaninghead https://github.com/noainred/cleaninghead
 
-# 설치 (main 브랜치 소스에서 빌드)
-brew install screensnap
+# 설치 (main 브랜치 소스에서 빌드) — HEAD-only formula 이므로 --HEAD 필요
+brew install --HEAD screensnap
 
 # 업그레이드 (최신 소스로 다시 빌드)
 brew upgrade --fetch-HEAD screensnap
@@ -75,9 +75,10 @@ brew upgrade --fetch-HEAD screensnap
 screensnap &
 ```
 
-> 빌드에는 Xcode(또는 Command Line Tools)가 필요합니다. 처음 캡처 시 **시스템 설정 →
-> 개인정보 보호 및 보안 → 화면 기록** 에서 권한을 허용하세요.
-> 정식 릴리스 태그가 생기면 `--fetch-HEAD` 없이 `brew upgrade screensnap` 으로 버전 업그레이드가 됩니다.
+> 빌드에는 **Command Line Tools** 만 있으면 됩니다 (`xcode-select --install`). 전체
+> Xcode.app 은 필요 없습니다. 처음 캡처 시 **시스템 설정 → 개인정보 보호 및 보안 →
+> 화면 기록** 에서 권한을 허용하세요.
+> 정식 릴리스 태그가 생기면 `--HEAD`/`--fetch-HEAD` 없이 일반 `brew install/upgrade screensnap` 으로 버전 설치·업그레이드가 됩니다.
 
 ### 방법 2: 소스에서 직접 빌드
 
