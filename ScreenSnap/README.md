@@ -54,16 +54,17 @@ ScreenSnap 은 다음을 단계적으로 확인해 최대한 검출합니다.
 
 ## 🚀 설치 & 실행
 
-### 방법 0: 빌드 없이 받기 — 단독 실행 앱 (권장)
+### 방법 0: DMG 로 설치 — 드래그 한 번 (권장)
 
-직접 컴파일하거나 Homebrew/Xcode 를 설치할 필요 없이, macOS CI 가 빌드해 둔 완성된
-`ScreenSnap.app` 을 내려받아 더블클릭만 하면 됩니다.
+직접 컴파일하거나 Homebrew/Xcode 를 설치할 필요 없이, macOS CI 가 빌드해 둔
+`ScreenSnap.dmg` 를 내려받아 **앱을 Applications 폴더로 드래그**하면 끝입니다.
 
 1. GitHub 저장소 **Actions** 탭 → `ScreenSnap Build` 최근 실행 열기
-2. 하단 **Artifacts** 에서 `ScreenSnap-app` 다운로드 → 압축 해제
-3. `ScreenSnap.app` 을 `응용 프로그램` 폴더로 이동 후 더블클릭
+2. 하단 **Artifacts** 에서 **`ScreenSnap-dmg`** 다운로드 → 압축 해제 → `ScreenSnap.dmg`
+3. `ScreenSnap.dmg` 더블클릭 → 열린 창에서 **ScreenSnap 아이콘을 Applications 폴더로 드래그**
 
-> 정식 릴리스가 있으면 **Releases** 탭에서 `ScreenSnap.app.zip` 을 바로 받을 수 있습니다.
+> 정식 릴리스가 있으면 **Releases** 탭에서 `ScreenSnap.dmg` 를 바로 받을 수 있습니다.
+> `.app` 자체만 원하면 `ScreenSnap-app` 아티팩트(zip)도 제공됩니다.
 
 **처음 실행 시 (서명 없는 앱이므로 Gatekeeper 차단)**
 
@@ -115,6 +116,12 @@ open ScreenSnap.app # 실행
 
 ```bash
 ./build.sh --run
+```
+
+드래그 설치용 DMG 를 직접 만들려면 (`brew install create-dmg` 필요):
+
+```bash
+./make_dmg.sh      # ScreenSnap.dmg 생성
 ```
 
 ### 요구사항

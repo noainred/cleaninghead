@@ -30,6 +30,12 @@ jobs:
       - name: Build standalone .app (+ zip)
         run: ./build.sh
 
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build drag-to-install DMG
+        run: ./make_dmg.sh
+
       - name: Upload ScreenSnap.app artifact
         uses: actions/upload-artifact@v4
         with:
@@ -37,9 +43,18 @@ jobs:
           path: ScreenSnap/ScreenSnap.app.zip
           if-no-files-found: error
 
+      - name: Upload ScreenSnap.dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenSnap-dmg
+          path: ScreenSnap/ScreenSnap.dmg
+          if-no-files-found: error
+
       - name: Publish release (on version tag)
         if: startsWith(github.ref, 'refs/tags/screensnap-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ScreenSnap/ScreenSnap.app.zip
+          files: |
+            ScreenSnap/ScreenSnap.dmg
+            ScreenSnap/ScreenSnap.app.zip
           generate_release_notes: true
