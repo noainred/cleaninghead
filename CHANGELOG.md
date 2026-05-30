@@ -13,6 +13,28 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.12.0] - 2026-05-30
+
+### Added
+- **좌측 텍스트 패널 표시/숨김 옵션** — 설정 → 화면 표시에서 좌측(텍스트 입력) 패널도 우측 패널처럼 켜고 끌 수 있음
+  - `settings.showLeftPanel` (기본 true)
+  - 좌·우 패널 4가지 조합 모두 지원 (둘 다 표시 / 좌측만 / 우측만 / 둘 다 숨김), 캔버스가 빈 공간만큼 자동 확장
+
+### Changed
+- **설정 메뉴 순서 재정렬** — 자주 쓰는 항목을 위로: 화면 표시 → 타이머 → 저장 옵션 → 구글 캘린더 → AI 요약 → 시작 시 동작 → 오늘의 격언 → 새 노드 단어
+- 화면 표시 섹션 설명을 좌·우 패널 모두 설명하도록 갱신
+
+### Technical Notes
+- `.layout.no-left-panel`, `.layout.no-left-panel.no-right-panel` CSS 조합 추가 (grid-template-columns 4가지)
+- 좌측 패널 숨김 시 textarea가 사라져도 `textInputRef` 사용처 모두 null 가드가 있어 안전, 텍스트↔트리 동기화는 state(inputText) 기반이라 영향 없음
+- 옛 설정에 `showLeftPanel` 없으면 true로 폴백
+
+### Process
+- 단위 테스트: layout 클래스 4조합 + 기본값(undefined) = 5/5 통과
+- CSS grid 정의와 클래스 로직 일치 확인, textInputRef null 가드 4곳 확인
+
+---
+
 ## [3.11.0] - 2026-05-30
 
 ### Added
