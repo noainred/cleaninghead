@@ -3,6 +3,7 @@ name: ScreenSnap Build
 on:
   push:
     branches: [main]
+    tags: ['screensnap-v*']
     paths:
       - 'ScreenSnap/**'
       - '.github/workflows/screensnap.yml'
@@ -10,6 +11,7 @@ on:
     paths:
       - 'ScreenSnap/**'
       - '.github/workflows/screensnap.yml'
+  workflow_dispatch:   # 수동 실행 → 아티팩트 받기
 
 jobs:
   build:
@@ -25,11 +27,19 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
-      - name: Build (debug)
-        run: swift build
-
-      - name: Build (release)
-        run: swift build -c release
-
-      - name: Assemble .app bundle
+      - name: Build standalone .app (+ zip)
         run: ./build.sh
+
+      - name: Upload ScreenSnap.app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenSnap-app
+          path: ScreenSnap/ScreenSnap.app.zip
+          if-no-files-found: error
+
+      - name: Publish release (on version tag)
+        if: startsWith(github.ref, 'refs/tags/screensnap-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ScreenSnap/ScreenSnap.app.zip
+          generate_release_notes: true

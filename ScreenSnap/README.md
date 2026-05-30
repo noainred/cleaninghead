@@ -52,7 +52,30 @@ ScreenSnap 은 다음을 단계적으로 확인해 최대한 검출합니다.
 > 4단계는 OS 가 거부하는 경우만 잡아냅니다. 일부 앱은 다른 메커니즘으로 단축키를
 > 잡으므로 100% 검출은 기술적으로 불가능합니다. 이 한계는 의도된 것입니다.
 
-## 🚀 빌드 & 실행
+## 🚀 설치 & 실행
+
+### 방법 0: 빌드 없이 받기 — 단독 실행 앱 (권장)
+
+직접 컴파일하거나 Homebrew/Xcode 를 설치할 필요 없이, macOS CI 가 빌드해 둔 완성된
+`ScreenSnap.app` 을 내려받아 더블클릭만 하면 됩니다.
+
+1. GitHub 저장소 **Actions** 탭 → `ScreenSnap Build` 최근 실행 열기
+2. 하단 **Artifacts** 에서 `ScreenSnap-app` 다운로드 → 압축 해제
+3. `ScreenSnap.app` 을 `응용 프로그램` 폴더로 이동 후 더블클릭
+
+> 정식 릴리스가 있으면 **Releases** 탭에서 `ScreenSnap.app.zip` 을 바로 받을 수 있습니다.
+
+**처음 실행 시 (서명 없는 앱이므로 Gatekeeper 차단)**
+
+다운로드한 앱은 격리(quarantine) 속성이 붙어 “확인되지 않은 개발자” 경고가 뜹니다.
+다음 중 하나로 엽니다.
+
+- **우클릭 → 열기 → 열기** (한 번만 하면 이후엔 더블클릭으로 실행)
+- 또는 터미널에서 격리 속성 제거:
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/ScreenSnap.app
+  open /Applications/ScreenSnap.app
+  ```
 
 ### 방법 1: Homebrew (설치 / 업그레이드)
 
