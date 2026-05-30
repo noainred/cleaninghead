@@ -13,6 +13,32 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.13.1] - 2026-05-30
+
+### Changed
+- 변경 내용 화면 맨 아래 "GitHub에서 전체 보기" 링크를 실제 저장소 주소(`https://github.com/noainred/cleaninghead/blob/main/CHANGELOG.md`)로 연결
+
+---
+
+## [3.13.0] - 2026-05-30
+
+### Added
+- **설정 화면에 "변경 내용" 버튼 추가** — 설정 모달 헤더 우측의 🆕 버튼을 누르면 같은 모달 안에서 변경 이력 화면으로 전환, 최근 업데이트 내역을 앱 안에서 바로 확인 가능
+  - 최근 2개 버전의 변경 내용을 앱에 내장 (`RECENT_CHANGES` 배열)
+  - 그 이전 버전은 화면 맨 아래 GitHub 전체 이력 링크(`CHANGELOG_URL`)로 안내
+  - 현재 실행 중인 버전에는 "현재 버전" 뱃지 표시
+  - 변경 이력 화면에서 ← 버튼으로 설정으로 복귀
+
+### Technical Notes
+- 별도 모달 중첩 대신 SettingsModal 안에서 `showChangelog` state로 화면 전환 (설정 ↔ 변경 이력)
+- `RECENT_CHANGES`는 버전별 `{ version, date, groups: [{ label, items[] }] }` 구조
+- 새 버전 릴리스 시: 배열 맨 앞에 새 항목 추가 + 가장 오래된 항목 1개 제거(2개 유지), `CHANGELOG_URL`은 배포 주소로 교체 필요
+
+### Process
+- 단위 테스트: 데이터 구조 정합성(version/date/groups/items 누락 검사), 맨 앞=현재 버전 일치, "현재 버전" 뱃지 정확히 1개
+
+---
+
 ## [3.12.1] - 2026-05-30
 
 ### Changed
