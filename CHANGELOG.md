@@ -13,6 +13,65 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.19.0] - 2026-05-31
+
+### Added
+- **미니멀 상단바 토글** — 설정 → 화면 표시에 추가. 켜면 헤더에서 로고·버전·타이머·새로 시작·Undo·Redo와 헤더 아래 경계선까지 모두 숨기고, 캘린더·AI·설정 세 버튼만 우측에 남김 (`settings.minimalHeader`, 기본 꺼짐)
+  - v3.18.0의 "상단 메뉴 버튼 표시" 토글과 독립적으로 동작 (미니멀 상단바가 더 포괄적)
+  - Undo·Redo는 단축키로 계속 동작. 타이머 칩도 숨겨지므로 타이머를 쓰려면 이 옵션을 꺼야 함
+
+### Technical Notes
+- `.header.minimal`: `border-bottom: none` + `justify-content: flex-end`로 경계선 제거·우측 정렬
+- brand 영역과 저장 버튼 블록을 `minimalHeader !== true` 조건으로 렌더, 툴바 버튼 조건에도 반영
+- 캘린더·AI와 설정 사이 구분선은 유지 (설정 버튼 시각적 분리)
+- `minimalHeader` 누락 시 false 폴백
+
+---
+
+## [3.18.0] - 2026-05-31
+
+### Added
+- **상단 메뉴 버튼 표시 토글** — 설정 → 화면 표시에서 헤더의 "새로 시작 · Undo · Redo" 버튼을 한 번에 숨기거나 표시. 끄면 캘린더·AI·설정 버튼만 남음 (`settings.showToolbarButtons`, 기본 표시)
+  - Undo·Redo는 헤더에서 숨겨도 단축키(Ctrl+Z / Ctrl+Shift+Z)로 계속 동작
+
+### Technical Notes
+- 세 버튼과 그 사이 구분선을 Fragment로 묶어 조건부 렌더
+- 저장 버튼(이미 별도 설정으로 제어)과 캘린더·AI·설정은 토글 대상에서 제외
+- `showToolbarButtons` 누락 시 true 폴백
+
+---
+
+## [3.17.0] - 2026-05-31
+
+### Changed
+- **줌 컨트롤 자동 숨김** — 캔버스 줌 툴바(− 100% + ⊙)를 평소엔 숨기고, 줌이 변할 때만 2.5초간 표시 후 페이드아웃. 툴바에 마우스를 올린 동안에는 숨김을 보류
+  - 최초 마운트(100%) 시에는 표시되지 않음 (첫 렌더 건너뛰기 가드)
+
+### Added
+- **캔버스 안내 힌트 표시 토글** — 설정 → 화면 표시에 "캔버스 안내 힌트(Ctrl+휠 · 드래그)" 켜고 끄기 추가 (`settings.showCanvasHint`, 기본 표시)
+
+### Technical Notes
+- `.canvas-toolbar`에 opacity/visibility 트랜지션, `.visible` 클래스로 표시 제어, `pointer-events`도 함께 토글
+- 줌 변화 감지 effect + 호버 보류 ref로 자동 숨김 타이밍 관리
+- `showCanvasHint` 누락 시 true 폴백
+
+---
+
+## [3.16.6] - 2026-05-31
+
+### Changed
+- **헤더 브랜드 영역 수평 배치로 롤백** — 3.16.5의 세로 배치를 되돌려, 로고와 버전 태그가 다시 가로로 나란히 표시됨 (`.brand-stack` 제거, `.brand` align-items baseline 복원)
+
+---
+
+## [3.16.5] - 2026-05-31
+
+### Changed
+- **헤더 브랜드 영역 세로 배치** — 로고(BrainBloom)와 버전 태그를 가로 나열에서 세로 스택으로 변경. 버전 태그는 로고 폭 안에서 가운데 정렬, 타이머 칩과는 세로 중앙으로 정렬
+  - `.brand-stack` 추가, `.brand`의 `align-items`를 baseline→center로 조정
+
+---
+
 ## [3.16.4] - 2026-05-31
 
 ### Changed
