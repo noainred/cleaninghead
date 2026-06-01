@@ -13,6 +13,39 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.24.0] - 2026-06-01
+
+### Added
+- **설정 → 노드 폰트 섹션** — 마인드맵 노드 라벨의 글씨체를 선택
+  - 프리셋: 시스템 기본 / 기본 스타일(Fraunces) / 맑은 고딕 / 나눔고딕 / 굴림 / 바탕
+  - **직접 입력**: 임의 폰트명 입력 가능 (컴퓨터에 설치된 경우 적용, 없으면 폴백)
+  - 버튼 자체가 해당 폰트로 렌더되어 선택 전 미리보기, 하단에 별도 샘플 미리보기 제공
+  - 기본값을 **시스템 폰트 스택**으로 변경 (OS 기본 한글/영문 폰트 = 일반적인 앱 화면 느낌)
+
+### Technical Notes
+- `--node-font` CSS 변수 도입, `.node-label`·`.node-input`이 이를 참조 → 설정 변경 시 effect로 변수 갱신
+- `NODE_FONT_OPTIONS` 상수 + `resolveNodeFont(id, custom)` 헬퍼 (custom은 따옴표 제거 후 폴백 체인 구성)
+- `nodeFont`/`nodeFontCustom` 설정에 누락 방어(기본 'system'/'')
+- 웹 보안상 설치 폰트 목록을 직접 열거할 수 없어, 프리셋 + 직접 입력 방식 채택 (Local Font Access API 미사용)
+- 단위 테스트 7종 통과: 프리셋 해석 / custom 입력·빈값·따옴표제거 / 알 수 없는 id 폴백
+
+---
+
+## [3.23.0] - 2026-06-01
+
+### Added
+- **Shift+Enter로 위에 형제 추가** — 선택 노드에서 그냥 Enter는 아래(다음 형제), Shift+Enter는 위(이전 형제)에 새 노드 생성. `addSibling`에 `before` 옵션 추가(`splice(idx, 0)` vs `splice(idx+1, 0)`)
+- **새 노드 자동 스크롤** — `addChild`/`addSibling` 후 `scrollNodeIntoView(newId)` 호출(레이아웃 계산 후 60ms). 가지를 화면 밖으로 확장해도 입력 중인 노드가 보이도록 유지
+
+### Changed
+- **노드 라벨 줄바꿈 보존** — 붙여넣은 텍스트의 `\n`이 노드 안에서 그대로 표시되도록 `.node-label`에 `white-space: pre-wrap` 적용. line-clamp 줄 수 제한과 공존(줄바꿈 포함해 설정 줄 수까지 표시 후 ...)
+
+### Technical Notes
+- 편집 모드의 Enter는 기존대로 "입력 확정"이므로 Shift 분기 불필요(편집 중에는 형제 추가 안 함)
+- 단위 검증: before 삽입 위치(위/아래) 2종 통과
+
+---
+
 ## [3.22.0] - 2026-06-01
 
 ### Added
