@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.25.1] - 2026-06-01
+
+### Fixed
+- **타이머 정중앙 정렬** — 3.25.0에서 타이머를 `flex:1` 존에 두어 우측 메뉴(actions) 폭만큼 왼쪽으로 치우치던 문제 수정
+  - `.timer-zone`을 `position:absolute; left:50%; transform:translateX(-50%)`로 헤더(=화면) 정중앙에 고정 → 좌우 요소 폭과 무관하게 항상 가운데
+  - `pointer-events` 처리로 빈 영역이 헤더 클릭을 막지 않게(칩 자체만 클릭 가능)
+  - timer-zone이 flex 흐름에서 빠지므로 `.header.minimal`에 `justify-content:flex-end` 복원(actions 우측 유지)
+
+---
+
 ## [3.25.0] - 2026-06-01
 
 ### Changed
