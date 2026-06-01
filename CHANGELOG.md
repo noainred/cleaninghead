@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.29.1] - 2026-06-01
+
+### Fixed
+- **설정 화면을 열면 앱 전체가 흰 화면으로 죽던 문제 수정** — 3.29.0에서 드라이브 섹션을 별도 컴포넌트 `SettingsModal` 안에 넣으면서, 필요한 상태/핸들러(`driveSignedIn`, `driveBusy`, `driveStatus`, `handleDrive*`)를 props로 전달하지 않아 `driveSignedIn is not defined` ReferenceError 발생 → 설정 렌더 시 React 트리 전체 throw
+  - App→SettingsModal에 props 전달, SettingsModal 시그니처에서 수신, 섹션 JSX의 핸들러명을 `onDrive*`로 정리
+  - react-dom 서버 렌더로 로그인/로그아웃 양쪽 상태 렌더 검증
+
+### Root Cause Note
+- 설정 모달은 메인 App과 분리된 컴포넌트(`SettingsModal({ settings, onSettingsChange, onClose })`). 메인 컴포넌트의 상태를 모달에서 쓰려면 반드시 props 전달 필요 — 이후 모달에 기능 추가 시 동일 주의
+
+---
+
 ## [3.29.0] - 2026-06-01
 
 ### Added
