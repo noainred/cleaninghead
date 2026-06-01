@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.26.0] - 2026-06-01
+
+### Added
+- **Undo · Redo 버튼 표시 토글** — 설정 → 화면 표시에 추가. 끄면 상단바에서 Undo·Redo 버튼(과 앞 구분선)만 숨김. "새로 시작" 버튼·로고·타이머는 그대로 유지 (`settings.showUndoRedo`, 기본 켜짐)
+  - 미니멀 상단바(`minimalHeader`)와 독립적으로 동작 — Undo·Redo만 콕 집어 숨기고 싶을 때 사용
+  - 버튼을 숨겨도 단축키(Ctrl+Z / Ctrl+Shift+Z)는 계속 동작
+
+### Technical Notes
+- Undo·Redo 버튼과 앞 구분선을 `settings.showUndoRedo !== false` 조건의 Fragment로 감쌈
+- `showUndoRedo` 누락 시 true로 정규화
+
+---
+
 ## [3.25.1] - 2026-06-01
 
 ### Fixed
