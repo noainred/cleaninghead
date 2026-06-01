@@ -13,6 +13,40 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.28.5] - 2026-06-01
+
+### Fixed
+- **접기/펼치기 후 루트 가로 치우침 최종 수정** — 3.28.4(좌표 재구성 방식)에서 세로는 맞았으나 가로가 왼쪽으로 치우치던 문제
+  - 노드 div에 `data-node-id` 추가, `centerNode`가 `el.querySelector([data-node-id])`로 **노드 DOM의 실제 rect를 직접 측정**
+  - 줌(scale)·flex 중앙정렬·레이아웃이 모두 반영된 최종 화면 좌표를 사용 → 좌표 재구성(`_x*zoom + wrapper offset`) 불필요, 오차 원천 제거
+  - `behavior: 'auto'`(즉시)로 변경 — 펼치기→접기 연속 호출 시 smooth 스크롤 진행 중 측정하던 오차 방지
+
+### Technical Notes
+- 좌표 재구성 방식의 누적 실패(3.28.2~.4) 끝에, 브라우저가 렌더한 실제 위치를 신뢰하는 DOM 측정 방식으로 전환
+
+---
+
+## [3.28.4] - 2026-06-01
+
+### Fixed
+- **접기/펼치기 후 루트가 좌상단에 치우치던 문제 재수정** — 3.28.3에서 타이밍은 잡았으나 좌표 계산(`offsetLeft + _x*zoom`)이 줌·flex 정렬에서 오차를 내 루트가 화면 왼쪽 위에 위치
+  - `centerNode`를 `getBoundingClientRect` 기반으로 재작성: 맵 래퍼의 실제 화면 좌표 + `_x*zoom`(scale transformOrigin 0,0)으로 노드 화면 중심을 구하고, 뷰포트 중심과의 차이만큼 스크롤
+  - 브라우저가 실제 렌더한 위치를 측정하므로 줌 배율·중앙정렬 오프셋과 무관하게 정확
+
+### Technical Notes
+- 단위 검증: 스크롤 적용 후 노드 중심이 뷰포트 중심과 일치함을 좌표 계산으로 확인
+
+---
+
+## [3.28.3] - 2026-06-01
+
+### Fixed
+- **접기 후 루트가 좌상단으로 가던 문제 수정** — 3.28.2의 `setTimeout(80ms)` 방식이 갱신 전 좌표를 잡아, 접은 뒤 루트가 중앙이 아닌 좌측 상단에 위치하던 문제
+  - `pendingCenterRef` + `useLayoutEffect([tree])` + 이중 `requestAnimationFrame`으로 변경: tree 갱신 → `layoutTree`가 `_x`/`_y` 재계산(useMemo) → 레이아웃 effect에서 페인트 후 `centerNode` 실행
+  - 클로저가 옛 tree/좌표를 잡는 문제 제거(effect는 최신 tree를 참조), DOM 측정(`wrapper.offsetLeft`)도 페인트 후라 정확
+
+---
+
 ## [3.28.2] - 2026-06-01
 
 ### Improved
