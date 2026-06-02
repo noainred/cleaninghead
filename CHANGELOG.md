@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.33.2] - 2026-06-01
+
+### Fixed (자동저장 데이터 안전 — 코드 리뷰 후속)
+- **중복 실행 방어** — `isSavingRef` 플래그 추가. 자동저장이 간격(예: 1분) 안에 끝나지 않아도 다음 tick이 겹쳐 실행되지 않음. 수동 "지금 저장"도 진행 중이면 차단 → 자동·수동이 동시에 같은 파일을 건드려 중복 파일/잘못된 삭제가 나는 위험 제거
+- **취소 시 안전 중단** — `runVersionedSave(treeArg, prefixArg, shouldCancel)`로 취소 신호 전달. 자동저장 effect cleanup(끄기/로그아웃)이 일어나면 각 단계(목록→rename→delete→저장 직전) 전에 확인하여 중단. 단 저장이 이미 시작된 뒤에는 정리까지 마쳐 파일 상태 일관성 유지
+
+### Technical Notes
+- 새 ref: `isSavingRef`(수동·자동 공유). tick과 handleDriveSave 양쪽에서 진입 시 확인/설정, finally에서 해제
+- shouldCancel은 선택적 인자(`typeof === 'function'` 가드) — 수동 저장은 미전달로 취소 없이 동작
+- 검증: 중복방어(동시 3회 호출 → 1회만 실행, 2회 SKIP) + 취소(신호 시 미저장) 시뮬레이션 통과
+
+---
+
 ## [3.33.1] - 2026-06-01
 
 ### Changed
