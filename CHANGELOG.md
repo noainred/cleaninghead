@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.32.0] - 2026-06-01
+
+### Added
+- **자동저장 끊김 경고 (헤더 설정 글자 빨강)** — "동기화되는 줄 알았는데 멈춰 있었다" 방지
+  - 위험상태 = `settings.driveAutoSave && driveAutoFailed`(자동저장 켜짐 + 마지막 시도 실패)일 때만 헤더 "설정" 글자가 빨강(#e5484d)
+  - 위험상태에서 설정 클릭 → `scrollToDriveOnOpen` 신호 → SettingsModal에서 드라이브 섹션으로 `scrollIntoView` + 빨간 경고 배너 표시
+  - `driveAutoFailed`: 자동저장 성공 시 false, 실패 시 true. 재연결 성공/자동저장 끄기 시 false로 해제
+  - 정상/꺼짐/연결안됨 상태에서는 평소대로(빨강 없음)
+
+### Technical Notes
+- 새 상태: `driveAutoFailed`, `scrollToDriveOnOpen`
+- SettingsModal에 `scrollToDrive`/`onScrollToDriveDone` props + `driveSectionRef` + 스크롤 useEffect 추가
+- 상태 조합별 빨강/스크롤 조건 로직 검증 완료
+
+---
+
 ## [3.31.0] - 2026-06-01
 
 ### Added
