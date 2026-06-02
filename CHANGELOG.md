@@ -9,7 +9,36 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (드라이브 연동 2단계 — 자동 동기화, 충돌 처리 — 예정)
+향후 추가 예정인 기능이 여기에 기록됩니다. (드라이브 연동 — 자동 동기화, 파일 삭제 UI 등 예정)
+
+---
+
+## [3.30.1] - 2026-06-01
+
+### Changed
+- **설정 "구글 드라이브 연동" 섹션을 맨 아래로 이동** — 저장 옵션 다음 → 새 단어 다음(개발자 연락처 카드 바로 위)
+  - 섹션 순서: 화면표시 → 노드길이 → 노드폰트 → 타이머 → 저장옵션 → 구글캘린더 → AI요약 → 시작동작 → 격언 → 새단어 → 구글드라이브연동 → 개발자연락처
+  - JSX 블록만 이동(기능·핸들러·props 변동 없음)
+
+---
+
+## [3.30.0] - 2026-06-01
+
+### Added
+- **드라이브 저장: 날짜별 파일 + 앱 폴더 + 파일명 지정** — "회사↔집 + 백업" 용도에 맞게 개편
+  - 앱 전용 폴더 `BrainBloom` 자동 생성(`driveGetOrCreateFolder`), 그 안에 저장
+  - 저장 파일 이름 입력칸(설정), 기본값 오늘 날짜(`YYYY-MM-DD`), 사용자 수정 가능(`driveFileName` 상태)
+  - 저장은 항상 **새 파일 생성**(`driveSaveNewFile`) — 덮어쓰지 않고 날짜별로 쌓임(백업)
+  - 불러오기 2단계: "불러오기 목록"(`driveListFiles`, 최신순) → 파일 선택(`driveLoadFileById`)
+  - `drive.file` 범위 유지(앱이 만든 폴더/파일만 접근, 민감 검수 불필요)
+
+### Changed
+- 기존 단일 파일 덮어쓰기 방식(`brainbloom-data.json`) → 폴더+날짜별 다중 파일 방식으로 전환
+- 헬퍼 교체: `driveFindFile`/`driveSaveFile`/`driveLoadFile` 제거 → `driveGetOrCreateFolder`/`driveSaveNewFile`/`driveListFiles`/`driveLoadFileById`
+
+### Technical Notes
+- SettingsModal에 드라이브 props 추가 전달(`driveFiles`, `driveFileName`, `onDriveFileNameChange`, `onDriveListFiles`, `onDriveLoadFile`)
+- react-dom 서버 렌더로 로그아웃/로그인/파일목록 상태 전부 검증(흰 화면 재발 방지)
 
 ---
 
