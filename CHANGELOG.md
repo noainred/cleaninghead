@@ -9,7 +9,26 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (자동저장 본체 — 버전관리 해석 B, 간격/prefix 설정 UI — 다음 작업)
+향후 추가 예정인 기능이 여기에 기록됩니다.
+
+---
+
+## [3.31.0] - 2026-06-01
+
+### Added
+- **구글 드라이브 자동저장 (버전관리 해석 B)** — 설정 → 구글 드라이브 연동
+  - "자동저장 사용" 토글, 간격(분, 기본 1분, 1~120), 파일 이름 접두어(prefix, 예: `회의_`) + 설명
+  - 파일명 `[prefix]YYYY-MM-DD.N` — 저장마다 버전번호 N 증가, 오늘 것 **최신 5개만 유지**(초과 시 오래된 것 삭제)
+  - 날짜 바뀌면 전날 정리: 전날 최신 1개만 `[prefix]날짜`(버전 없이)로 rename, 나머지 삭제 → 지난 날짜는 1개, 오늘은 최대 5개
+  - 자동저장 중 토큰 만료/권한 실패(401/403) 시 조용히 중단 + 재연결 안내(`driveAutoStatus`)
+  - 수동 작업(busy) 중에는 자동저장 건너뜀
+
+### Technical Notes
+- 새 settings: `driveAutoSave`(bool), `driveAutoSaveMinutes`(num), `drivePrefix`(string) + 각 누락 방어
+- 핵심 함수 `runVersionedSave(treeArg, prefixArg)`: 과거정리(planPastCleanup→rename/delete) → 다음 버전 저장(driveSaveNewFile) → 오늘 5개 초과 삭제(filesToDeleteToday)
+- setInterval effect + `autoSaveRef`로 클로저의 낡은 tree/prefix/signedIn 문제 회피
+- SettingsModal에 `driveAutoStatus` props 추가 전달
+- 검증: 버전관리 순수로직 단위 14개 + 흐름 통합 시뮬레이션 10개(오늘 6회 저장→최신5, 날짜바뀜 정리, prefix) 통과
 
 ---
 
