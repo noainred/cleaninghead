@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.33.1] - 2026-06-01
+
+### Changed
+- **수동/자동 저장 이름 규칙 통일** — "저장할 파일 이름" 입력칸이 자동저장의 "파일 이름 접두어"와 역할이 겹쳐 혼란 → 입력칸 통합
+  - "저장할 파일 이름" 칸 제거. 수동 저장도 `runVersionedSave(tree, settings.drivePrefix)` 사용 → 접두어+날짜.버전, 5개 유지, 과거 정리 동일 적용
+  - 수동 저장 버튼 라벨 "드라이브에 저장" → "지금 저장"
+  - 안 쓰게 된 `driveFileName` 상태·props(`onDriveFileNameChange`)·시그니처 항목 완전 제거
+
+### Technical Notes
+- `handleDriveSave`가 `driveSaveNewFile(driveFileName,...)` → `runVersionedSave(tree, prefix)` 호출로 변경(자동저장과 동일 경로). 성공 시 `driveAutoFailed=false`도 함께 처리
+- 수동 저장 UI 렌더 + driveFileName 제거 후 잔존 참조 0 확인
+
+---
+
 ## [3.33.0] - 2026-06-01
 
 ### Improved
