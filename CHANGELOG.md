@@ -13,6 +13,24 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.36.0] - 2026-06-01
+
+### Added
+- **다중 기기 최신본 감지 (덮어쓰기 방지)** — "회사 방치 → 집에서 작업·저장 → 회사 복귀" 시 모르고 덮어쓰는 것 방지
+  - 기준 시각 `lastSyncedTimeRef`(ISO): 저장/불러오기 시 그 파일의 `modifiedTime`을 기록
+  - `checkRemoteNewer()`: `driveListFiles`(최신순) 첫 파일의 modifiedTime이 기준보다 새로우면 `remoteNewer` 설정. 기준 없음(이번 세션 미저장/미불러옴)·파일 없음·내 기준이 더 최신이면 묻지 않음(오판 방지)
+  - 확인 시점: 자동저장 직전(tick) + 탭 복귀(visibilitychange)
+  - 외부 최신본 발견 시 자동저장 보류(`autoSaveRef.remotePending`) → 사용자 결정 전 덮어쓰기 안 함
+  - 팝업 3선택: **최신본 불러오기**(`handleDriveLoadFile`) / **무시하고 계속**(기준 시각을 현재 최신으로 올려 재질문 방지, 다음 저장 때 현재 내용이 새 버전) / **잠시 보류**(닫기)
+  - `driveSaveNewFile` 응답에 `fields=id,name,modifiedTime` 지정해 저장 직후 시각 확보
+  - `handleDriveLoadFile(fileId, fileName, modifiedTime)`: 불러온 후 `lastSavedContentRef`/`lastSyncedTimeRef` 갱신 → 불러온 직후 자동저장 오판·재질문 방지
+
+### Technical Notes
+- 검증: 외부 최신본 판단 5케이스(동일시각/더새로움/기준없음/파일없음/내기준이최신) 통과
+- 한계: 두 기기가 동시에 *편집*하는 순간까지 막지는 않음(저장 시도 시점에 비교). modifiedTime은 드라이브 서버 기준이라 기기 시계와 무관하게 안전
+
+---
+
 ## [3.35.0] - 2026-06-01
 
 ### Changed
