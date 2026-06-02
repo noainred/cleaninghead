@@ -9,7 +9,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (드라이브 연동 — 자동 동기화, 파일 삭제 UI 등 예정)
+향후 추가 예정인 기능이 여기에 기록됩니다. (자동저장 본체 — 버전관리 해석 B, 간격/prefix 설정 UI — 다음 작업)
+
+---
+
+## [3.30.2] - 2026-06-01
+
+### Added (내부 토대 — 자동저장 준비)
+- **토큰 자동 재발급** (`ensureDriveToken`) — 액세스 토큰 만료(약 1시간) 2분 전이면 `requestAccessToken({prompt:''})`로 조용히 갱신. 자동저장이 토큰 만료로 끊기지 않도록 하는 핵심
+  - `_driveTokenExpiry`(만료 epoch ms) 추적, `requestDriveToken` 콜백에서 `expires_in`으로 기록
+  - 드라이브 헬퍼 5종이 진입 시 `await ensureDriveToken()` 호출하도록 교체
+- **파일 삭제/이름변경 헬퍼** (`driveDeleteFile`, `driveRenameFile`) — 버전관리(오래된 버전 삭제, 과거 최종본 rename)용
+- **버전관리 해석 B 순수 로직** — `parseDriveFileName` / `maxVersionForDate` / `filesToDeleteToday` / `planPastCleanup`. 단위 테스트 14개 통과(파일명 파싱, 오늘 5개 유지, 과거 정리, prefix 처리)
+
+### Notes
+- 이번 버전은 내부 토대만. 화면상 동작 변화 없음(새 헬퍼·로직은 아직 자동저장 핸들러에서 호출 전)
+- 작업 중 sed 일괄치환이 `ensureDriveToken` 자기 자신의 토큰 체크까지 바꿔 무한재귀가 발생했던 것을 발견·수정
 
 ---
 
