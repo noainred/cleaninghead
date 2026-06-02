@@ -1463,7 +1463,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.33.2';
+const APP_VERSION = '3.33.3';
 const APP_BUILD_DATE = '2026-06-01';
 
 // ───────── 구글 드라이브 연동 ─────────
@@ -1483,25 +1483,25 @@ const DRIVE_FOLDER_NAME = 'BrainBloom';
 const CHANGELOG_URL = 'https://github.com/noainred/cleaninghead/blob/main/CHANGELOG.md';
 const RECENT_CHANGES = [
   {
+    version: '3.33.3',
+    date: '2026-06-01',
+    groups: [
+      {
+        label: '변경',
+        items: [
+          '설정 화면의 모든 항목을 동일한 박스(카드) 형태로 통일했습니다. 일부 항목만 박스로 되어 있어 들쭉날쭉하던 것을 정리했습니다.',
+        ],
+      },
+    ],
+  },
+  {
     version: '3.33.2',
     date: '2026-06-01',
     groups: [
       {
         label: '수정',
         items: [
-          '자동저장 안정성을 높였습니다. 저장이 느려도 다음 자동저장이 겹쳐 실행되지 않도록 막았고(중복 저장·잘못된 삭제 방지), 자동저장을 끄거나 연결을 해제하면 진행 중이던 저장이 안전하게 멈추도록 했습니다.',
-        ],
-      },
-    ],
-  },
-  {
-    version: '3.33.1',
-    date: '2026-06-01',
-    groups: [
-      {
-        label: '변경',
-        items: [
-          '드라이브의 "저장할 파일 이름" 칸을 없애고, 수동·자동 저장 모두 "파일 이름 접두어" 규칙으로 통일했습니다. 수동 저장 버튼은 "지금 저장"으로 바꿨습니다.',
+          '자동저장 안정성을 높였습니다. 저장이 겹쳐 실행되지 않게 막고, 자동저장을 끄거나 연결을 해제하면 진행 중이던 저장이 안전하게 멈춥니다.',
         ],
       },
     ],
@@ -6299,7 +6299,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
         <div className="modal-body">
 
           {/* 화면 표시 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">화면 표시</div>
             <div className="settings-desc" style={{ marginBottom: 12 }}>
               패널을 숨기면 마인드맵 캔버스를 더 넓게 쓸 수 있습니다.
@@ -6355,7 +6355,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* 노드 길이 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">노드 길이</div>
             <div className="settings-desc" style={{ marginBottom: 10 }}>
               노드 라벨이 길어질 때 어디까지 보여줄지 정합니다. 잘린 경우 마우스를 올리면 전체 내용이 툴팁으로 표시됩니다.
@@ -6394,7 +6394,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* 노드 폰트 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">노드 폰트</div>
             <div className="settings-desc" style={{ marginBottom: 10 }}>
               마인드맵 노드 글씨체를 고릅니다. 시스템 기본은 이 화면과 비슷한 느낌입니다. 컴퓨터에 설치된 폰트만 적용되며, 없으면 기본 글씨체로 보입니다.
@@ -6440,7 +6440,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* 타이머 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">타이머</div>
             <div className="settings-desc" style={{ marginBottom: 10 }}>
               헤더의 타이머 칩에서 시작/일시정지할 수 있습니다. 시간이 다 되면 화면 알림이 뜹니다.
@@ -6479,7 +6479,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* 저장 옵션 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">저장 옵션</div>
 
             <div className="settings-row" style={{ alignItems: 'flex-start' }}>
@@ -6529,7 +6529,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* 구글 캘린더 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">구글 캘린더</div>
             <div className="settings-row">
               <div style={{ flex: 1 }}>
@@ -6583,7 +6583,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* AI 요약 */}
-          <div className="settings-section">
+          <div className="settings-section is-card">
             <div className="settings-section-title">🤖 AI 요약</div>
             <div className="settings-row">
               <div style={{ flex: 1 }}>
@@ -6721,7 +6721,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
           </div>
 
           {/* 구글 드라이브 연동 — 설정 맨 아래 */}
-          <div className="settings-section" ref={driveSectionRef}>
+          <div className="settings-section is-card" ref={driveSectionRef}>
             <div className="settings-section-title">구글 드라이브 연동</div>
             {settings.driveAutoSave && !driveSignedIn && (
               <div style={{
