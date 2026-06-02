@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.33.4] - 2026-06-01
+
+### Fixed
+- **헤더 "설정" 글자 빨강 조건과 드라이브 경고 배너 조건 불일치 수정** — 연결이 끊겨(로그아웃) 배너는 떴는데 설정 글자는 안 빨개지던 버그
+  - 원인: 배너 = `driveAutoSave && !driveSignedIn` / 설정 글자 = `driveAutoSave && driveAutoFailed`. `driveAutoFailed`는 자동저장이 실제 1회 시도해 실패해야 true가 되므로, 끊긴 직후/시도 전에는 두 조건이 어긋남
+  - 수정: 설정 글자 빨강 + 클릭 시 스크롤 조건을 모두 `settings.driveAutoSave && (driveAutoFailed || !driveSignedIn)`로 통일 → 배너와 동일 신호
+  - 6개 상태 조합 검증(꺼짐/정상은 평소, 실패·끊김은 빨강) 통과
+
+---
+
 ## [3.33.3] - 2026-06-01
 
 ### Changed
