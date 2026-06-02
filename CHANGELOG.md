@@ -13,6 +13,23 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.33.0] - 2026-06-01
+
+### Improved
+- **드라이브 연결 촘촘 감시 (3겹)** — 자동저장 끊김을 자동저장 간격과 무관하게 빨리 감지
+  - (A) 30초마다 `ensureDriveToken`으로 토큰 만료 미리 감지·자동 갱신(예방)
+  - (B) 10분마다 `drivePing`(about 엔드포인트, 최소 요청)으로 실제 연결 검사
+  - (C) `visibilitychange`로 탭 복귀 시 즉시 연결 검사 — 다른 기기/탭에서 돌아왔을 때 바로 반영
+  - 셋 중 하나라도 401/403/만료면 `driveAutoFailed=true`(설정 글자 빨강)+로그아웃 처리, 성공 시 해제
+  - 자동저장이 켜져 있고 로그인된 동안만 동작(effect 의존성 `[driveAutoSave, driveSignedIn]`)
+
+### Technical Notes
+- 새 헬퍼 `drivePing()` — `ensureDriveToken` 후 `drive/v3/about?fields=user(displayName)` 호출
+- 감시 effect는 `cancelled` 플래그로 cleanup 가드, 자동저장 tick과 동일한 위험상태 규칙 공유(일관성)
+- 한계 명시: 탭 백그라운드/절전 시 브라우저가 타이머를 늦추거나 멈출 수 있음 → (C) 탭 복귀 즉시 검사로 보완
+
+---
+
 ## [3.32.0] - 2026-06-01
 
 ### Added
