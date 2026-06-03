@@ -13,6 +13,36 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.40.0] - 2026-06-03
+
+### Added
+- **빈 공간 더블클릭 → 루트 노드 화면 중앙 정렬**
+  - `.canvas-inner`에 `onDoubleClick` 추가, `e.target === e.currentTarget`로 빈 패딩 영역(맵 바깥)에서만 실행 → 노드 위 더블클릭(편집)과 정확히 구분
+  - 기존 `centerNode(tree.id)` 재활용(초기 로드·접기/펼치기 센터링에서 검증된 함수). DOM 위치를 `getBoundingClientRect`로 읽어 뷰포트 중심과의 차이만큼 스크롤
+  - 줌(zoom)은 변경하지 않고 스크롤 위치만 조정
+
+### Technical Notes
+- `.canvas-inner`는 사방 800px 패딩 + flex 중앙 정렬 구조라, 맵 바깥 빈 영역 클릭 시 target이 `.canvas-inner` 자신이 되어 판별이 정확히 동작
+- 별도 옵션 없이 항상 활성(단순 내비게이션 보조 기능)
+
+---
+
+## [3.39.0] - 2026-06-03
+
+### Added
+- **편집 중 집중 모드의 흐림 정도 조절** (`focusDimLevel`: `'soft'|'medium'|'strong'`, 기본 medium)
+  - 설정 → 화면 표시에서 집중 모드를 켜면 "흐림 정도" 3단계 버튼(약하게/보통/강하게) 노출
+  - 단계별 CSS: soft `grayscale(0.6) opacity(0.55)` / medium `grayscale(0.85) opacity(0.35)`(기존 값) / strong `grayscale(1) opacity(0.2)`. hover 시 각 단계별로 살짝 살아남
+  - 노드 className에 `dimmed dim-{level}` 부여, CSS 클래스로 적용
+  - React.memo 비교 함수에 `focusDimLevel` 추가(단계 변경 시 흐려진 노드 리렌더 보장)
+  - 누락 방어 추가. 기존 사용자는 medium으로 적용돼 체감 변화 없음
+
+### Technical Notes
+- 검증: className 단계 생성 5케이스(soft/medium/strong/기본/비흐림) 통과
+- 흐림은 CSS filter만 — 데이터·저장 색 불변(3.38.0과 동일 원칙)
+
+---
+
 ## [3.38.0] - 2026-06-03
 
 ### Added
