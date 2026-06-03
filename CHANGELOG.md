@@ -13,6 +13,23 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.37.1] - 2026-06-01
+
+### Performance (외부 코드 리뷰 후속 — 가성비 높은 2건 적용)
+- **NodeView를 React.memo로 감쌈** — 노드 선택/줌/검색 시 전체 노드가 리렌더되던 것을, 변경된 노드만 갱신
+  - 콜백 props는 부모의 인라인 화살표라 매 렌더 새 함수 → 일반 memo는 무력. **커스텀 비교 함수 `nodeViewPropsEqual`**로 콜백은 무시하고 시각 관련 값만 비교
+  - 비교 대상: `isRoot/isRootChild/isSelected/isDropTarget/isEditing/isSearchMatch/isSearchFocus/color`, settings의 라벨 줄수·폰트, node의 `_x/_y/_w/_side/label/pinnedSide/collapsed/_autoLabel/children.length/icons[]/meta{date,effort,cost}`
+  - 빠진 값으로 인한 "stale 렌더" 방지 위해 NodeViewBase가 렌더에 쓰는 값을 전수 포함, 14케이스 시뮬레이션 검증
+- **로컬 자동백업(lastWork) 변경 감지** — 디바운스(1.5s) IndexedDB 쓰기 전 직전 저장 스냅샷과 비교, 동일하면 직렬화·쓰기 skip
+  - `lastLocalSaveRef`에 `JSON.stringify({tree: serializeTree(tree), inputText})` 보관 후 비교 (드라이브 자동저장의 변경 감지 패턴 재활용)
+  - 닫기/숨김 시 저장·다운로드 시 저장은 빈도가 낮고 "최종 안전 저장"이라 변경 감지 미적용(의도)
+
+### Technical Notes
+- 미적용(리뷰 항목 중): 서브트리 부분 재레이아웃(작업 큼), 가상화·SVG 단일 렌더(대공사), 빌드 도입(무빌드 철학과 상충) — 현재 사용 규모(수백 노드)에선 체감 적어 보류
+- 화면 동작/출력 변화 없음(내부 효율만 개선)
+
+---
+
 ## [3.37.0] - 2026-06-01
 
 ### Improved
