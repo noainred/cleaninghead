@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.42.0] - 2026-06-03
+
+### Added
+- **배경 테마 선택 (`bgTheme`, 기본 default) + 점 패턴 토글 (`bgDots`, 기본 true)** — 눈 피로 완화, 설정 → 화면 표시
+  - 밝은 계열 3종: ivory(웜 아이보리) / mint(세이지 민트) / gray(쿨 그레이) — `--bg/--bg-2/--panel/--line/--dot-color`만 변경, 글자색 유지
+  - 다크 계열 3종: charcoal / navy / softdark — 배경에 더해 `--ink/--ink-soft/--node-input-bg/--accent-soft`까지 연동(진짜 다크 모드)
+  - CSS `[data-theme="..."]` / `[data-dots="off"]` 속성 기반. `<html>`에 effect로 속성 부여
+  - 설정 UI: 7개 색상 스와치 팔레트(선택 시 체크 표시) + 점 패턴 토글
+  - 하드코딩 흰색 일부를 변수화(`--dot-color`, `--node-input-bg`). 누락 방어 추가
+
+### Technical Notes
+- 검증: 테마 적용 로직 5케이스(기본/밝음/다크/점on·off 조합) 통과
+- 주의: 다크 3종은 실제 화면에서 노드 글자·연결선·헤더·패널 가독성 확인 필요(밝은 배경 기준으로 만들어진 일부 하드코딩 요소가 남아 있을 수 있음)
+
+---
+
 ## [3.41.2] - 2026-06-03
 
 ### Security
