@@ -13,6 +13,24 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.38.0] - 2026-06-03
+
+### Added
+- **편집 중 집중 모드 (`focusModeOnEdit`, 기본 false)** — 설정 → 화면 표시
+  - 편집/추가 중(`editingId` 활성)일 때, 편집 노드의 루트까지 경로 + 직속 자식만 컬러 유지, 그 외 노드는 흐리게(`.node.dimmed`: `filter: grayscale(0.85) opacity(0.35)`)
+  - 순수 함수 `computeFocusIds(root, targetId)`: DFS로 루트→target 경로 수집 + target 직속 자식 합집합 → 컬러 유지 id Set. target 미발견/null이면 빈 Set
+  - `focusIds` useMemo(`[focusModeOnEdit, tree, editingId]`): 옵션 OFF거나 비편집 시 null → 흐리기 비활성
+  - 노드 렌더 시 `isDimmed = focusIds!==null && !focusIds.has(id)` → NodeView className에 반영
+  - 흐리기는 CSS filter만 적용 — 데이터·저장 색 불변(안전)
+  - React.memo 비교 함수에 `isDimmed` 추가(상태 변화 반영 보장)
+  - 설정 토글 + 누락 방어 추가
+
+### Technical Notes
+- 검증: `computeFocusIds` 10케이스(경로+직속자식 정확성, 손자/타가지 제외, 미발견/null) + 비교 함수 통과
+- "편집/추가 중"의 트리거는 `editingId`(F2 편집·새 노드 추가 모두 설정됨). 단순 선택(`selectedId`)으로는 켜지지 않음 — 잦은 깜빡임 방지
+
+---
+
 ## [3.37.1] - 2026-06-01
 
 ### Performance (외부 코드 리뷰 후속 — 가성비 높은 2건 적용)
