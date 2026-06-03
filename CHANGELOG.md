@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.41.2] - 2026-06-03
+
+### Security
+- **외부 CDN 스크립트에 SRI(Subresource Integrity) 적용** — 공급망 공격 방어 (공개 서비스 대비)
+  - React 18.3.1 / ReactDOM 18.3.1 / @babel/standalone 7.26.4 / jspdf 2.5.1 → 버전 고정 + `integrity="sha384-..."` 추가. CDN 변조 시 해시 불일치로 로드 거부
+  - 구글 GSI는 구글이 버전 미고정이라 SRI 적용 불가 → CSP로 다룰 항목(별도)
+- **입력 안전 한도 추가 (DoS 방어)** — `sanitizeNode`에 깊이·개수·라벨 제한
+  - `SANITIZE_MAX_DEPTH=100`(깊이), `SANITIZE_MAX_NODES=20000`(노드 수), `SANITIZE_MAX_LABEL=5000`(라벨 글자) — 초과분은 잘라냄
+  - 악의적/거대 입력으로 인한 스택 오버플로우·메모리 고갈 방지. 정상 사용 규모(깊이 10 미만, 노드 수백)엔 영향 없음
+
+### Technical Notes
+- SRI 해시는 npm 정식 배포본(unpkg 서빙 파일과 동일)에서 sha384로 계산
+- 검증: 깊이 200→100 절단 / 라벨 10000→5000 절단 / 노드 30000→20000 중단 시뮬레이션 통과
+
+---
+
 ## [3.41.1] - 2026-06-03
 
 ### Fixed
