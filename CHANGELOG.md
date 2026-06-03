@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.41.0] - 2026-06-03
+
+### Added
+- **같은 브라우저 중복 탭 감지·경고** (`duplicateTabAlert`, 기본 true) — 설정 → 화면 표시
+  - `BroadcastChannel('brainbloom_tabs')`로 같은 출처(도메인) 탭 간 통신. 다른 브라우저·기기와는 무관
+  - 프로토콜: 새 탭이 `who` 방송 → 기존 탭이 `here` 응답. `here`를 받은 탭(=나중에 열린 탭)만 상단 배너 표시
+  - **버그 수정 포함**: `here`는 브로드캐스트라 전체에 퍼지므로, 먼저 열린 탭에도 배너가 뜰 수 있던 문제를 `isExistingTab`(누군가의 who에 응답한 적 있으면 기존 탭) 플래그로 차단 → 남의 here 무시
+  - 배너는 알림만(강제 차단 없음), "확인"으로 닫힘. `typeof BroadcastChannel === 'undefined'` 미지원 방어
+  - 누락 방어 추가
+
+### Technical Notes
+- 검증: 탭 순서/추가/동시 열림 9케이스 시뮬레이션 통과(먼저 연 탭 무배너, 나중 탭만 배너)
+- 로컬(IndexedDB `lastWork`)은 같은 브라우저 탭 간 공유되어 last-write-wins이므로, 이 경고로 사용자가 인지하도록 보완(드라이브는 기존 modifiedTime 충돌 감지가 별도로 처리)
+
+---
+
 ## [3.40.0] - 2026-06-03
 
 ### Added
