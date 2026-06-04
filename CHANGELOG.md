@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.47.4] - 2026-06-04
+
+### Changed
+- **공식 주소 변경: `noainred.github.io/cleaninghead` → `www.redmir.net`** — 9개 링크 일괄 교체
+  - 앱: 설정 문서 바로가기 2곳 (UserGuide·TechDoc)
+  - README.md: 바로 써보기·만화·가이드·기술문서·빠른 시작 등 6곳
+  - 만화(BrainBloom_Comic.html): 아웃트로 주소 1곳
+  - GitHub Issues 링크는 저장소 주소라 유지(github.com/noainred/cleaninghead/issues)
+  - 드라이브 OAuth 승인 원본도 redmir.net 기준 — 3.47.3 안내와 일치
+
+---
+
 ## [3.47.3] - 2026-06-04
 
 ### Improved
