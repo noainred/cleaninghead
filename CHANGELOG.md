@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.58.3] - 2026-06-04
+
+### Added
+- **파일 불러올 때 자동 맞춤 1회** — JSON 백업 열기·드라이브 파일 불러오기(파일 목록 + 최신본 배너 "⬇ 불러오기")에서 트리 교체 후 `didAutoFitRef.current = false`로 가드를 리셋 → 자동 맞춤 effect가 "처음 열 때"처럼 1회 재평가. 큰 지도를 불러와도 ⊡ 없이 즉시 전체가 보임. 편집·노드 추가로는 여전히 배율 고정(v3.58.0 동작 유지).
+
+### Technical Notes
+- 가드 리셋은 로드 핸들러 2곳(`handleDriveLoadFile`·`handleJsonFileSelected`)에만 추가 — 편집용 `setTree` 다수에는 영향 없음. `handleDriveLoadFile`은 파일 목록·최신본 배너 양쪽이 공유. 🔀 합치기(merge)는 미포함. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.58.3.html` md5 일치.
+
+---
+
 ## [3.58.2] - 2026-06-04
 
 ### Fixed
