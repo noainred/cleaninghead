@@ -1,21 +1,31 @@
-MIT License
+BrainBloom — All Rights Reserved
 
-Copyright (c) 2026 BrainBloom Contributors
+Copyright (c) 2026 JunHo (https://www.redmir.net)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+All rights reserved.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This software, including its source code, design, and assets (the "Software"),
+is the proprietary work of the author. No permission is granted to use, copy,
+modify, merge, publish, distribute, sublicense, sell, host, deploy, or create
+derivative works of the Software, in whole or in part, by any means or under any
+domain or service, without the prior written permission of the author.
+
+You may access and personally use the application only at the official site,
+https://www.redmir.net . Downloading, re-hosting, redistributing, or deploying
+the Software at any other location is not permitted.
+
+For licensing inquiries, contact: redmirnet@naver.com
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+본 소프트웨어(소스 코드·디자인·에셋 포함)는 저작자의 독점 저작물입니다.
+저작자의 사전 서면 허락 없이 복제·수정·배포·재호스팅·2차적 저작물 제작을 금지합니다.
+앱은 공식 사이트(https://www.redmir.net)에서만 이용할 수 있습니다.
+문의: redmirnet@naver.com
