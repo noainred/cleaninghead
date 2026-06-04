@@ -13,6 +13,43 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.50.1] - 2026-06-04
+
+### Changed
+- **📂 JSON 열기를 헤더 → 설정으로 이동** — "헤더에 표시할 저장 버튼" 행 바로 아래 "📂 JSON 백업 파일 열기" 행(아이콘 포함)
+  - 헤더 텍스트 그룹은 JSON 저장만 남음(`withOpen` 완전 제거) — 그룹 전부 끄면 그룹·구분선도 사라짐
+  - 숨김 file input을 **항상 마운트되는 위치**(SettingsModal 렌더 앞)로 이동 — 미니멀 헤더 상태에서 input이 언마운트돼 열기가 죽는 문제 예방
+  - 설정에서 파일을 열어 성공하면 모달 자동 닫힘(불러온 지도가 바로 보이도록)
+- **드라이브 섹션 재배치** — 혼동 방지: [⬆저장/⬇목록 버튼] → **파일 목록**(새 캡션 "📄 드라이브의 마인드맵 파일 — 클릭하면 미리보기") → **미리보기 카드** → 점선 구분 → **⚙️ 설정 백업** → 자동저장
+  - 기존엔 목록이 설정 백업 버튼 '아래'에 떠서 설정 저장/불러오기와 붙어 보였음
+
+### Technical Notes
+- 검증: 배치 순서 인덱스 검사(목록<미리보기<설정백업<자동저장), 헤더 그룹 재시뮬 3케이스, withOpen 잔재 0, input 단일 마운트 확인
+
+---
+
+## [3.50.0] - 2026-06-04
+
+### Added
+- **드라이브 보관 개수 설정 (`driveKeepCount`, 기본 5, 1~100)** — 드라이브 섹션 "오늘 버전 보관 개수" 숫자 입력
+  - `runVersionedSave` 4번째 인자 `keepArg`로 인자화(내부 clamp 1~100·소수 내림·깨진 값 5) → `filesToDeleteToday(..., keep)` 전달. 수동 저장·자동저장 공통 적용
+  - 자동저장은 `autoSaveRef.current.keepCount` 경유 + effect deps에 `settings.driveKeepCount` 추가 — **stale closure 방지(prefix와 동일 패턴)**
+  - 설정 초기값 + 누락 방어(비숫자/범위 밖 → 5) 추가. 지난 날짜 "마지막 1개만" 규칙은 기존 그대로
+- **설정 불러오기 토스트** — 성공 시 "⚙️ 설정을 불러와 적용했어요" 1초 표시(기존 하단 상태 텍스트는 유지)
+
+### Verified — 설정 불러오기 "실제 적용" 경로 점검 (요청 ②)
+- `setSettings` 안전 병합 → React 상태 → 모달 UI 즉시 반영
+- `[settings]` effect의 `idbSet('settings')`(settingsLoadedRef 가드) → **새로고침 후에도 유지**
+- `bgTheme` effect(`data-theme` setAttribute) → 테마 즉시 적용
+- `autoSaveRef` 동기화 effect → 자동저장 동작값(접두어·보관 개수) 즉시 갱신
+- 자동저장 interval effect deps(`driveAutoSave`/`Minutes`) → 켬·간격 변경 시 재바인딩
+→ 전 경로 정상. 코드 수정 불필요 확인
+
+### Technical Notes
+- 검증: 실제 `filesToDeleteToday` 추출 keep 변형 4케이스(5/100/1/딱 맞음) + clamp 3케이스 통과
+
+---
+
 ## [3.49.1] - 2026-06-04
 
 ### Improved
