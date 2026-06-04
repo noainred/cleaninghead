@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.44.0] - 2026-06-04
+
+### Added
+- **설정 상단 문서 바로가기** — 설정 모달 본문 맨 위에 📖 사용 설명서 / 🛠️ 기술 문서 링크 카드 2개
+  - GitHub Pages 배포 문서로 연결: `BrainBloom_UserGuide.html`, `BrainBloom_TechDoc.html`
+  - `target="_blank" rel="noopener noreferrer"`(새 탭 + 보안), 테마 변수(`--bg-2/--line/--ink`) 기반 스타일이라 다크 테마에서도 자연스러움
+  - hover 시 테두리 강조
+
+### Notes
+- 이 버전부터 배포 zip은 5파일 구성: 앱 2(brainstorm/index) + CHANGELOG + **TechDoc + UserGuide**
+- 문서 링크가 동작하려면 GitHub 저장소에 두 문서 파일을 함께 업로드해야 함
+
+---
+
 ## [3.43.0] - 2026-06-03
 
 ### Added
