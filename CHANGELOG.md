@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.53.0] - 2026-06-04
+
+### Added — 모바일 기본 지원 (요청: 화면 이동 + 입력)
+- **터치 패닝** — 캔버스 pan effect에 touchstart/move/end 추가(한 손가락, 마우스 패닝과 동일 로직). isPanTarget 가드로 노드/버튼 탭과 구분, 5px 임계 후 preventDefault(passive:false)로 당겨서 새로고침·네이티브 스크롤 방지. 두 손가락(핀치)은 패닝 제외(브라우저 확대에 위임)
+- **더블탭 편집** — 네이티브 dblclick이 터치에서 불안정 → NodeView에 onTouchEnd 더블탭 감지(300ms, lastTapRef). 마우스 onClick/onDoubleClick은 그대로(데스크톱 무영향)
+- **CSS** — `.node { touch-action: manipulation }`(더블탭 확대·300ms 지연 제거 → 더블탭 편집 즉각), `@media (hover: none) { .node-actions { opacity:1 } }`(터치 기기에서 +/× 버튼 상시 노출)
+- 뷰포트 메타는 기존 존재(width=device-width)
+
+### 범위 메모
+- 이번엔 "보기·이동·편집"의 핵심만. 좌우 패널·상단 툴바의 좁은 화면 밀집, 핀치 줌은 별도(브라우저 확대로 대체). 새 노드 대량 생성은 데스크톱 키보드(Tab/Enter)가 여전히 유리
+
+### Technical Notes
+- 검증: 더블탭 타이밍 4케이스(첫탭 선택/150ms 편집/리셋/500ms 비더블탭) 통과
+
+---
+
 ## [3.52.1] - 2026-06-04
 
 ### Improved
