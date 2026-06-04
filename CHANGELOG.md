@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.58.1] - 2026-06-04
+
+### Fixed
+- **타이머 마일스톤 팝업 위치 튐** — `.timer-popup`의 중앙 정렬 `transform: translate(-50%, -50%)`이 키프레임 안에만 있어, In 애니메이션 종료(0.25s)~Out 시작(2.2s) 구간엔 어떤 애니메이션도 적용되지 않아 base로 리셋 → 좌상단 기준점(`top/left: 50%`)만 남아 팝업이 화면 중앙에서 우하단으로 튀어 보이던 문제. base 규칙에 동일 `transform`을 추가해 애니메이션 사이에도 중앙 고정.
+
+### Technical Notes
+- CSS 1줄 수정. JSX 렌더 1곳(중복 아님) 확인. babel 변환(JS 무변화) OK, `index.html` ↔ `brainstorm_v3.58.1.html` md5 일치.
+
+---
+
 ## [3.58.0] - 2026-06-04
 
 ### Changed
