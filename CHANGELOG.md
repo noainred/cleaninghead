@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.58.0] - 2026-06-04
+
+### Changed
+- **자동 맞춤(autoFitMap) 동작 변경 — 편집·노드 추가 시 배율 고정** — 노드를 편집하거나 엔터로 새 노드를 추가할 때 더 이상 줌이 바뀌지 않음. 자동 축소는 *처음 열 때(최초 레이아웃 측정 1회) · 창 크기 변경 · ⊡ 버튼*에서만 동작.
+  - `didAutoFitRef` 가드 도입: 최초 레이아웃 측정 시 1회만 `fitToScreen()` 평가, 이후 `layoutInfo`/`editingId` 변화로는 재맞춤하지 않음. 편집 종료(`editingId`→null)가 더 이상 재맞춤을 유발하지 않음.
+  - autoFitMap을 끄면 가드 리셋 → 다시 켜면 1회 재맞춤. 창 크기 변경 시 맞춤(resize effect)은 그대로 유지.
+
+### Added
+- **빈 곳 우클릭 메뉴에 배율 조절** — 기존 '보기 모드'(편집/몰입) 위에 '배율' 행 추가: `−` / 현재 %(라이브) / `+` / `⊙`(100%) / `⊡`(전체 맞춤). 줌 버튼은 메뉴를 닫지 않아 연속 조절 가능(바깥 클릭으로 닫힘). 기존 `setZoom`·`fitToScreen` 재사용, `.toolbar-btn`/`.toolbar-label` 스타일 공유. 메뉴 위치 클램프·minWidth 조정.
+- 설정 '지도 자동 맞춤' 설명 + UserGuide(자동 맞춤·우클릭 메뉴) 동기화
+
+### Technical Notes
+- babel 변환(SYNTAX/BABEL OK) 통과. `index.html` ↔ `brainstorm_v3.58.0.html` md5 일치.
+
+---
+
 ## [3.57.1] - 2026-06-04
 
 ### Changed
