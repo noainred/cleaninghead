@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.60.1] - 2026-06-04
+
+### Fixed
+- **모바일 상단 메뉴 간소화** — 좁은 화면(≤640px)에선 로고·타이머·캘린더·AI 요약 등을 숨기고 **'설정'만** 표시. CSS 미디어쿼리(`.header-actions > *:not(.settings-btn)` + `.brand`·`.timer-zone` 숨김), 설정 버튼에 `settings-btn` 클래스 추가.
+- **모바일 키보드 시 배율 축소 버그** — 키보드·주소창이 뜰 때 '높이'만 변하는데도 resize 자동 맞춤이 발동해 배율이 작아지던 문제. resize 핸들러를 **폭(width) 변화가 있을 때만** 맞추도록 수정(높이만 변하면 무시).
+
+### Technical Notes
+- 데스크톱(>640px) 동작 무영향. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.60.1.html` md5 일치.
+
+---
+
 ## [3.60.0] - 2026-06-04
 
 ### Added
