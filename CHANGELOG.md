@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.60.4] - 2026-06-04
+
+### Fixed
+- **새로고침 시 "다른 기기 최신본" 오탐** — 편집 없이 새로고침만 해도 충돌 안내 배너가 뜨던 버그. 원인 ①`serializeTreeContent`(내용 비교 기준)가 레이아웃 캐시 `_side`·`_subW`를 안 지워, 렌더된 로컬엔 있고 sanitize된 원격엔 없어 불일치 ②`syncBaselineOnConnect`가 원격만 sanitize(정규화)하고 로컬은 안 해 비대칭.
+  - 수정: `serializeTreeContent`가 **모든 `_` 접두 레이아웃 필드 제거**(순수 내용만), `syncBaselineOnConnect`는 **원격도 raw로 비교**(저장 당시와 동일 기준).
+  - node 시뮬: 편집없음→일치(배너X) / 레이아웃만 변동→일치(배너X) / 실제 편집→불일치(배너O) 검증.
+
+### Technical Notes
+- 부수 효과(개선): 자동저장 변경 감지도 레이아웃 변동에 영향받지 않음(불필요 저장 감소). babel OK, `index.html` ↔ `seahyun/brainstorm_v3.60.4.html` md5 일치.
+
+---
+
 ## [3.60.3] - 2026-06-04
 
 ### Added
