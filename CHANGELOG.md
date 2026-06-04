@@ -13,6 +13,25 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.45.0] - 2026-06-04
+
+### Added
+- **Ctrl+Shift+S — 구글 드라이브 저장 단축키** (+ 토스트 결과 안내)
+  - 수동 저장 버튼과 동일 규칙(`runVersionedSave`: 접두어+날짜.버전, 5개 유지)
+  - 가드: 트리 없음/미연결/저장 진행 중 → 각각 토스트 안내 후 중단. `handleDriveSave`가 성공 시 saved 객체, 실패 시 null을 반환하도록 수정해 토스트 분기
+  - 성공: "💾 구글 드라이브에 저장했어요" / 실패: 설정 확인 안내
+- **Ctrl+Shift+C — 구글 캘린더 추가 단축키** (`addToGoogleCalendar` 호출, 새 탭)
+
+### Technical Notes
+- `e.code`(물리 키 KeyS/KeyC)로 판별 — 한글 IME 상태와 무관하게 동작
+- 입력 가드(input/textarea/편집 중/IME 조합) 뒤에 배치 → 라벨 편집 중에는 미발동(미커밋 라벨이 저장되는 혼란 방지)
+- 단축키 effect deps에 `driveSignedIn` 추가(연결 직후 stale closure 방지)
+- Ctrl+Shift+C는 크롬 개발자도구 단축키지만 페이지 preventDefault가 우선(구글 문서와 동일 패턴)
+- UserGuide 단축키 표에 2개 항목 추가
+- 검증: 가드 분기 4케이스 시뮬레이션 통과
+
+---
+
 ## [3.44.0] - 2026-06-04
 
 ### Added
