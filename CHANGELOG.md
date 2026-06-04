@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.60.3] - 2026-06-04
+
+### Added
+- **설정 하단 저작권 표기** — 설정 모달 맨 아래(개발자 연락처 다음)에 `© 2026 BrainBloom · All rights reserved.` 한 줄 추가(중앙·muted). 독점 라이선스(v3.60.0)와 일관.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.60.3.html` md5 일치.
+
+---
+
 ## [3.60.2] - 2026-06-04
 
 ### Changed
