@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.49.0] - 2026-06-04
+
+### Added
+- **드라이브 불러오기 미리보기** — 목록에서 파일 클릭 시 즉시 로드 대신 미리보기 카드 표시
+  - 요약: 노드 수(walk 집계)·깊이(재귀)·중심 주제·1단계 가지(최대 5개 + 외 N개)·내용 앞 12줄(treeToText, + 외 N줄)
+  - "⬇ 이 파일 불러오기" 확인 후에만 실제 교체 — 미리보기는 화면 데이터를 건드리지 않음(sanitizeTree만 통과시켜 요약 계산)
+  - 선택된 행 하이라이트, 목록 새로고침·실제 로드 시 미리보기 자동 닫힘
+- **목록에 세부정보** — `files.list` fields에 `size` 추가 → 각 행에 수정 시각 + 크기(KB) 표시
+- **기존 결함 수정** — 목록에서 직접 로드할 때 `modifiedTime`을 안 넘겨 동기 기준(lastSyncedTimeRef) 갱신이 누락되던 문제, 미리보기 경유 로드에서 해결
+
+### Technical Notes
+- 검증: 요약 계산 4케이스(노드수·깊이/가지 5+N 절단/단일 노드) 통과
+- SettingsModal props 3개 추가(drivePreview/onDrivePreviewFile/onDrivePreviewClose)
+
+---
+
 ## [3.48.0] - 2026-06-04
 
 ### Added
