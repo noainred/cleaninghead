@@ -1566,7 +1566,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.57.1';
+const APP_VERSION = '3.57.0';
 const APP_BUILD_DATE = '2026-06-04';
 
 // ───────── 구글 드라이브 연동 ─────────
@@ -1586,18 +1586,6 @@ const DRIVE_FOLDER_NAME = 'BrainBloom';
 const CHANGELOG_URL = 'https://github.com/noainred/cleaninghead/blob/main/CHANGELOG.md';
 const RECENT_CHANGES = [
   {
-    version: '3.57.1',
-    date: '2026-06-04',
-    groups: [
-      {
-        label: '개선',
-        items: [
-          '내부 최적화 — 큰 마인드맵에서 되돌리기·자동저장이 조금 더 가벼워졌습니다(트리 복제 방식 개선). 동작 변화는 없습니다.',
-        ],
-      },
-    ],
-  },
-  {
     version: '3.57.0',
     date: '2026-06-04',
     groups: [
@@ -1605,6 +1593,18 @@ const RECENT_CHANGES = [
         label: '추가',
         items: [
           '타이머 진행 알림 — 시작할 때 "X분 타이머가 시작합니다", 설정한 간격마다 "N분 지났어요 · 남은 M분", 마지막엔 3·2·1분 전과 종료 알림이 화면 가운데 반투명 팝업으로 잠깐 떴다 사라집니다(클릭을 가로채지 않아요). 간격은 설정 > 타이머에서 조절(0이면 경과 알림만 꺼짐).',
+        ],
+      },
+    ],
+  },
+  {
+    version: '3.56.2',
+    date: '2026-06-04',
+    groups: [
+      {
+        label: '변경',
+        items: [
+          '첫 화면 시작 가지가 4개가 됐습니다 — "머리속에 있는 모든 생각 여기에 적고, 정리하시면 두통이 사라집니다!"(핑크) · 개인적으로 할일(앰버) · 회사에서 할일(청록) · 그냥 생각(차콜).',
         ],
       },
     ],
@@ -2278,11 +2278,7 @@ function nextIdeaLabel(tree) {
 /* ============================================================
    트리 조작
    ============================================================ */
-function cloneTree(node) {
-  // 깊은 복제: 네이티브 structuredClone(빠름) 우선, 예외·미지원 시 JSON 폴백(평면 데이터라 결과 동일)
-  try { return structuredClone(node); }
-  catch (e) { return JSON.parse(JSON.stringify(node)); }
-}
+function cloneTree(node) { return JSON.parse(JSON.stringify(node)); }
 
 /* ── 트리 비교·병합 (다중 기기 충돌 안내용) ──
    비교(diffTrees)는 id 기준 통계라, 순차 id 특성상 양쪽에서 각자 만든 노드가 "내용이 다른 노드"로
