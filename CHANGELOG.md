@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.60.6] - 2026-06-04
+
+### Changed
+- **타이머 시작·완료 알림 문구 변경** — 시작: `{N}분 타이머 시작.\n짜릿한 짜내기 시간을 즐기세요!` / 완료: `짜릿한 시간이셨나요?\n아주, 잘 하셨어요!` (2줄). `.timer-popup`에 `white-space: pre-line` + `text-align:center` + `line-height` 추가해 줄바꿈(`\n`)·중앙정렬 지원.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.60.6.html` md5 일치.
+
+---
+
 ## [3.60.5] - 2026-06-04
 
 ### Changed
