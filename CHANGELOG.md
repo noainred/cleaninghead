@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.58.2] - 2026-06-04
+
+### Fixed
+- **텍스트 입력칸 다크 테마 가독성** — `.text-field`(검색·설정 입력·AI 프롬프트 등 공용 클래스)에 `color`가 없어 글자가 브라우저 기본 검정으로 떨어졌고, 다크 테마에선 회색 배경(`var(--bg)` #1c1c1e 등) 위 검정 글자가 되어 거의 안 읽히던 문제. `color: var(--ink)` + `::placeholder { color: var(--ink-soft); opacity: 1 }` 추가로 모든 테마에서 본문·placeholder 모두 또렷하게.
+
+### Technical Notes
+- 라이트 테마에선 우연히 읽혀 드러나지 않던 전역 버그. CSS만 수정(JS 무변화). babel OK, `index.html` ↔ `brainstorm_v3.58.2.html` md5 일치.
+
+---
+
 ## [3.58.1] - 2026-06-04
 
 ### Fixed
