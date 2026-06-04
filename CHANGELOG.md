@@ -13,6 +13,31 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.54.1] - 2026-06-04
+
+### Removed — 모바일 기능 롤백 (사용자 결정: 3.52.1 동작으로 복귀)
+- **3.54.0 철회**: head 모바일 감지·리다이렉트 스크립트 제거, `mobile.html` 배포 목록에서 제외
+- **3.53.0 철회**: 터치 패닝(touchstart/move/end), 더블탭 편집(onTouchEnd+lastTapRef), CSS(`touch-action: manipulation`, `@media (hover:none)` node-actions 노출), UserGuide 📱 팁 제거
+- 역적용 후 잔재 전수 검사 0건(onTouch*/touch-action/mobile.html/bb_force_desktop 등), 동작은 3.52.1과 동일
+- 버전 번호는 3.54.1로 전진(배포된 3.54.0과의 갱신 순서 유지). 모바일 지원은 보류 목록으로 복귀
+- 배포 안내: index.html 교체만으로 게이트 소멸. 저장소에 mobile.html을 올렸다면 삭제 권장(남아도 무해). 휴대폰에 남은 bb_force_desktop 플래그는 무해
+
+---
+
+## [3.54.0] - 2026-06-04
+
+### Added — 모바일 게이트 (요청: 페이지가 휴대폰에 너무 무거움)
+- **`mobile.html` 신설** — 외부 의존 0(폰트 CDN조차 없음)·인라인 CSS/SVG의 초경량 안내 페이지: 로고, "컴퓨터에서 가장 잘 동작" 안내, www.redmir.net 표시, 만화·설명서 링크(모바일 OK 표기), "그래도 휴대폰에서 열기 →"(index.html?desktop=1)
+- **본편 head 최상단 감지 스크립트** — 3MB Babel 등 **무거운 다운로드가 시작되기 전에** 실행되도록 viewport 메타 직후 배치
+  - 분기: `?desktop=1` → localStorage `bb_force_desktop` 기억 후 본편 / 플래그 있으면 본편 / 모바일 UA 또는 (≤768px AND pointer:coarse) → `mobile.html` replace / 감지 예외 시 본편(안전)
+- UserGuide 모바일 팁에 안내 페이지 흐름 반영
+
+### Technical Notes
+- 검증: 리다이렉트 스크립트 node --check, 감지 분기 6케이스(아이폰/안드로이드/그래도열기+기억/기억된 사용자/데스크톱 크롬/맥 사파리), mobile.html 태그 균형
+- 배포 주의: **mobile.html을 저장소 루트에 반드시 업로드** — 없으면 모바일 접속이 404로 감
+
+---
+
 ## [3.53.0] - 2026-06-04
 
 ### Added — 모바일 기본 지원 (요청: 화면 이동 + 입력)
