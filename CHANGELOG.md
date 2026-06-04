@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.57.1] - 2026-06-04
+
+### Changed
+- **트리 깊은 복제 최적화** — `cloneTree`를 `JSON.parse(JSON.stringify())`에서 네이티브 `structuredClone()`으로 교체(예외·미지원 시 JSON 폴백 유지). undo 스냅샷(최대 100개)·자동저장 내용 비교 등 24개 호출부에서 사용되며 동작은 동일, 큰 트리에서 복제 비용 감소.
+
+### Technical Notes
+- 안전한 드롭인: 평면 JSON 데이터라 결과 동일. `try { structuredClone } catch { JSON 폴백 }`으로 회귀 위험 0. Chrome/Edge(타깃) 지원.
+- 검증: babel 변환(SYNTAX/BABEL OK) 통과.
+
+---
+
 ## [3.57.0] - 2026-06-04
 
 ### Added — 타이머 마일스톤 팝업 (정중앙 반투명, 자동 소멸, 클릭 통과)
