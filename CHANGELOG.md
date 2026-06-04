@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.59.2] - 2026-06-04
+
+### Changed
+- **설정 변경 이력 링크 정리** — `CHANGELOG_URL`을 `github.com/…/blob/main/CHANGELOG.md` → `https://www.redmir.net/CHANGELOG.md`로 변경. 푸터 문구 "그 이전 버전의 전체 변경 이력은 GitHub에서 전체 보기 →" → **"그 이전 버전의 전체 변경 이력 보기"**(링크 하나로 통합).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.59.2.html` md5 일치.
+
+---
+
 ## [3.59.1] - 2026-06-04
 
 ### Changed
