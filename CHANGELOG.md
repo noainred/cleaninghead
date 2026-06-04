@@ -13,6 +13,21 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.61.0] - 2026-06-04
+
+### Changed
+- **브랜드 아이콘 전면 교체** — 기존 마인드맵 마크(네이비 노드+가지)를 새 "깔때기" 마크로 변경. *수백 개의 생각을 걸러 핵심(별) 하나만 남긴다*는 앱 컨셉을 형상화 (블루 그라데이션 타일 + 상단 컬러 점 5개 + 흰 깔때기 + 아래 별).
+  - **favicon** (`rel="icon"`)과 **apple-touch-icon**을 새 마크로 교체 (인라인 SVG data URI, 외부 요청 없음).
+  - **헤더 로고** 신규 추가 — `BrainBloom` 텍스트 왼쪽에 30px 마크 표시. `.brand`를 `align-items: center`로, `.brand-logo` 스타일 추가.
+  - 보조 문서 `BrainBloom_TechDoc.html`·`BrainBloom_UserGuide.html`에도 동일 favicon 추가(기존엔 없었음)해 브랜드 통일.
+
+### Technical Notes
+- favicon SVG는 `linearGradient`(id=`g`) + `url(%23g)`로 그라데이션, 헤더 인라인 SVG는 id=`bbFunnel` 사용(충돌 없음).
+- 모바일(≤640px)에선 `.brand`가 숨겨지므로 로고도 함께 숨김(기존 동작 유지).
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.61.0.html` md5 일치.
+
+---
+
 ## [3.60.7] - 2026-06-04
 
 ### Changed
