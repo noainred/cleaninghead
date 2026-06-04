@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.60.5] - 2026-06-04
+
+### Changed
+- **상단 메뉴 버튼 콤팩트화** — `.btn.icon-btn`(캘린더·AI 요약·설정 등 헤더 버튼) 내부 여백 `9px 12px` → `5px 8px`. 글자와 테두리 사이 공백을 줄여 더 타이트하게.
+
+### Technical Notes
+- CSS 1줄. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.60.5.html` md5 일치.
+
+---
+
 ## [3.60.4] - 2026-06-04
 
 ### Fixed
