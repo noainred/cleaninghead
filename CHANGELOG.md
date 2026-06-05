@@ -9,7 +9,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 관계선 곡선·드래그 조절, 죽은 코드 정리)
+향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 노드 아이콘 하단 바, 죽은 코드 정리, 관계선 곡선·드래그)
+
+---
+
+## [3.69.0] - 2026-06-05
+
+### Added / Changed
+- **아이콘 복원 + 설정 큐레이션** — 아이콘 표시를 되살리되, **설정 > 아이콘**에서 카테고리별로 "보여줄 아이콘"을 고르면(`settings.iconChoices`), 우측 패널의 아이콘 피커(**태그 아래** 배치)에는 **고른 것만** 노출. 노드에 붙인 아이콘은 **태그 아래** 줄에 표시. `nodeHeight`에 아이콘 줄 높이 반영(겹침 방지), `sanitizeNode`/`preserveMetadata` 보존 복구.
+- **메타데이터 표시 토글** — 설정에서 노드 "메타데이터(날짜·작업량·비용)" 편집 섹션의 표시 여부(`settings.showMetaPanel`)를 켜고 끌 수 있음.
+
+### Technical Notes
+- 아이콘 로직(`ICON_CATEGORIES`/`toggleNodeIcon`)은 이전에 비활성으로 남겨둔 것을 재활용. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.69.0.html` md5 일치.
 
 ---
 
