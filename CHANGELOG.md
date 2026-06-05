@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.74.0] - 2026-06-05
+
+### Added
+- **자유 그룹 (떨어진 노드 여러 개 묶기)** — 기존 "경계/그룹"(한 노드+하위)과 별개로, **Shift+클릭**으로 임의의 노드 여러 개를 골라 하나의 그룹으로 묶음.
+  - 데이터: `tree.groups: [{ id, nodeIds[], label, color }]`. `sanitizeNode`(노드 2개 미만/중복 정리, 라벨 40자·기본값), `preserveMetadata` 재매핑(라벨키→새 id, 살아남은 노드 2개 이상일 때만 유지).
+  - 다중 선택: `groupSelectIds` + Shift+클릭 토글(`onSelect(e)`로 이벤트 전달, `NodeViewBase` `onClick`도 `onSelect(e)`). 선택 노드는 `.node.group-sel`로 강조(`nodeViewPropsEqual`에 `isGroupSel` 추가).
+  - 2개 이상 선택 시 상단 "그룹으로 묶기" 배너(`createGroup`). 그룹 박스(노드 묶음 bbox + pad, 가장 아래 SVG 레이어)를 클릭하면 관리 배너에서 이름(`updateGroup`)·색(6색 팔레트)·해제(`removeGroup`). 빈 캔버스 클릭 시 다중선택·그룹선택 해제.
+  - SVG가 `pointer-events:none`이라 `group-rect`/`group-label`에 재활성화.
+
+### Technical Notes
+- babel OK, 노드 시뮬 9/9(다중선택 토글·bbox·sanitize·remap), `index.html` ↔ `seahyun/brainstorm_v3.74.0.html` md5 일치.
+
+---
+
 ## [3.73.0] - 2026-06-05
 
 ### Performance
