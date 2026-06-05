@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.70.1] - 2026-06-05
+
+### Changed
+- **아이콘 모아보기 바 — 한 줄(가로)로 펼침** — 줄(iconRows) 구성에 따라 세로로 쌓던 방식을 폐기하고, 사용 중 아이콘을 하나의 바에 가로로 나열. 화면 폭(`max-width: min(92vw, 900px)`) 안에서 한 줄로 펼치고 넘칠 때만 `flex-wrap`으로 자동 줄바꿈. 정렬 순서는 줄 구성 순서를 따르고, 어느 줄에도 없는 사용 아이콘은 맨 뒤로.
+  - `iconFilterRows`(줄별 묶음) → `iconFilterChips`(단일 배열, 중복 제거)로 교체. `.icon-filter-row` 제거, `.icon-filter-bar`를 단일 pill(둥근 사각형)로. 우측 패널 피커·설정 줄 편집기는 그대로(줄 구성 유지).
+
+### Technical Notes
+- babel OK, 시뮬 5/5, `index.html` ↔ `seahyun/brainstorm_v3.70.1.html` md5 일치.
+
+---
+
 ## [3.70.0] - 2026-06-05
 
 ### Added
