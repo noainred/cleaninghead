@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.8] - 2026-06-05
+
+### Added
+- **노드별 생성·수정 시각 자동 기록(읽기 전용)** — "언제 이 아이디어를 냈는지" 확인용. 각 노드에 `createdAt`(생성)·`updatedAt`(마지막 수정) ISO 타임스탬프를 시스템이 자동 기록.
+  - **생성**: `addChild`/`addSibling`(다이어그램)과 텍스트 재파싱으로 새로 생긴 노드(`preserveMetadata`에서 신규 노드에 부여). **수정**: `updateNode`가 `updater` 실행 후 `updatedAt` 갱신.
+  - **보존**: `sanitizeNode` 화이트리스트에 `createdAt/updatedAt` 추가(로드 시 유지), `preserveMetadata`가 재파싱 간 보존(라벨 경로 매칭). `serializeTree`·`serializeTreeContent`는 비-`_` 필드라 자동 유지(저장·드라이브 동기화 포함).
+  - **표시**: 우측 패널 "기록" 섹션에 `🟢 생성`/`✏️ 수정`(다를 때만) 읽기 전용 텍스트(`fmtTimestamp` → `YYYY.MM.DD HH:mm`). 편집 입력칸 없음 → **사용자가 임의로 바꿀 수 없음**. (기록이 없는 기존 노드는 표시 안 함.)
+
+### Technical Notes
+- node 시뮬 6/6 통과(생성=수정 / 수정 시 createdAt 유지 / 로드 보존 / 비문자 무시 / 포맷).
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.8.html` md5 일치.
+
+---
+
 ## [3.79.7] - 2026-06-05
 
 ### Changed (모바일)
