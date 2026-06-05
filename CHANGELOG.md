@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.70.3] - 2026-06-05
+
+### Changed
+- **하단 모아보기 정중앙 정렬** — `.bottom-bars` 래퍼를 `left:50% + translateX(-50%)`(absolute+flex 환경에서 너비 계산이 모호)에서 `left:0/right:0` 전체 폭 + `justify-content:center`로 변경해, 아이콘 바+태그 바 묶음을 화면 정중앙에 정확히 정렬. 컨테이너는 `pointer-events:none`(빈 공간 클릭 통과), 바(자식)만 `pointer-events:auto`.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.70.3.html` md5 일치.
+
+---
+
 ## [3.70.2] - 2026-06-05
 
 ### Changed
