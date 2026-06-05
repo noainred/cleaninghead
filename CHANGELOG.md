@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.7] - 2026-06-05
+
+### Changed
+- **새로고침 시 구글 드라이브 OAuth 팝업 깜빡임 제거 — 지연 연결** — 마운트 시 즉시 `requestDriveToken`을 호출해 GIS 토큰 팝업이 매 새로고침마다 잠깐 열렸다 닫혔음(백엔드 없는 implicit 플로우는 완전 무팝업이 불가). → 새로운 `driveLinkedPending` 상태를 도입해, 연결 이력이 있으면 마운트 땐 토큰을 받지 않고 '연결됨(대기)'로 두었다가, **첫 `pointerdown`/`keydown`(사용자 제스처) 때 `requestDriveToken(false)`로 1회 조용히 연결**(제스처 직후라 팝업 차단도 덜 됨). 보기만 하고 떠나면 팝업 0회. 대기 중에는 헤더 '설정' 색·연결 배지가 빨강/미연결로 깜빡이지 않도록 `(!driveSignedIn && !driveLinkedPending)` 조건으로 보정. 모니터(30초/10분)·자동저장은 기존대로 `driveSignedIn` 게이트라 대기 중엔 동작하지 않고, 재연결 후 정상 동작.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.7.html` md5 일치.
+
+---
+
 ## [3.78.6] - 2026-06-05
 
 ### Fixed
