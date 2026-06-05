@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.76.1] - 2026-06-05
+
+### Added
+- **좌측 패널 하단 "패널 닫기" 버튼** — 우측 패널과 대칭으로 좌측 "아이디어 입력" 패널 하단에 `panel-close-btn`(`✕ 패널 닫기`) 추가. 클릭 시 `settings.showLeftPanel=false`. (다시 켜기: 설정 > 화면.)
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.76.1.html` md5 일치.
+
+---
+
 ## [3.76.0] - 2026-06-05
 
 ### Added
