@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.62.1] - 2026-06-05
+
+### Added
+- **구글 드라이브 연결 상태 배지** — 설정 > 구글 드라이브 연동 섹션 제목 오른쪽에 현재 연결 상태를 표시. 연결 시 초록 **"연결됨"**(점이 은은하게 펄스), 미연결 시 회색 **"연결 안 됨"**. `driveSignedIn` 상태에 연동.
+
+### Technical Notes
+- 배지 스타일은 `.drive-status-badge`(+`.on`)·`.drive-status-dot`·`@keyframes drivePulse`로 추가. 섹션 제목은 해당 div에만 인라인 flex(`space-between`)를 적용해 다른 섹션 제목엔 영향 없음.
+- 색 변수(`--ink-soft`/`--line`/`--bg-2`)를 사용해 라이트·다크 테마 모두 자동 대응. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.62.1.html` md5 일치.
+
+---
+
 ## [3.62.0] - 2026-06-05
 
 ### Added
