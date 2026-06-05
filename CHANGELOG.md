@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.70.4] - 2026-06-05
+
+### Changed
+- **하단 모아보기 — 뷰포트 기준 정중앙 고정** — `.bottom-bars`를 `position: absolute`(캔버스 영역 기준, 우측 패널이 열리면 영역이 좁아져 왼쪽으로 치우침) → `position: fixed`(뷰포트 기준)로 변경. 좌/우 패널 유무와 무관하게 브라우저 전체 폭의 정중앙에 고정.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.70.4.html` md5 일치.
+
+---
+
 ## [3.70.3] - 2026-06-05
 
 ### Changed
