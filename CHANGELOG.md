@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.3] - 2026-06-05
+
+### Changed
+- **뷰 복원 방식 개선 — 선택 노드 중앙 + 1초 저장** — 기존 스크롤 좌표 저장은 맵 크기가 바뀌면 어긋났음(우측 치우침 등). → `viewState`에 `{zoom, selectedId, scrollLeft, scrollTop}`를 **1초 간격(`setInterval`)** 저장. 복원 시 줌을 맞추고, 선택했던 노드가 있으면 `centerNode`로 화면 중앙에(없으면 저장된 스크롤 폴백). `selectedIdRef`로 interval 클로저 최신화.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.3.html` md5 일치.
+
+---
+
 ## [3.78.2] - 2026-06-05
 
 ### Fixed
