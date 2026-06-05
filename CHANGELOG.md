@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.7] - 2026-06-05
+
+### Changed (모바일)
+- **터치 제스처 지원 — Pointer Events 전환 + 핀치 줌** (감사 #5) — 팬/줌/관계선 핸들 드래그가 마우스 전용(`mousedown/move/up`, `wheel`)이라 휴대폰·태블릿에서 캔버스 팬·줌이 사실상 불가능했음. → 패닝을 **Pointer Events**(`pointerdown/move/up/cancel` + `setPointerCapture`)로 전환(마우스·터치·펜 공통). **두 포인터 = 핀치 줌**(두 손가락 거리 비율로 줌, 중점 기준 스크롤 보정), 한 포인터 = 패닝. `.canvas-scroll`에 `touch-action: none`을 줘 브라우저 기본 제스처와 충돌 제거. 관계선 핸들 드래그도 `onPointerDown` + `pointermove/up`으로 전환해 터치로 점 이동 가능. 마우스 동작은 동일하게 유지(Pointer Events가 마우스도 처리).
+
+### Technical Notes
+- 후속(미적용): 호버로만 보이는 노드 버튼을 `@media (hover:none)`에서 상시 표시, 탭 타깃 44px 확대 — 별도 진행 예정.
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.7.html` md5 일치.
+
+---
+
 ## [3.79.6] - 2026-06-05
 
 ### Changed
