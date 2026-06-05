@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.76.2] - 2026-06-05
+
+### Fixed
+- **새로고침 시 가끔 노드가 중앙에 겹쳐 보이던 문제** — `layoutTree`는 tree에 좌표(`_x/_y`)를 써넣는 side-effect가 있는데 이를 `useMemo`(deps `[tree]`)에서 호출했음. React 동시성 렌더 등 드문 타이밍에 이 mutate가 누락되면 모든 노드가 `_x` 미설정 → `left:0`으로 한 점에 겹침. `layoutInfo`를 매 렌더 `layoutTree(tree)` 직접 호출로 변경해 좌표를 항상 보장(결정적·O(n), 노드는 `React.memo`로 `_x` 동일 시 리렌더 skip이라 비용 미미).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.76.2.html` md5 일치.
+
+---
+
 ## [3.76.1] - 2026-06-05
 
 ### Added
