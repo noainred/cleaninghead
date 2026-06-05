@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.70.2] - 2026-06-05
+
+### Changed
+- **하단 모아보기 한 줄 배치** — 캔버스 하단의 "아이콘 모아보기" 바와 "태그 필터" 바를 세로로 쌓던 것을 한 줄(가로)에 나란히 배치. 화면 폭을 넘으면 `flex-wrap`으로 자동 줄바꿈.
+  - 새 `.bottom-bars` 래퍼(absolute 하단 중앙)로 두 바를 감싸고, `.icon-filter-bar`/`.tag-filter-bar`는 절대위치를 떼고 래퍼 안의 static pill로 전환(각 `max-width: 100%`). 아이콘 바의 동적 `bottom`(58/16) 인라인 스타일 제거.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.70.2.html` md5 일치.
+
+---
+
 ## [3.70.1] - 2026-06-05
 
 ### Changed
