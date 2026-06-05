@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.0] - 2026-06-05
+
+### Added
+- **설정에 'About' 메뉴 추가 — 공지·개발자의 말** — 설정 상단 문서 바로가기 줄에 `About` 카드를 추가. 클릭하면 앱 안에서 오버레이(`iframe`)로 **`https://www.redmir.net/about`** 를 불러와 보여줌(열 때마다 `?t=nonce` 캐시버스트로 최신본). 개발자는 새로 추가한 **`about.html`** 한 파일만 편집·커밋하면 앱 재배포 없이 공지/메시지가 즉시 반영됨. `showAbout`/`aboutNonce` 로컬 상태로 SettingsModal에 자체 포함, 바깥/✕ 클릭으로 닫힘.
+
+### Changed
+- 설정의 **사용 설명서·기술 문서 카드 아이콘 크기를 절반으로** 축소(`fontSize` 20 → 10).
+
+### Technical Notes
+- 신규 파일 `about.html`(GitHub Pages가 `/about`로 서빙). babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.0.html` md5 일치.
+
+---
+
 ## [3.78.8] - 2026-06-05
 
 ### Changed
