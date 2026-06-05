@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.76.0] - 2026-06-05
+
+### Added
+- **관계선 우클릭 옵션 메뉴** — 관계선(hit 영역) 위에서 `contextmenu` → 옵션 메뉴(`linkMenu`). 모양(곡선/직선/직각·`type`), 선(점선/실선·`dash`), 두께(가늘게1/보통2/굵게3.5·`width`), 삭제(`removeLink`).
+  - 데이터: `link.dash`(`'solid'`, 점선이 기본), `link.width`(숫자, 2가 기본). `updateLinkStyle(from,to,patch)`로 변경(기본값이면 키 제거). `sanitizeNode`/`preserveMetadata`에 `dash`/`width` 보존.
+  - 렌더: `cross-link-path`에 인라인 `strokeWidth`/`strokeDasharray`(점선은 두께 비례 `lw*3 lw*2`). hit `onContextMenu`로 메뉴 오픈(`preventDefault`+`stopPropagation`으로 배경 메뉴와 분리).
+
+### Technical Notes
+- babel OK, 노드 시뮬 12/12(스타일 토글·sanitize·점선 패턴), `index.html` ↔ `seahyun/brainstorm_v3.76.0.html` md5 일치.
+
+---
+
 ## [3.75.2] - 2026-06-05
 
 ### Fixed
