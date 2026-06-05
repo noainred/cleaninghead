@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.77.1] - 2026-06-05
+
+### Added
+- **통계에 "그룹 수" 추가** — 우하단 `.stats`에 자유 그룹 개수(`tree.groups.length`) 행 추가. `stats` useMemo에 `groups` 포함.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.77.1.html` md5 일치.
+
+---
+
 ## [3.77.0] - 2026-06-05
 
 ### Added
