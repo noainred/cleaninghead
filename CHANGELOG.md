@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.75.1] - 2026-06-05
+
+### Fixed
+- **관계선 곡선 핸들을 좌클릭으로 못 옮기던 문제** — 핸들/hit/그룹은 `pointer-events:auto`로 클릭 가능하게 했지만 패닝 제외 목록(`isPanTarget`)에 없어, 좌클릭이 캔버스 패닝(native `mousedown`)에 가로채였음(React `stopPropagation`은 native 리스너를 못 막음). `isPanTarget`에 `.cross-link-handle`, `.cross-link-hit`, `.group-rect`, `.group-label` 제외 추가 → 좌클릭 드래그로 핸들 이동.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.75.1.html` md5 일치.
+
+---
+
 ## [3.75.0] - 2026-06-05
 
 ### Changed
