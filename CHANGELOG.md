@@ -9,7 +9,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (대기: ⑤ 경계/그룹 → 관계선 곡선·드래그 조절)
+향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 관계선 곡선·드래그 조절, 죽은 코드 정리)
+
+---
+
+## [3.68.0] - 2026-06-05
+
+### Added
+- **경계/그룹 (⑤)** — 노드 우클릭 "경계로 묶기"(또는 우측 패널 "경계/그룹")로 그 노드 + 보이는 하위 묶음을 둥근 박스로 감쌈. 다시 누르면 해제.
+  - 데이터: 루트 `tree.boundaries: [{nodeId}]`. `sanitizeNode` 보존, `preserveMetadata`에서 라벨경로 id 재매핑(노드 삭제 시 자동 드롭). 렌더: 연결선 SVG 맨 아래 레이어에 하위 묶음 bbox(접힘 제외) + `pad`, 색은 anchor 노드 색.
+
+### Technical Notes
+- node 시뮬 4/4(접힘 bbox 제외·bbox 계산·경계 remap·삭제 드롭). babel OK, `index.html` ↔ `seahyun/brainstorm_v3.68.0.html` md5 일치.
 
 ---
 
