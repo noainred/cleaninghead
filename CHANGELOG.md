@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.1] - 2026-06-05
+
+### Fixed
+- **About 메뉴가 파일 다운로드되던 문제** — iframe `src`가 확장자 없는 `https://www.redmir.net/about`였는데, 이 경로는 `text/html`로 서빙되지 않아 브라우저가 인라인 렌더 대신 **다운로드**로 처리(iframe은 빈 화면). → 문서(`/BrainBloom_UserGuide.html`)와 동일하게 **`https://www.redmir.net/about.html`**(명시적 `.html`)로 변경 → `text/html`로 정상 렌더, 앱 안에서 바로 열림.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.1.html` md5 일치.
+
+---
+
 ## [3.79.0] - 2026-06-05
 
 ### Added
