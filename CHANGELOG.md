@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.77.3] - 2026-06-05
+
+### Fixed
+- **겹침 자가복구 강화** — v3.77.2 자가복구는 표본 노드가 `완전 동일 좌표`일 때만 발동(`Set.size <= 1`)이라, "약간 어긋난 채" 겹친 경우(특히 Drive 팝업/버전업 첫 로드)를 놓쳤음. → 표본 12개의 화면 좌표 `span`(가로/세로 펼침)이 30px 미만이면 겹침으로 감지. 복구도 `setZoom(1)` + 스크롤 0 + `didAutoFitRef` 리셋 + `setTree(cloneTree)`로 강화(최대 4회). 진단용 `console.warn`(span·zoom·layoutW) 추가.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.77.3.html` md5 일치.
+
+---
+
 ## [3.77.2] - 2026-06-05
 
 ### Fixed
