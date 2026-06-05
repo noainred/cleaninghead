@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.69.1] - 2026-06-05
+
+### Added
+- **이스터에그(숨은 연출)** — 화면을 가리지 않는 전체 오버레이(`pointer-events:none`, 5.6초 자동 소멸)로 두 가지 숨은 연출을 추가.
+  - **타이머 11연속 클릭**(1.2초 안쪽 간격) → 떠오르는 하트 파티클 + 개인 메시지 카드.
+  - **코나미 코드**(↑↑↓↓←→←→ B A) → 떨어지는 꽃잎 파티클 + BrainBloom 메시지.
+  - 구현: `easterEgg`/`eggKey` 상태 + `triggerEgg`. 전역 `keydown`(입력칸 무시·`preventDefault` 없음)으로 코나미 시퀀스 추적, 타이머 칩 `onClick` 래퍼(`handleTimerClick`)에서 연속 클릭 카운트. 파티클은 `eggKey`로 매번 재생성, CSS `eggFall`/`eggRise`/`eggBeat`/`eggMsg` 애니메이션.
+  - 업데이트 팝업 안내는 트리거를 노출하지 않도록 의도적으로 모호하게("숨은 재미 요소 🥚") 표기.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.69.1.html` md5 일치.
+
+---
+
 ## [3.69.0] - 2026-06-05
 
 ### Added / Changed
