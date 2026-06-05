@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.75.0] - 2026-06-05
+
+### Changed
+- **관계선 곡선 — 제어 핸들 1개 → 3개(Catmull-Rom 스플라인)** — 곡선(type curve)을 2차 베지어(제어점 1개)에서 3 웨이포인트를 통과하는 부드러운 스플라인으로 변경. 선택 시 핸들 3개가 나타나 S자 등 자유 곡선 가능.
+  - 데이터: `link.points: [{dx,dy}×3]`(두 노드 중심 중점 기준 오프셋). 레거시 `link.curve`(단일)는 fallback으로 중간 웨이포인트로 승격. `sanitizeNode`/`preserveMetadata` 재매핑에 `points` 보존.
+  - 렌더: `catmullRomPath([s, P1, P2, P3, e])`(Catmull-Rom→cubic), 시작/끝은 P1/P3 방향 `rectEdge`. 라벨은 P2.
+  - 드래그: `startLinkDrag(e, l, mid, index, basePoints)` — 잡은 핸들(index)만 갱신, 나머지 유지. `linkDrag`에 `index` 추가, `setLinkPoints`로 3점 저장.
+  - 자동 회피: 사용자가 핸들을 안 건드린 기본 모양(`points` 없음)일 때만 중간점에 적용. `points`가 있으면 의도 존중(회피 안 함).
+
+### Technical Notes
+- babel OK, 노드 시뮬 8/8(catmullRom·기본3점·드래그 index 교체), `index.html` ↔ `seahyun/brainstorm_v3.75.0.html` md5 일치.
+
+---
+
 ## [3.74.0] - 2026-06-05
 
 ### Added
