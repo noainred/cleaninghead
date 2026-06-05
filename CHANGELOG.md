@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.77.0] - 2026-06-05
+
+### Added
+- **영감 격언 (노드 미선택 시)** — 우측 패널이 빈 상태일 때 `INSPIRATION_QUOTES`(창작 격려문 100개)에서 랜덤 1개 표시 + 회색 안내문("다이어그램의 노드를 클릭하면 …"). 선택 해제(`selectedId`가 null)될 때마다 `emptyQuoteIdx`를 새로 뽑아 신선하게.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.77.0.html` md5 일치.
+
+---
+
 ## [3.76.2] - 2026-06-05
 
 ### Fixed
