@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.2] - 2026-06-05
+
+### Changed (성능)
+- **타이머 표시를 `<TimerChip>` 컴포넌트로 분리** — 기존엔 250ms `tick`이 `setTimerDisplayMs`로 App 전체를 **초당 4회 리렌더**(매번 `layoutTree` + SVG 4블록 재생성)했음. → 카운트다운 표시·urgent 판정을 자체 250ms 인터벌을 가진 `TimerChip`이 담당하게 분리. App의 `tick`은 마일스톤·종료 처리만 남겨 빈번한 리렌더 제거(`timerDisplayMs` 상태 및 setter 6곳·관련 effect 2개 삭제). 타이머 동작(시작/일시정지/재개/리셋/마일스톤/이스터에그)은 동일.
+- **jsPDF 지연 로드** — 렌더 차단 `<script>`(head)를 제거하고 `loadJsPDF()`로 **PDF 내보낼 때 처음 1회만** 동적 주입(SRI 유지). `buildPDFBlob`이 `await loadJsPDF()` 후 사용. 대부분 세션에서 ~350KB 다운로드·파싱이 사라져 초기 로딩이 빨라짐.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.2.html` md5 일치.
+
+---
+
 ## [3.79.1] - 2026-06-05
 
 ### Fixed
