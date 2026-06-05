@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.73.0] - 2026-06-05
+
+### Performance
+- **관계선 렌더 메모이제이션** — 연결선 SVG의 관계선(cross-link) 그리기를 매 렌더 IIFE에서 `crossLinkEls = useMemo([tree, selectedLinkKey, linkDrag])`로 추출. 타이머·토스트·호버 등 관계없는 리렌더에서 관계선(+자동 회피 충돌검사)을 다시 계산하지 않음 → 관계선·노드가 많은 큰 맵에서 편집/드래그 부드러움 개선.
+  - 드래그 핸들의 `startLinkDrag`는 `startLinkDragRef`(매 렌더 갱신)로 참조해 메모 의존성에서 제외(stale 클로저 방지). 로직 자체는 동일(기존 곡선/종류 시뮬 6/6 유효).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.73.0.html` md5 일치.
+
+---
+
 ## [3.72.2] - 2026-06-05
 
 ### Removed
