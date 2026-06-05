@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.8] - 2026-06-05
+
+### Changed
+- **같은 탭 새로고침 시 OAuth 팝업 완전 제거 — 토큰 탭-세션 보관(사용자 동의)** — v3.78.7로 팝업을 '첫 상호작용 1회'로 줄였지만, 새로고침마다 여전히 GIS 토큰 창이 떴음. → 액세스 토큰을 **sessionStorage**(`bb_drive_tok`, `{t, e}`)에 보관: 토큰 수신 시 저장(`saveDriveTokenToSession`), 마운트 시 만료 2분 전까지 유효하면 메모리로 복원(`restoreDriveTokenFromSession`)해 **`requestAccessToken` 호출 자체를 생략**(→ 같은 탭 새로고침에 팝업 0회, 즉시 `driveSignedIn` + `syncBaselineOnConnect`). 만료/없으면 기존 '대기 → 첫 상호작용 연결'로 폴백. 로그아웃·revoke 시 세션 토큰 삭제(`clearDriveTokenSession`). **localStorage가 아닌 sessionStorage라 탭을 닫으면 자동 삭제**되고 권한은 `drive.file`·약 1시간 한정이라 노출 위험이 작음(사용자 동의 하 결정). 새 탭·새 방문·1시간 경과는 보안상 1회 팝업 유지(백엔드 없는 한 불가피).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.8.html` md5 일치.
+
+---
+
 ## [3.78.7] - 2026-06-05
 
 ### Changed
