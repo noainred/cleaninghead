@@ -9,7 +9,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 죽은 코드 정리)
+향후 추가 예정인 기능이 여기에 기록됩니다.
+
+---
+
+## [3.72.2] - 2026-06-05
+
+### Removed
+- **죽은 코드 제거** — 어디서도 호출되지 않던 함수/상수 제거: `ALL_ICONS`, `nextIdeaLabel`, `hexToRgb`, `exportCSV`, `exportJSON`, `exportMarkdown`. (실제 내보내기는 `buildCSVString`/`treeToMarkdown`/`JSON.stringify`를 직접 쓰는 경로가 담당 — 동작 변화 없음.) 약 65줄·2.4KB 감소.
+
+### Technical Notes
+- babel OK, 제거 심볼 잔존 0 확인, `index.html` ↔ `seahyun/brainstorm_v3.72.2.html` md5 일치.
 
 ---
 
