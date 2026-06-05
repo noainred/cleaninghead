@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.63.1] - 2026-06-05
+
+### Changed
+- **바탕 클릭으로 우측 패널 닫기 (조건부)** — "노드 세부 정보"로 임시로 연 우측 패널은 빈 바탕(캔버스)을 클릭하면 닫힘. **단, 설정 '우측 패널 표시'가 켜져 있으면 바탕 클릭으로 닫지 않음**(영구 표시 유지).
+  - 임시 열림 상태 `panelTempOpen`(useState, 비영구) 도입. 패널 표시 여부 `rightPanelVisible = settings.showRightPanel !== false || panelTempOpen` 로 일원화(레이아웃 클래스·렌더 조건 모두 사용).
+  - "노드 세부 정보" 클릭 → `setPanelTempOpen(true)`(영구 설정은 안 바꿈). 바탕 클릭 → `setPanelTempOpen(false)`(설정이 켜져 있으면 그대로 표시). "패널 닫기" 버튼 → 임시·영구 둘 다 끔(`panelTempOpen=false` + `showRightPanel=false`).
+  - 노드 클릭은 `stopPropagation`이라 바탕 클릭과 분리되어, 노드 선택 시엔 닫히지 않음.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.63.1.html` md5 일치.
+
+---
+
 ## [3.63.0] - 2026-06-05
 
 ### Added
