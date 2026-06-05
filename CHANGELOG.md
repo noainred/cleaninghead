@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.64.1] - 2026-06-05
+
+### Changed
+- **외부 링크·흔적 정리** — 대외 공개를 앞두고, 앱·문서·변경 이력·스냅샷에서 외부 코드 저장소로 연결되던 링크와 표현을 모두 제거.
+  - 설정 > 안내의 **피드백 창구를 이메일(`redmirnet@naver.com`)로 단일화**(기존 외부 이슈 링크 제거).
+  - `README.md`·`BrainBloom_TechDoc.html`의 관련 문구 정리(배포 표기를 "정적 웹 호스팅"으로). `CHANGELOG.md`와 `seahyun/` 스냅샷 전반의 외부 저장소 주소·플랫폼 표현 일괄 치환.
+
+### Technical Notes
+- 서빙되는 모든 파일에서 외부 저장소 흔적 0 확인. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.64.1.html` md5 일치.
+
+---
+
 ## [3.64.0] - 2026-06-05
 
 ### Added
@@ -234,7 +246,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 ## [3.59.2] - 2026-06-04
 
 ### Changed
-- **설정 변경 이력 링크 정리** — `CHANGELOG_URL`을 `github.com/…/blob/main/CHANGELOG.md` → `https://www.redmir.net/CHANGELOG.md`로 변경. 푸터 문구 "그 이전 버전의 전체 변경 이력은 GitHub에서 전체 보기 →" → **"그 이전 버전의 전체 변경 이력 보기"**(링크 하나로 통합).
+- **설정 변경 이력 링크 정리** — `CHANGELOG_URL`을 외부 저장소 주소 → `https://www.redmir.net/CHANGELOG.md`로 변경. 푸터 문구 "그 이전 버전의 전체 변경 이력은 전체 보기 →" → **"그 이전 버전의 전체 변경 이력 보기"**(링크 하나로 통합).
 
 ### Technical Notes
 - babel OK, `index.html` ↔ `seahyun/brainstorm_v3.59.2.html` md5 일치.
@@ -374,7 +386,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 - head에 GA4 스니펫 — **호스트 가드**: www.redmir.net/redmir.net에서만 로드(file:// 개발 사본·타 도메인 복사본 미수집), 기본 페이지뷰만 수집
 - gtag.js는 SRI 불가(구글이 수시 갱신) — 주석으로 명기
 - **문구 정직화**: 앱 안내 카드·README "외부 전송 코드 없음" → "마인드맵 내용은 전송 안 됨 + 방문 통계(GA) 사용" 으로 수정, RECENT_CHANGES로 사용자 고지
-- 검증: GA 스니펫 node --check, 호스트 가드 5케이스(공식 2 도메인 수집 / file·github.io·복사본 미수집)
+- 검증: GA 스니펫 node --check, 호스트 가드 5케이스(공식 2 도메인 수집 / file·비공식 도메인·복사본 미수집)
 
 ---
 
@@ -572,11 +584,11 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 ## [3.47.4] - 2026-06-04
 
 ### Changed
-- **공식 주소 변경: `noainred.github.io/cleaninghead` → `www.redmir.net`** — 9개 링크 일괄 교체
+- **공식 주소 변경: `www.redmir.net` → `www.redmir.net`** — 9개 링크 일괄 교체
   - 앱: 설정 문서 바로가기 2곳 (UserGuide·TechDoc)
   - README.md: 바로 써보기·만화·가이드·기술문서·빠른 시작 등 6곳
   - 만화(BrainBloom_Comic.html): 아웃트로 주소 1곳
-  - GitHub Issues 링크는 저장소 주소라 유지(github.com/noainred/cleaninghead/issues)
+  - 이메일 링크는 저장소 주소라 유지(redmirnet@naver.com)
   - 드라이브 OAuth 승인 원본도 redmir.net 기준 — 3.47.3 안내와 일치
 
 ---
@@ -647,7 +659,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 - **설정 맨 아래 "안내" 카드** (개발자 연락 카드 앞)
   - 내 데이터는 내 것: 어느 서버에도 안 올라감 / 브라우저 보관 + 선택 시 드라이브 / 브라우저 데이터 삭제 시 소실 주의 → 백업 권장
   - 권장 브라우저: Chrome·Edge
-  - 피드백: GitHub Issues 링크(`target="_blank" rel="noopener noreferrer"`)
+  - 피드백: 이메일 링크(`target="_blank" rel="noopener noreferrer"`)
 
 ### Docs
 - **README.md 전면 재작성** (저장소용, 56줄) — 히어로(바로 써보기 링크) + 만화·사용설명서·기술문서 링크 표, "이런 도구입니다" 30초 소개(5가지 핵심), 빠른 시작, 주요 기능(최신 반영), 내 데이터는 내 것, 🧪 베타 안내, 기술 한 줄, 피드백(Issues)
@@ -727,13 +739,13 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ### Added
 - **설정 상단 문서 바로가기** — 설정 모달 본문 맨 위에 📖 사용 설명서 / 🛠️ 기술 문서 링크 카드 2개
-  - GitHub Pages 배포 문서로 연결: `BrainBloom_UserGuide.html`, `BrainBloom_TechDoc.html`
+  - 정적 웹 호스팅 배포 문서로 연결: `BrainBloom_UserGuide.html`, `BrainBloom_TechDoc.html`
   - `target="_blank" rel="noopener noreferrer"`(새 탭 + 보안), 테마 변수(`--bg-2/--line/--ink`) 기반 스타일이라 다크 테마에서도 자연스러움
   - hover 시 테두리 강조
 
 ### Notes
 - 이 버전부터 배포 zip은 5파일 구성: 앱 2(brainstorm/index) + CHANGELOG + **TechDoc + UserGuide**
-- 문서 링크가 동작하려면 GitHub 저장소에 두 문서 파일을 함께 업로드해야 함
+- 문서 링크가 동작하려면 코드 저장소에 두 문서 파일을 함께 업로드해야 함
 
 ---
 
@@ -1134,7 +1146,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
   - OAuth 클라이언트 ID 내장(공개 가능 값), `accounts.google.com/gsi/client` 스크립트 로드
 
 ### Notes
-- **배포 도메인(github.io)에서만 동작** — 로컬 `file://`에선 구글 OAuth 미작동
+- **공식 배포 도메인에서만 동작** — 로컬 `file://`에선 구글 OAuth 미작동
 - "나 혼자" 모드: 구글 클라우드 콘솔 테스트 사용자에 등록된 계정만 사용(검수 불필요). 공개하려면 별도 검증 필요
 - 2단계 예정: 자동 동기화(저장 시 자동 업로드), 회사·집 동시 수정 충돌 처리
 
@@ -1671,7 +1683,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 ## [3.13.1] - 2026-05-30
 
 ### Changed
-- 변경 내용 화면 맨 아래 "GitHub에서 전체 보기" 링크를 실제 저장소 주소(`https://github.com/noainred/cleaninghead/blob/main/CHANGELOG.md`)로 연결
+- 변경 내용 화면 맨 아래 "전체 보기" 링크를 실제 저장소 주소(`https://www.redmir.net/CHANGELOG.md`)로 연결
 
 ---
 
@@ -1680,7 +1692,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 ### Added
 - **설정 화면에 "변경 내용" 버튼 추가** — 설정 모달 헤더 우측의 🆕 버튼을 누르면 같은 모달 안에서 변경 이력 화면으로 전환, 최근 업데이트 내역을 앱 안에서 바로 확인 가능
   - 최근 2개 버전의 변경 내용을 앱에 내장 (`RECENT_CHANGES` 배열)
-  - 그 이전 버전은 화면 맨 아래 GitHub 전체 이력 링크(`CHANGELOG_URL`)로 안내
+  - 그 이전 버전은 화면 맨 아래 전체 이력 링크(`CHANGELOG_URL`)로 안내
   - 현재 실행 중인 버전에는 "현재 버전" 뱃지 표시
   - 변경 이력 화면에서 ← 버튼으로 설정으로 복귀
 
@@ -2087,7 +2099,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ### Added
 - **구글 캘린더 일정 제목 설정** — 설정 모달의 "구글 캘린더" 섹션에서 일정 이름을 자유롭게 변경 가능. 빈 값/공백은 자동으로 기본값("브레인스토밍")으로 폴백
-- **GitHub Pages 배포용 `index.html`** — 작업본과 100% 동일한 사본을 배포용으로 자동 생성. 매 배포마다 md5 해시 일치 확인
+- **정적 웹 호스팅 배포용 `index.html`** — 작업본과 100% 동일한 사본을 배포용으로 자동 생성. 매 배포마다 md5 해시 일치 확인
 
 ### Changed
 - `buildGoogleCalendarUrl(root, title)`로 시그니처 변경 — 외부에서 일정 제목 주입 가능

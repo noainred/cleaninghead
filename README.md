@@ -102,4 +102,4 @@ LICENSE                     # 라이선스
 
 ## 🙏 만든 사람
 
-JunHo가 Claude(Anthropic)와의 페어 프로그래밍으로 개발했습니다. 버그 제보·기능 제안은 GitHub Issues 또는 redmirnet@naver.com 으로 보내 주세요.
+JunHo가 Claude(Anthropic)와의 페어 프로그래밍으로 개발했습니다. 버그 제보·기능 제안은 redmirnet@naver.com 으로 보내 주세요.
