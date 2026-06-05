@@ -9,7 +9,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 죽은 코드 정리, 관계선 곡선·드래그)
+향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 죽은 코드 정리)
+
+---
+
+## [3.71.0] - 2026-06-05
+
+### Added
+- **관계선 곡선 + 드래그 조절** — cross-link를 직선(`<line>`)에서 2차 베지어 곡선(`<path d="M s Q c e">`)으로 변경. 관계선을 클릭해 선택하면 제어점에 핸들이 나타나고, 핸들을 끌어 곡선 모양을 자유롭게 조절. 조절값은 저장됨.
+  - 제어점은 두 끝점 **중점 기준 오프셋**(`link.curve = {dx, dy}`, 맵 논리좌표)으로 저장 → 노드가 이동해도 곡률 유지. `curve`가 없으면 기본 곡률(선분 수직 방향, 길이의 18%·상한 80) 적용.
+  - 시작/끝점은 제어점 방향으로 노드 사각형 가장자리(`rectEdge`)에서 출발/도착. 라벨은 베지어 t=0.5 지점.
+  - 드래그: 핸들 `onMouseDown` → `window` `mousemove`/`mouseup`. 마우스 화면좌표→맵 논리좌표 변환은 `(clientX − svgRect.left) / zoom`(연결선 SVG는 `transform: scale(zoom)` 부모 안). 드래그 중엔 `linkDrag` 상태로 미리보기, 놓을 때 `setLinkCurve`로 확정(`maybePushHistory`).
+  - 선택/해제: hit 영역(투명 굵은 `path`, `pointer-events:stroke`) 클릭으로 토글, 빈 캔버스 클릭 시 해제. 부모 SVG가 `pointer-events:none`이라 hit·handle에 재활성화.
+  - 보존: `sanitizeNode`(curve 유효성 검사·반올림)·`preserveMetadata` 링크 재매핑에 `curve` 유지.
+
+### Technical Notes
+- babel OK, 곡선 수학 노드 시뮬 13/13(rectEdge·기본곡률·좌표변환·커밋임계·라벨), `index.html` ↔ `seahyun/brainstorm_v3.71.0.html` md5 일치.
 
 ---
 
