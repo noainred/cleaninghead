@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.77.4] - 2026-06-05
+
+### Fixed
+- **겹침 응급 복구 — 접힘 상태면 자동 전체 펼침** — 사용자 확인 결과 겹침이 났을 때 **"전체 펼치기"(collapsed 해제)만 정상화**시킴(줌·스크롤·`cloneTree` 자가복구 모두 무효). → 자가복구가 겹침을 감지하고 `tree`에 접힌 노드가 있으면, `cloneTree` + 모든 `collapsed` 제거 + `setTree`로 자동 펼침(`showToast` 안내). 접힘이 없으면 기존 줌/스크롤/배치 리셋 폴백. 진단 로그에 `layoutW`/`hasCollapsed` 추가.
+  - 근본 원인(접힘 상태에서 `layoutTree`가 겹침 좌표를 내는 정확한 조건)은 정적 분석으로 미특정 — 추적 중. 본 변경은 확실한 응급 복구.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.77.4.html` md5 일치.
+
+---
+
 ## [3.77.3] - 2026-06-05
 
 ### Fixed
