@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.72.1] - 2026-06-05
+
+### Fixed
+- **트랙패드 팬에서 줌 바가 안 뜨던 문제** — 캔버스 패닝 시 줌 바 표시는 마우스 드래그(`isPanning`)에만 연결돼 있어, 맥북 트랙패드 2손가락 스와이프(=`Ctrl` 없는 `wheel`)로 캔버스를 밀 땐 줌 바가 뜨지 않았음. `handleWheel`의 비줌(else) 분기에서도 줌 바를 표시(2.5초 자동 숨김, 툴바 hover 시 유지)하도록 추가.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.72.1.html` md5 일치.
+
+---
+
 ## [3.72.0] - 2026-06-05
 
 ### Added
