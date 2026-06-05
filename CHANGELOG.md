@@ -9,7 +9,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 노드 아이콘 하단 바, 죽은 코드 정리, 관계선 곡선·드래그)
+향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 죽은 코드 정리, 관계선 곡선·드래그)
+
+---
+
+## [3.70.0] - 2026-06-05
+
+### Added
+- **아이콘 모아보기 (하단 바)** — 맵의 노드에 붙어 있는 아이콘을 화면 하단 바에 모아 표시. 아이콘을 누르면 그 아이콘이 붙은 노드 + 상위만 또렷하게(나머지는 흐리게) — 태그 필터와 동일한 강조 방식.
+  - `allNodeIcons`(사용 중 아이콘 집합) → `iconFilterRows`(설정 줄 구성에 맞춰 사용 아이콘만 줄별로 묶고, 어느 줄에도 없는 사용 아이콘은 "기타" 줄). `iconFilter`/`iconVisibleIds`로 강조, `isDimmed`에 합산. 더 이상 없는 아이콘은 필터에서 자동 제거.
+  - 하단 바는 태그 바 위에 줄 단위로 쌓임(`bottom`을 태그 유무에 따라 16/58px로 조정).
+- **아이콘 줄(행) 구성** — 설정 > 아이콘에서 아이콘을 여러 "줄"로 나눠 정리. 줄 추가/삭제/비우기, 줄을 선택한 뒤 팔레트에서 아이콘을 누르면 그 줄에 추가(다른 줄에 있으면 이동, 중복 방지). 우측 패널 아이콘 피커와 하단 모아보기 바가 이 구성을 따름.
+  - 데이터: `settings.iconRows: string[][]`. 옛 `settings.iconChoices`(평면)는 로드 시 1줄짜리 `iconRows`로 승격(마이그레이션) 후 레거시로만 유지. 기본값은 2줄.
+
+### Technical Notes
+- 우측 패널 아이콘 피커는 `iconChoices` 평면 그리드 → `iconRows` 줄별 그리드로 변경. `SettingsModal`에 줄 편집 상태(`iconRowSel`)와 헬퍼(`addIconRow`/`removeIconRow`/`clearIconRow`/`toggleIconInSelRow`) 추가.
+- babel OK, 로직 노드 시뮬 12/12 통과, `index.html` ↔ `seahyun/brainstorm_v3.70.0.html` md5 일치.
 
 ---
 
