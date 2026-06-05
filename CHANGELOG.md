@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.5] - 2026-06-05
+
+### Changed (접근성)
+- **시작 다이얼로그 키보드 접근 + 전역 포커스 표시** (감사 #4) — 첫 실행/재방문 시 뜨는 "다시 오셨네요" 선택지가 클릭 전용 `<div>`였음(키보드/스크린리더로 선택 불가). → `role="radiogroup"`/`role="radio"`·`tabIndex={0}`·`aria-checked`와 Enter/Space 핸들러, 모달에 `role="dialog" aria-modal="true" aria-label` 추가. 입력칸 `outline:none`으로 키보드 포커스가 안 보이던 것을 전역 `:focus-visible` 규칙으로 보완.
+
+### Technical Notes
+- 후속(미적용): 모든 아이콘 버튼 `aria-label`, 모달 Tab 포커스 트랩/복원 — 별도 진행 예정.
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.5.html` md5 일치.
+
+---
+
 ## [3.79.4] - 2026-06-05
 
 ### Fixed (정확성)
