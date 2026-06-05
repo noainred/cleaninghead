@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.62.0] - 2026-06-05
+
+### Added
+- **업데이트 소개 팝업** — 새 버전으로 올라오면 접속 시 이번 버전의 변경점(RECENT_CHANGES의 현재 버전 항목)을 보여 주는 팝업을 1회 표시. 팝업 안에 **"다음부터 업데이트 보지 않기"** 체크박스 포함.
+- **설정 > "업데이트 알림 사용하기"** 토글(`updateNotify`, 기본 켬) — 끄면 업데이트 팝업이 더 이상 뜨지 않음.
+
+### Technical Notes
+- `lastSeenVersion`(이 브라우저에서 마지막으로 본 버전)을 IndexedDB에 영구 저장. 마운트 시 비교해 `isNewerVersion(APP_VERSION, lastSeenVersion)`이면 팝업 표시 후 현재 버전을 기록.
+- 완전 신규 사용자(설정 없음)는 팝업 없이 현재 버전만 기록. 기존 사용자가 이 기능 도입 버전으로 올라올 때는 1회 표시.
+- 팝업은 `startupDialog`(어제 작업 묻기)가 닫힌 뒤 표시(렌더 조건 `showUpdate && !startupDialog`). 체크박스/설정 토글은 `settings.updateNotify`를 공유.
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.62.0.html` md5 일치.
+
+---
+
 ## [3.61.1] - 2026-06-05
 
 ### Fixed
