@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.4] - 2026-06-05
+
+### Changed
+- **접힘/펼침 상태까지 1초 저장·복원** — 1초 간격 `viewState` 저장에 `collapsedIds`(현재 접힌 노드 id 배열, `walk`로 수집)를 추가. 복원 시 저장된 `collapsedIds`를 `cloneTree`로 트리에 반영(`setTree` 후 effect 재실행 → 중앙 정렬로 이어짐). 새로고침하면 접은 가지·펼친 가지가 그대로 복원됨. interval 클로저가 최신 트리를 보도록 `viewTreeRef` 추가.
+- **선택 노드 중앙 복원 강화** — 우측 치우침 보정. 복원 시 `requestAnimationFrame` ×2 후 `centerNode`, 그리고 t1(220ms)·t2(720ms) 2단계로 재보정해 자동맞춤이 덮어쓴 경우에도 정확히 중앙에 맞춤.
+
+### Added
+- **드라이브 연결 시 자동저장 기본 ON** — `handleDriveSignIn`에서 베이스라인 동기화 후, 사용자가 토글을 직접 만진 적(`autoSaveSetByUser`) 없으면 `driveAutoSave`를 켜고 안내 토스트 표시. 자동저장 토글 변경 시 `autoSaveSetByUser: true` 기록.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.4.html` md5 일치.
+
+---
+
 ## [3.78.3] - 2026-06-05
 
 ### Changed
