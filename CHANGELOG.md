@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.77.2] - 2026-06-05
+
+### Fixed
+- **노드 겹침 진짜 원인 — React.memo가 in-place 좌표 변경을 못 봄** — `layoutTree`가 노드 객체를 in-place로 좌표만 바꿔치기(참조 동일)하는데, `nodeViewPropsEqual`이 `if (a === b) return true`로 노드 참조만 보고 리렌더를 건너뛰어, 첫 렌더에 잘못 잡힌 좌표(특히 Drive 연결 팝업 등으로 타이밍이 어긋난 버전업 첫 로드)가 이후 고쳐져도 화면에 반영되지 않음. → 좌표를 값 prop(`nx/ny/nw/nside`)으로 전달하고 `nodeViewPropsEqual`에서 값으로 비교(`a===b`보다 먼저)해 변화 감지.
+- **겹침 자가 감지·복구(이중 안전장치)** — 표본 노드 12개의 실제 화면 좌표(`getBoundingClientRect`)가 전부 동일하면(겹침) `setZoom` 정상화 + `setTree(cloneTree)`로 강제 재배치(최대 3회).
+
+### Added
+- **통계에 "경계 수"** — `.stats`에 `tree.boundaries.length` 행 추가. (자유 그룹 "그룹 수"와 별개)
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.77.2.html` md5 일치.
+
+---
+
 ## [3.77.1] - 2026-06-05
 
 ### Added
