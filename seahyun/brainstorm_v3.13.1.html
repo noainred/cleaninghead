@@ -1207,11 +1207,11 @@ const APP_BUILD_DATE = '2026-05-30';
 
 /* ============================================================
    ★ 변경 이력 (CHANGELOG)
-   - 최근 2개 버전만 앱에 내장. 그 이전은 GitHub 링크로 안내.
+   - 최근 2개 버전만 앱에 내장. 그 이전은 전체 변경 이력 링크로 안내.
    - 새 버전 낼 때마다 맨 앞에 추가하고, 가장 오래된 항목 1개 제거(2개 유지).
    - CHANGELOG_URL: 전체 이력 링크 (배포 후 실제 주소로 교체)
    ============================================================ */
-const CHANGELOG_URL = 'https://github.com/noainred/cleaninghead/blob/main/CHANGELOG.md';
+const CHANGELOG_URL = 'https://www.redmir.net/CHANGELOG.md';
 const RECENT_CHANGES = [
   {
     version: '3.13.1',
@@ -1220,7 +1220,7 @@ const RECENT_CHANGES = [
       {
         label: '개선',
         items: [
-          '변경 내용 화면 맨 아래 "GitHub에서 전체 보기" 링크를 실제 저장소 주소로 연결했습니다.',
+          '변경 내용 화면 맨 아래 "전체 보기" 링크를 실제 저장소 주소로 연결했습니다.',
         ],
       },
     ],
@@ -1233,7 +1233,7 @@ const RECENT_CHANGES = [
         label: '추가',
         items: [
           '설정 화면에 "변경 내용" 버튼을 추가했습니다. 누르면 최근 업데이트 내역을 앱 안에서 바로 볼 수 있습니다.',
-          '더 이전 버전의 전체 변경 이력은 변경 내용 화면 맨 아래 GitHub 링크에서 확인할 수 있습니다.',
+          '더 이전 버전의 전체 변경 이력은 변경 내용 화면 맨 아래 웹 링크에서 확인할 수 있습니다.',
         ],
       },
     ],
@@ -4903,7 +4903,7 @@ function SettingsModal({ settings, onSettingsChange, onClose }) {
             <div className="changelog-footer">
               그 이전 버전의 전체 변경 이력은{' '}
               <a href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
-                GitHub에서 전체 보기 →
+                전체 보기 →
               </a>
             </div>
           </div>

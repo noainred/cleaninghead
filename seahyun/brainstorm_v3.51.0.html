@@ -1534,11 +1534,11 @@ const DRIVE_FOLDER_NAME = 'BrainBloom';
 
 /* ============================================================
    ★ 변경 이력 (CHANGELOG)
-   - 최근 2개 버전만 앱에 내장. 그 이전은 GitHub 링크로 안내.
+   - 최근 2개 버전만 앱에 내장. 그 이전은 전체 변경 이력 링크로 안내.
    - 새 버전 낼 때마다 맨 앞에 추가하고, 가장 오래된 항목 1개 제거(2개 유지).
    - CHANGELOG_URL: 전체 이력 링크 (배포 후 실제 주소로 교체)
    ============================================================ */
-const CHANGELOG_URL = 'https://github.com/noainred/cleaninghead/blob/main/CHANGELOG.md';
+const CHANGELOG_URL = 'https://www.redmir.net/CHANGELOG.md';
 const RECENT_CHANGES = [
   {
     version: '3.51.0',
@@ -7130,7 +7130,7 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
             <div className="changelog-footer">
               그 이전 버전의 전체 변경 이력은{' '}
               <a href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
-                GitHub에서 전체 보기 →
+                전체 보기 →
               </a>
             </div>
           </div>
@@ -7968,8 +7968,8 @@ function SettingsModal({ settings, onSettingsChange, onClose, driveSignedIn, dri
             </div>
             <div className="settings-desc" style={{ marginTop: 8, lineHeight: 1.7 }}>
               <b>피드백</b> — 버그 제보·기능 제안은{' '}
-              <a href="https://github.com/noainred/cleaninghead/issues" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
-                GitHub Issues
+              <a href="mailto:redmirnet@naver.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                이메일 문의
               </a>
               로 남겨 주세요. 아래 이메일도 좋습니다.
             </div>
