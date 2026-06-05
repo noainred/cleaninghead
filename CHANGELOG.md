@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.0] - 2026-06-05
+
+### Added
+- **뷰 상태(줌·스크롤) 유지** — 새로고침해도 맵의 줌 비율·스크롤 위치를 그대로 복원. IndexedDB `viewState`에 `{zoom, scrollLeft, scrollTop}` 디바운스(500ms) 저장, 로드 시 복원하며 `didAutoFitRef.current=true`로 자동 맞춤보다 우선. 스크롤은 레이아웃·줌이 잡힌 뒤(`pendingScrollRef`) 적용.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.0.html` md5 일치.
+
+---
+
 ## [3.77.4] - 2026-06-05
 
 ### Fixed
