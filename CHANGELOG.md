@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.75.2] - 2026-06-05
+
+### Fixed
+- **선택된 관계선이 노드에 가려 핸들이 안 보이던 문제** — 관계선/핸들은 연결선 SVG(`.connections`, 노드 아래 레이어)에 있어, 선택해도 노드 뒤로 가려졌음. `crossLinkEls`를 `{ base, overlay }`로 분리: 선택된 관계선의 **선·핸들 3개는 노드 위 오버레이 SVG(`.connections-overlay`, z-index 50)** 로 올리고, 선택 해제 시 `base`로 원복.
+  - hit 영역·라벨은 `base`에 유지(노드보다 아래) → 노드 클릭을 가로채지 않음. `cross-link-path`는 `pointer-events:none`이라 overlay 선 클릭은 통과해 base hit로 선택/해제.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.75.2.html` md5 일치.
+
+---
+
 ## [3.75.1] - 2026-06-05
 
 ### Fixed
