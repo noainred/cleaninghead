@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.72.0] - 2026-06-05
+
+### Added
+- **관계선 종류 선택(곡선/직선/직각선)** — 관계선을 클릭해 선택하면 상단에 종류 선택 배너(`link-edit-banner`)가 떠서 곡선·직선·직각선 중 고를 수 있음. 데이터: `link.type` (`'curve'` 기본 | `'straight'` | `'elbow'`).
+  - `straight`: 두 노드 중심 방향 가장자리 직선. `elbow`: 수평 우선 ㄱ자(`M s L midx,sy L midx,ey L e`). `curve`: 기존 2차 베지어 + 핸들.
+- **곡선 자동 노드 회피** — 곡선이고 수동 `curve` 조절이 없을 때, 베지어를 샘플링(`bezierHitsNode`)해 다른 노드 사각형(끝점 노드 제외, 4px 여유)과 충돌하면 제어점을 1.4~4.2배까지·양방향으로 키워가며 안 걸치는 곡률을 탐색. 수동 조절(`l.curve`) 관계선은 의도 존중으로 회피 안 함.
+  - 보존: `sanitizeNode`(`type` 화이트리스트), `preserveMetadata` 링크 재매핑에 `type` 유지.
+
+### Technical Notes
+- babel OK, 노드 시뮬 6/6(elbow path·직선 가장자리·자동회피 충돌해소·장애물 없을 때 무회피), `index.html` ↔ `seahyun/brainstorm_v3.72.0.html` md5 일치.
+
+---
+
 ## [3.71.1] - 2026-06-05
 
 ### Changed
