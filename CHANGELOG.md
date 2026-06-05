@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.63.0] - 2026-06-05
+
+### Added
+- **노드 우클릭 → "노드 세부 정보" 메뉴** — 노드 위에서 우클릭하면 컨텍스트 메뉴(`bgMenu`) 맨 위에 "🔍 노드 세부 정보" 항목이 추가로 표시됨. 누르면 해당 노드를 선택(`setSelectedId`)하고 우측 패널(`showRightPanel: true`)을 엶.
+  - 우클릭 핸들러가 `e.target.closest('.node')`의 `data-node-id`를 읽어 `bgMenu.nodeId`로 전달. 빈 공간 우클릭이면 이 항목은 표시되지 않음.
+- **우측 패널 "패널 닫기" 버튼(상·하단)** — 우측 패널 맨 위와 맨 아래에 `✕ 패널 닫기` 버튼 추가. 누르면 `showRightPanel: false`로 패널을 숨김. 스크롤 영역(`panel-content`) 밖 고정이라 항상 보임.
+
+### Technical Notes
+- 닫은 뒤 다시 열기: 노드 우클릭 → 노드 세부 정보, 또는 설정 > 화면의 "우측 패널 표시" 토글. (`showRightPanel`은 설정에 저장되어 유지)
+- `.panel-close-btn`(+`.top`/`.bottom`) CSS 추가. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.63.0.html` md5 일치.
+
+---
+
 ## [3.62.3] - 2026-06-05
 
 ### Fixed
