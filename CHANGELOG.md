@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.4] - 2026-06-05
+
+### Fixed (정확성)
+- **트리 변경자를 함수형 `setTree(prev => …)` 업데이트로 전환** (감사 #2) — 기존엔 변경자들이 바깥 `tree`를 비함수형으로 `cloneTree(tree)`해, 같은 렌더 세대에서 두 동작이 연달아 fire되면 두 번째가 첫 번째 변경을 덮어써 편집이 누락될 수 있었음(키보드 반복 Alt+방향/Space, 빠른 연속 입력 등). → 키보드·반복으로 도달 가능한 구조 변경자(`updateNode`·`addChild`·`addSibling`·`deleteNode`·`moveSibling`·`outdentNode`·`indentNode`·`toggleNodeIcon`·`setNodeSide`·`toggleCollapse`·`expandAll`·`collapseToFirstLevel`)를 `setTree(prev => { const nt = cloneTree(prev); …; return nt; })`로 전환. 생성/삭제는 `id`·다음 선택값을 미리 계산해 부수효과를 보존하면서 실제 변경은 `prev` 위에서 수행. (단일 클릭 전용 링크/그룹/경계 op은 경쟁이 불가능해 그대로 둠.)
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.4.html` md5 일치.
+
+---
+
 ## [3.79.3] - 2026-06-05
 
 ### Changed (성능 · 정확성)
