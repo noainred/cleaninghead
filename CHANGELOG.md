@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.3] - 2026-06-05
+
+### Changed (성능 · 정확성)
+- **캔버스 SVG/노드 요소를 `useMemo`로 분리** (감사 #1) — 렌더 본문의 4개 인라인 IIFE(자유그룹·경계·부모자식 연결선·노드)가 매 렌더마다 전체 트리를 재순회하고 React 요소를 재생성했음(토스트·줌바·드라이브 상태·검색 타이핑·호버 등 무관한 리렌더 포함). → `groupEls`(`[tree, selectedGroupId]`)·`boundaryEls`(`[tree]`)·`connectorEls`(`[tree]`)·`nodeEls`(`[tree, selectedId, dropTargetId, editingId, searchOpen, searchMatchIds, searchPos, focusIds, tagVisibleIds, iconVisibleIds, groupSelectIds, settings]`)로 분리. `_x/_y`는 `layoutTree(tree)`가 매 렌더 갱신하지만 값은 tree 변경 시에만 달라지므로 tree를 키로 둠(콜백은 기존 `nodeActionsRef`로 라우팅돼 항상 최신). 무관한 리렌더에서 트리 재순회·요소 재생성을 건너뜀.
+- **`autoSide`를 내용 해시에서 제외** (감사 #3) — `serializeTreeContent`가 `_` 접두 키만 제거해 `layoutTree`가 렌더 중 배정하는 파생값 `autoSide`가 콘텐츠에 포함됐음 → 파싱/로드 직후 사용자가 아무것도 안 해도 "내용 변경"으로 보여 헛자동저장·가짜 "다른 기기 최신본" 경고 유발. → `delete n.autoSide` 추가(사용자 의도인 `pinnedSide`는 유지). node 시뮬 3/3 통과.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.3.html` md5 일치.
+
+---
+
 ## [3.79.2] - 2026-06-05
 
 ### Changed (성능)
