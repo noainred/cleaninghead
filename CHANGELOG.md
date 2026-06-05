@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.6] - 2026-06-05
+
+### Fixed
+- **★ 접힘 상태 새로고침 시 노드 겹침 — 진짜 근본 원인 수정** — `layoutTree` 4단계 정규화가 `walk`(전체 순회)로 좌표 경계를 계산했는데, **접힌 노드의 자식은 `measure`/`place`에서 제외되어 `_x/_y`가 `undefined`**. `walk`이 이들을 방문하면서 `Math.min(Infinity, undefined) = NaN` 이 전파 → 모든 노드의 `_x`가 `NaN` → 전부 원점(0,0)에 쌓여 겹쳐 보였음. "전체 펼치기"를 누르면 모든 자식이 측정·배치돼 `undefined`가 사라지므로 정상화됐던 것(그동안의 미스터리). → 정규화의 경계 계산·시프트를 **`walkVisible`(접힌 자식 제외)** 로 변경. node 시뮬레이션으로 재현·검증(`walk`: minX=NaN, span=0 → 겹침 / `walkVisible`: span=440 → 정상). 이로써 `v3.77.4`의 자가복구 "전체 펼치기"는 더 이상 오발동하지 않으며 접힘 상태가 보존됨.
+- 부수 효과: `layoutTree`가 반환하는 `width/height`도 이제 **보이는 노드 기준**의 정확한 크기(이전엔 접힌 자식의 무효 좌표 포함).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.6.html` md5 일치.
+
+---
+
 ## [3.78.5] - 2026-06-05
 
 ### Fixed
