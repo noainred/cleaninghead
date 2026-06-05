@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.78.1] - 2026-06-05
+
+### Changed
+- **드라이브 저장 시작 안내 문구** — Ctrl/⌘+Shift+S 저장 시작 토스트를 3줄로 변경("💾 저장을 시작했어요 / 💾 구글 드라이브(클라우드)라 보통 10초쯤 걸려요, / 💾 저장은 제가 할 테니 집중해서 정리하고 계세요"). `.toast`에 `white-space: pre-line`·`text-align:center`·`line-height`·`max-width` 추가(여러 줄 지원).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.78.1.html` md5 일치.
+
+---
+
 ## [3.78.0] - 2026-06-05
 
 ### Added
