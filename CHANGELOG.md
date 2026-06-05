@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.9] - 2026-06-05
+
+### Changed
+- **사이트 아이콘 — 굵게 다듬고 다중 크기/형식 파일로 생성(서버 등록용)** — 기존엔 인라인 SVG data-URI 1종뿐이라 서버 등록(검색엔진·PWA·홈 화면)에 필요한 실제 파일이 없었음. → 동일 마크(깔때기+점+반짝임, 파랑→청록 그라데이션)를 더 굵게 렌더해 루트에 실제 파일로 생성:
+  - `favicon.svg`(벡터·무손실), `favicon.ico`(16·32·48 멀티), `favicon-16x16.png`/`favicon-32x32.png`/`favicon-48x48.png`
+  - `apple-touch-icon.png`(180), `icon-192.png`/`icon-512.png`(PWA any), `icon-192-maskable.png`/`icon-512-maskable.png`(maskable, 78% 안전영역)
+  - `site.webmanifest`(name/theme_color #3a86ff/icons)
+- `index.html <head>`를 인라인 data-URI에서 **파일 기반 링크 세트 + `<link rel="manifest">` + `<meta theme-color>`** 로 교체. (Pillow로 1536px 슈퍼샘플 렌더 후 LANCZOS 축소)
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.9.html` md5 일치.
+
+---
+
 ## [3.79.8] - 2026-06-05
 
 ### Added
