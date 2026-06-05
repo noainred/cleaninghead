@@ -9,7 +9,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ## [Unreleased]
 
-향후 추가 예정인 기능이 여기에 기록됩니다. (다음 예정: 배율 버튼 패닝 시 표시, ④ 노드 노트, ⑤ 경계/그룹)
+향후 추가 예정인 기능이 여기에 기록됩니다. (대기: 관계선 곡선·드래그 조절, ④ 노드 노트, ⑤ 경계/그룹, 패닝 시 배율 버튼 표시)
+
+---
+
+## [3.66.1] - 2026-06-05
+
+### Changed
+- **아이콘(이모지) 기능 제거** — 노드 아이콘 렌더·`nodeWidth`/`nodeHeight`의 아이콘 치수·`sanitizeNode`의 `icons` 보존·관련 CSS(`.node-icons`/`.selected-icons`/`.panel-icon-*`)를 제거. 기존에 붙어 있던 아이콘도 표시되지 않고, 다음 로드 시 데이터에서 정리됨.
+  - (참고) `ICON_CATEGORIES`/`toggleNodeIcon` 등 일부 코드는 참조 연쇄가 있어 이번엔 비활성(무해) 상태로 남김 — 추후 죽은 코드 정리 패스에서 제거 예정.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.66.1.html` md5 일치.
 
 ---
 
