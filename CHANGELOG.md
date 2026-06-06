@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.1] - 2026-06-06
+
+### Added
+- **노드 모양 선택** (MindNode 참고 #3) — `node.shape`: 기본(둥근) / `rect`(각짐) / `pill`(알약) / `ellipse`(타원). 노드 인라인 `borderRadius`만 덮어써 **크기·레이아웃은 그대로**(겹침 없음). 인스펙터 "모양" 섹션에 4개 버튼(미리보기 모양). 비교함수에 `a.shape` 추가, `sanitizeNode`·`preserveMetadata` 보존.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.80.1.html` md5 일치.
+
+---
+
 ## [3.80.0] - 2026-06-06
 
 ### Added
