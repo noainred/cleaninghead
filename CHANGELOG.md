@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.5] - 2026-06-06
+
+### Changed
+- **아웃라인/지도 토글 아이콘 리디자인(컬러 SVG)** — 헤더 `view-toggle-btn`의 단색 이모지(🗂/🗺)를 캘린더(📅)·AI(🤖)처럼 컬러풀한 커스텀 인라인 SVG로 교체. `OutlineGlyph`(들여쓰기 줄 + 브랜드 색 글머리 점 4개 — 파랑/핑크/그린/앰버)·`MapGlyph`(중심 노드 + 색색의 가지) 컴포넌트 추가. 줄은 `currentColor`+opacity로 라이트/다크 테마 자동 적응, 점은 로고 팔레트(#3a86ff·#ff5d8f·#06d6a0·#ffb703). `.btn`(inline-flex)의 정렬·gap에 맞춰 `.vt-glyph { display:block; flex:0 0 auto }`.
+
+### Technical Notes
+- babel transform PASS(401,481 chars). sharp로 18px/확대/라이트·다크 렌더 미리보기 확인. `index.html` ↔ `seahyun/brainstorm_v3.80.5.html` md5 일치.
+
+---
+
 ## [3.80.4] - 2026-06-06
 
 ### Changed
