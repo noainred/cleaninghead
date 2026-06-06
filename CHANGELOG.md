@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.10] - 2026-06-06
+
+### Fixed
+- **아웃라인 Enter = 입력 끝(편집 종료)** — v3.80.4에서 넣은 "Enter→형제 추가 후 연속 편집"이 "엔터를 쳐도 입력이 안 끝나고 새 항목으로 넘어간다"는 불만으로 이어져 되돌림. `OutlineEdit`의 Enter를 `onCommit`(라벨 확정 + `setEditingId(null)`)으로 변경 — 맵 노드 편집과 동일. 미사용이 된 `onEnter` 프롭·`enterAddSibling` 액션 제거(Tab=자식 추가는 유지). 새 항목은 + 버튼/Tab, 또는 편집이 아닐 때 전역 Enter(형제 추가)로.
+
+### Changed
+- **우클릭 메뉴 "아웃라인으로 보기" 위치 이동** — 성격이 다른 화면 전환 항목을 메뉴 맨 위 → 맨 아래(보기 모드 아래)로 옮기고 위 항목과 구분선 추가.
+
+### Technical Notes
+- babel transform PASS(410,114 chars). 잔여 onEnter/enterAddSibling 0건, bgMenu 내 토글 1개(최하단). `index.html` ↔ `seahyun/brainstorm_v3.80.10.html` md5 일치.
+
+---
+
 ## [3.80.9] - 2026-06-06
 
 ### Changed
