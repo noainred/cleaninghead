@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.7] - 2026-06-06
+
+### Fixed
+- **아웃라인 편집 포커스 가로채기 버그** — 아웃라인에서 Enter(형제)·Tab(자식)·더블클릭으로 항목을 추가/편집하면 새 항목이 곧바로 편집 상태로 들어가야 하는데, 추가만 되고 편집이 즉시 끊기던 문제. 원인: 아웃라인 오버레이 **아래에 가려진 마인드맵**(`nodeEls`)도 `editingId`에 반응해 `NodeView` 입력창을 만들고 `setTimeout(...focus(), 10)`으로 포커스를 가져가, 아웃라인 입력창이 blur→`cancelEmpty`로 편집이 종료(자동라벨이라 노드는 삭제 안 됨)됨. 해결: `outlineView`가 켜져 있으면 맵 노드를 렌더하지 않도록 `{!outlineView && nodeEls}` — 경쟁 입력창 제거(가려진 맵 미렌더로 성능도 이득). `ensureNodeVisible`는 노드 DOM 없으면 early-return이라 영향 없음.
+
+### Added
+- **F 키 = 마인드맵 ↔ 아웃라인 토글** — 전역 키보드 핸들러에 단독 F(수식키 없음, 입력/편집 중 아닐 때) 추가. 기존 검색은 Ctrl/Cmd+F라 충돌 없음.
+- **우클릭 메뉴 "아웃라인으로 보기"** — 캔버스 컨텍스트 메뉴(`bgMenu`) 최상단에 화면 전환 항목(아이콘+단축키 F 표기) 추가. 메뉴 높이 클램프 보정(+48px).
+
+### Technical Notes
+- babel transform PASS(403,343 chars). 근본 원인 확인: `NodeViewBase` 포커스 `useLayoutEffect`(isEditing→setTimeout focus 10ms)와 아웃라인 `OutlineEdit` 포커스 경쟁. `index.html` ↔ `seahyun/brainstorm_v3.80.7.html` md5 일치.
+
+---
+
 ## [3.80.6] - 2026-06-06
 
 ### Changed
