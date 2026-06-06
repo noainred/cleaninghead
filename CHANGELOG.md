@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.8] - 2026-06-06
+
+### Added
+- **아웃라인 그룹 강조(파스텔) + 그룹 단위 화살표 이동** — (1) 선택 항목이 속한 "그룹"(최상위 가지=루트의 깊이1 자식과 그 자손)을 그 가지 색의 옅은 파스텔(`--group-tint` 0.16, 좌측 띠 `--group-edge` 0.5)로 묶어 표시. `OutlineRow`에 `groupId`/`groupColor` 프롭 드릴, `tintColor()`(hex→rgba)·`groupIdOf()` 헬퍼 추가, `outlineSelectedGroupId`(useMemo) → ctx. CSS는 `.in-group`을 `:hover`/`.selected`보다 먼저 두어 선택/호버가 덮어쓰게. (2) 아웃라인 ↑/↓는 `navigateOutline()`로 `walkVisible` 평탄 목록을 차례 이동. 같은 그룹/루트 경유는 자유 이동, **그룹 경계**에선 한 번=안내만(멈춤), 700ms 내 두 번=다음/이전 그룹으로 교차(`outlineBoundaryRef`). 키보드 핸들러에서 `outlineView`일 때 ↑/↓만 가로채고 deps에 `outlineView`,`settings.hideOutlineGroupHint` 추가. 선택 행 `scrollIntoView({block:'nearest'})` 효과 추가(맵 centerNode는 아웃라인 미렌더라 무동작).
+- **그룹 경계 안내 팝업 + "다음부터 보지 않기"** — 경계 첫 진입 시 방향별 안내(↓/↑) 팝업, 5초 자동 닫힘. 체크박스로 `settings.hideOutlineGroupHint` 토글(IndexedDB 영속, 기본값·로드 마이그레이션 추가). 끈 뒤에도 두 번 누름 교차는 그대로 동작.
+
+### Technical Notes
+- babel transform PASS(410,076 chars). 내비 시뮬 PASS(R→G1→a→b 자유, b에서 ↓=경계, 느리게=재경계, 700ms내 두 번=G2 교차). sharp로 파스텔 밴드+선택 강조 시각 확인. `index.html` ↔ `seahyun/brainstorm_v3.80.8.html` md5 일치.
+
+---
+
 ## [3.80.7] - 2026-06-06
 
 ### Fixed
