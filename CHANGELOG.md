@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.15] - 2026-06-06
+
+### Added
+- **+ / − 키 화면 배율 조정** — 전역 키보드 핸들러에 단독 `+`(=Shift+`=`)·`=` → `zoomBy(0.1)`, `-`·`_` → `zoomBy(-0.1)` 추가. 입력/편집 중 가드 이후, 수식키 없을 때, `!outlineView`(맵 화면)에서만. Ctrl+± 브라우저 줌은 그대로 둠.
+
+### Technical Notes
+- babel transform PASS(416,766 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.15.html` md5 일치.
+
+---
+
 ## [3.80.14] - 2026-06-06
 
 ### Added
