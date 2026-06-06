@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.12] - 2026-06-06
+
+### Added
+- **아웃라인 ←/→ 키 = 펼치기·접기/계층 이동** — 글로벌 키보드 핸들러에서 `outlineView`일 때 ←/→를 `navigateOutlineH(dir)`로 처리. →: 접힌 노드면 펼치기(`toggleCollapse`), 이미 펼쳐졌으면 첫 자식 선택. ←: 펼쳐진 노드면 접기, 그 외(접힘/잎)는 부모로 이동(`findParent`) → "펼친 상태에서 ← 접기 → 다시 ← 부모로"가 자연스럽게 동작. 아웃라인 헤더 도움말에 `↑↓=이동 · →펼치기 ←접기` 반영. (↑/↓ 그룹 경계 이동은 기존 `navigateOutline` 유지)
+
+### Changed
+- **드라이브 자동저장 표시색 → 테마 소프트블루(채도↓)** — 헤더 "설정" 버튼이 자동저장 정상일 때 쓰던 진한 파랑 `#0091ff`(fontWeight 700)을 테마 변수 `var(--navy)`(#3a6ea5, 차분한 소프트블루) + fontWeight 600으로 변경. 상시 노출되는 상태색이라 채도·굵기를 낮춰 집중 방해 최소화(빨강 경고색 `#e5484d`는 알림 목적이라 유지).
+- **하단 토스트가 아이콘/태그 바와 겹침 해소** — `.bottom-bars`(아이콘·태그 모아보기, `position:fixed; bottom:16px`)와 `.toast`(`bottom:24px`)가 모두 하단 중앙이라 저장 안내(💾 sticky 토스트)가 바와 겹치던 문제. `bottomBarsRef`+`ResizeObserver`로 바 높이를 측정(`bottomBarsH`)해, 바가 있으면 토스트 `bottom`을 `bottomBarsH + 28`로 인라인 적용해 바 위로 띄움(없으면 기존 24px).
+
+### Technical Notes
+- babel transform PASS(413,432 chars). 아웃라인 ←/→ 로직 시뮬 PASS(펼침서 ←접기→다시←부모, 접힘서 →펼침→다시→첫자식). `index.html` ↔ `seahyun/brainstorm_v3.80.12.html` md5 일치.
+
+---
+
 ## [3.80.11] - 2026-06-06
 
 ### Changed
