@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.13] - 2026-06-06
+
+### Changed
+- **관계선 끝점 여백 일정화(선택 강조 링 보정)** — cross-link가 노드 논리 경계(`rectEdge`)에 gap 0으로 닿아, 선택 노드의 box-shadow 강조 링(약 9px, 레이아웃 미포함) 때문에 선택/비선택 끝의 여백이 불균형하던 문제. 끝점에 `endGap(node)=BASE_GAP(3)+(selectedId===node.id?SELECT_RING(9):0)`를 적용하고 `pushOut(edge,cx,cy,gap)`으로 중심 반대 방향으로 밀어, 직선/곡선/꺾은선 3종 모두 "보이는 경계에서 일정한 3px"로 통일. `crossLinkEls` deps에 `selectedId` 추가.
+
+### Technical Notes
+- babel transform PASS(414,139 chars). 끝점 여백 시뮬 PASS(비선택 3px · 선택 링밖 +3px). `index.html` ↔ `seahyun/brainstorm_v3.80.13.html` md5 일치.
+
+---
+
 ## [3.80.12] - 2026-06-06
 
 ### Added
