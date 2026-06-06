@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.14] - 2026-06-06
+
+### Added
+- **저장본 비교 화면(좌우 아웃라인 + 결정)** — 드라이브 최신본 충돌(`remoteNewer`) 시, 기존 텍스트 요약 다이얼로그를 **좌우 2-pane 아웃라인 비교**로 교체. 상단 요약 카드(이 기기/드라이브, 노드 수·수정시각, "더 최신 ▲") + 차이 배지(추가/삭제/변경 개수) + 각 트리를 전체 펼친 읽기전용 아웃라인. 신규: `nodeDiffStatus(local,remote)`(id별 same/added/removed/changed) + `CompareOutline` 컴포넌트(노드별 색: 🟢added·🔴removed(취소선)·🟡changed). `remoteCmpStatus`(useMemo, [remoteNewer,remoteCompare,tree]). 결정 버튼 4종: 현재 유지·무시(기준시각 갱신) / 드라이브 것 불러오기(`handleDriveLoadFile`) / 둘 합치기(Merge)(`handleMergeRemote`, "복원" 가지) / **Google Drive 저장 파일 삭제**(`handleDeleteRemote`→`driveDeleteFile`, window.confirm 2차 확인). 모달 `.cmp-*` 스타일·반응형(<720px 세로 stack) 추가.
+
+### Technical Notes
+- babel transform PASS(416,112 chars). 기존 `diffTrees`/`mergeRemoteIntoLocal`/`driveDeleteFile` 재사용. 사용자 시안 승인 후 라벨 확정(Merge·"Google Drive 저장 파일 삭제"). `index.html` ↔ `seahyun/brainstorm_v3.80.14.html` md5 일치.
+
+---
+
 ## [3.80.13] - 2026-06-06
 
 ### Changed
