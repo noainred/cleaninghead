@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.3] - 2026-06-06
+
+### Added
+- **아웃라인(목록) 뷰 — MindNode 참고 #2** — 헤더의 🗂 버튼으로 마인드맵 ↔ 아웃라인 전환. `.canvas-wrap` 안에 `position:absolute; inset:0; z-index:25` 불투명 오버레이(`outlineView` 상태)로 맵을 덮어 렌더 — 맵·연결선 메모는 그대로 두고 시각적으로만 대체(좌/우 패널 유지). 최상위 컴포넌트 `OutlineRow`(재귀, `key=child.id`)/`OutlineEdit`(IME-safe 인라인 편집) 추가. 행: 접기 ▶/▼, 할 일 체크박스(완료 토글), 색 점, 라벨(클릭=선택·더블클릭/F2=편집), 태그/진행률(0/1)/노트 배지, 호버 시 ＋자식·🗑삭제. 진행률은 `computeTaskProgress(tree)`를 `outlineTaskMap`(useMemo, dep `[tree]`)으로 재사용. 추가/삭제/이동/접기는 기존 전역 단축키(Enter·Tab·Space·Del·Alt+화살표)가 `selectedId` 기준으로 그대로 동작 — 편집 종료(commit) 시 `editingId`만 풀어 일관 유지. 토글 버튼은 `view-toggle-btn` 클래스로 모바일(≤640px) 헤더 숨김 예외에 추가해 항상 노출. 터치 기기(`@media (hover:none)`)는 행 동작 버튼 상시 표시.
+
+### Changed
+- **노드 진행률 배지 줄바꿈** — 하위 할 일 진행률(예: `0/1`) 배지를 `.node-label-row`에서 빼내 라벨 아래 별도 줄(`.node-progress-row`)로 이동. 긴 이름이 배지에 밀려 잘리던 문제 해결(사용자 요청). 체크박스(할 일 토글)는 라벨 옆 유지.
+
+### Technical Notes
+- babel transform PASS(397,855 chars). computeTaskProgress(root 1/3 · leaf null · mid 1/2) 및 OutlineEdit settle 규칙(자동라벨 미변경/양쪽 공백→취소, Esc→원본 유지, commit) 시뮬 PASS. `index.html` ↔ `seahyun/brainstorm_v3.80.3.html` md5 일치.
+
+---
+
 ## [3.80.2] - 2026-06-06
 
 ### Added
