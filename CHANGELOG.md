@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.11] - 2026-06-06
+
+### Changed
+- **아웃라인 → 맵 복귀 시 선택 노드 중앙 정렬 + 배율 복원** — 아웃라인에서 F(또는 헤더 버튼·우클릭 메뉴)로 마인드맵으로 돌아갈 때, 아웃라인에서 선택했던 노드를 화면 중앙에 보이게 하고 진입 직전 배율로 되돌림. `outlineView` 전이 감지 effect 추가: 진입(false→true) 시 `preOutlineZoomRef = zoomRef.current` 저장, 복귀(true→false) 시 `setZoom(preOutlineZoomRef)` + `requestAnimationFrame×2 → centerNode(selectedId)`(맵 노드가 다시 렌더된 뒤 실행). `centerNode`는 스크롤만 해 배율 불변이고, autoFit은 `didAutoFitRef`로 1회뿐이라 토글에 재발동 없음.
+
+### Technical Notes
+- babel transform PASS(411,141 chars). zoomBy/zoomReset의 setZoom+이중 rAF+centerNode 패턴과 동일. `index.html` ↔ `seahyun/brainstorm_v3.80.11.html` md5 일치.
+
+---
+
 ## [3.80.10] - 2026-06-06
 
 ### Fixed
