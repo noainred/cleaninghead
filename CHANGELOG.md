@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.6] - 2026-06-06
+
+### Changed
+- **미니멀 상단바 = 아이콘 전용** — `settings.minimalHeader`가 켜지면 헤더에 남는 버튼(아웃라인·캘린더·AI 요약·설정)의 글자 라벨을 숨기고 아이콘만 표시. CSS만으로 처리: `.header.minimal .btn-label { display:none }` + `.header.minimal .btn.icon-btn { padding:6px 9px }`(라벨 제거 후 정사각형 느낌). 버튼별 `title`이 있어 호버 시 이름 확인 가능.
+
+### Technical Notes
+- 스타일 전용 변경(스크립트 무수정). babel 영향 없음. `index.html` ↔ `seahyun/brainstorm_v3.80.6.html` md5 일치.
+
+---
+
 ## [3.80.5] - 2026-06-06
 
 ### Changed
