@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.2] - 2026-06-06
+
+### Added
+- **노드 간격 선택(컴팩트) — 레이아웃 #4 1단계** (MindNode 참고 #4) — 설정 → 화면 표시에 "노드 간격" 촘촘/보통/넓게. 핵심 배치 로직은 그대로 두고 간격만 스케일: 모듈 상수 `H_SPACING/V_SPACING` → `BASE_H_SPACING(80)/BASE_V_SPACING(22)`로 이름 변경, `layoutTree(root, spaceMul=1)`가 함수 내부에서 지역 `const H/V_SPACING = BASE * spaceMul`로 섀도잉(기존 ~15개 사용처 무수정). `spaceMul`: compact 0.55 · normal 1 · wide 1.6. 간격 변경 시 `useEffect`로 트리를 재클론해 위치 메모(노드·연결선·그룹·경계·관계선)를 한 번에 갱신(첫 렌더는 ref 가드로 스킵).
+- (가로형/조직도형 레이아웃은 layoutTree 재구성이 필요한 별도 작업 — 후속.)
+
+### Technical Notes
+- spaceMul 매핑 검증 PASS. babel OK, `index.html` ↔ `seahyun/brainstorm_v3.80.2.html` md5 일치.
+
+---
+
 ## [3.80.1] - 2026-06-06
 
 ### Added
