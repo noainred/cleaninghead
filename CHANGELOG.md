@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.4] - 2026-06-06
+
+### Changed
+- **아웃라인 연속 입력(Enter→새 항목 즉시 편집)** — 인라인 편집 중 Enter를 치면 라벨을 확정하고 곧바로 아래에 형제 항목을 만들어 **편집 상태로 진입**하도록 바꿨어요(기존엔 편집만 종료돼 새 항목이 편집 모드로 안 들어가던 문제). Tab은 자식 항목을 만들어 편집, 빈 줄/미변경 자동라벨에서 Enter는 취소(연속 입력 종료). 루트는 형제가 없으므로 확정만. `OutlineEdit`에 `onEnter`/`onTab` 분리, 확정은 `commitNodeLabelSilent`(히스토리 없음) + `addSibling/addChild`(히스토리 1건)로 처리해 "타이핑+추가"가 Undo 1회로 되돌아가게 함. IME 조합 중 Enter/Tab은 조합 종료에 양보.
+
+### Technical Notes
+- babel transform PASS(399,849 chars). Enter/Tab 라우팅 시뮬 PASS(내용 있음→확정+형제/자식 편집 진입, 빈칸/미변경 자동라벨→취소, 루트→확정만). `index.html` ↔ `seahyun/brainstorm_v3.80.4.html` md5 일치.
+
+---
+
 ## [3.80.3] - 2026-06-06
 
 ### Added
