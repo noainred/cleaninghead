@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.9] - 2026-06-06
+
+### Changed
+- **아웃라인 깊이별 중첩 박스(블록) 시각화** — 사용자 스케치 반영. 평탄 행 + 행별 들여쓰기/그룹 파스텔 밴드를 **자식이 보이는 노드를 박스로 감싸는 중첩 구조**로 교체. `OutlineRow`가 잎/접힘은 행만, 깊이≥1의 펼친 노드는 `<div.outline-block>{행}{<div.outline-children>}</div>`로 렌더(루트는 박스 없이 fragment). 깊이별 색 `depthRGB()`(6색 순환: 파랑/초록/주황/핑크/보라/시안)로 `--block-border`(0.4)·`--block-bg`(0.05) 지정 → 중첩 박스가 계층을 색으로 구분. 들여쓰기는 `.outline-children{padding-left:13px}` 중첩으로 처리(행의 `paddingLeft:depth*20` 인라인 제거, 고정 패딩). 전체를 `.outline-tree`(max-width 940·중앙)로 감쌈. 선택 항목의 최상위 그룹 박스는 `.group-active`로 살짝 강조. 기존 그룹 파스텔 밴드(`.in-group`/`--group-tint`/`--group-edge`) 제거(그룹 개념은 내비게이션·group-active로 유지). 선택/호버/편집/네비게이션/그룹 경계 동작은 그대로.
+
+### Technical Notes
+- babel transform PASS(410,536 chars). sharp로 중첩 박스 레이아웃 시각 확인(스케치와 일치). 잔여 in-group/group-tint 참조 0건. `index.html` ↔ `seahyun/brainstorm_v3.80.9.html` md5 일치.
+
+---
+
 ## [3.80.8] - 2026-06-06
 
 ### Added
