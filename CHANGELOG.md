@@ -13,6 +13,21 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.0] - 2026-06-06
+
+### Added
+- **작업(체크박스) + 진행률** (MindNode 참고 #1) — 노드를 할 일로 표시(`node.task`)하고 완료(`node.done`) 처리. 데이터모델·보존·렌더·인스펙터 전반 구현.
+  - **렌더**: `node.task`면 라벨 앞에 ☐/☑ 체크박스(클릭 시 완료 토글, `stopPropagation`으로 선택/패닝과 분리), 완료 시 라벨 취소선+흐리게. 하위에 할 일이 있는 부모는 `node-progress` 배지로 `완료/전체`(예 2/4) 표시.
+  - **진행률**: `computeTaskProgress(tree)` bottom-up O(n) → 노드별 `{done,total}`(자기 + 모든 하위 task 합산). `nodeEls` 메모에서 1회 계산해 값 prop(`isTask/isDone/taskDone/taskTotal`)으로 전달, `nodeViewPropsEqual`에 4개 비교 추가(정확한 리렌더).
+  - **인스펙터**: "할 일" 섹션 — "할 일로 표시" 토글 + "완료함" 체크박스(`updateNode`).
+  - **보존**: `sanitizeNode`(로드)·`preserveMetadata`(재파싱) 화이트리스트에 `task/done` 추가. 저장·드라이브는 비-`_` 필드라 자동 유지.
+- node 시뮬: 진행률 합산 PASS(root 2/4 · 하위 1/2 · 완료 leaf 1/1).
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.80.0.html` md5 일치.
+
+---
+
 ## [3.79.13] - 2026-06-05
 
 ### Changed
