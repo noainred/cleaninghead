@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.11] - 2026-06-05
+
+### Fixed
+- **설정 클릭 시 빈 화면 — 근본 원인 수정(`driveLinkedPending is not defined`)** — v3.78.8에서 드라이브 자동연결을 지연시키며 `driveLinkedPending`(App 상태)을 도입했는데, **`SettingsModal` 내부의 드라이브 상태 배지/경고**(연결됨 표시 등)가 이 값을 참조하면서도 **prop으로 전달받지 못해** 설정 모달 렌더 시 `ReferenceError` → 전체 크래시(빈 화면). v3.79.10의 ErrorBoundary가 이 메시지를 노출해 확정. → App의 `<SettingsModal>` 호출에 `driveLinkedPending={driveLinkedPending}` 전달 + 컴포넌트 시그니처에 prop 추가. 헤더 쪽 참조(App 스코프)는 원래 정상이었음.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.11.html` md5 일치.
+
+---
+
 ## [3.79.10] - 2026-06-05
 
 ### Fixed
