@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.79.12] - 2026-06-05
+
+### Changed
+- **업데이트 팝업 "전체 변경 이력 보기" → 앱 내 변경 이력 화면으로 연결** — 기존엔 외부 `CHANGELOG.md`(기술 문서)로 새 탭이 열렸음. → 클릭 시 `setShowUpdate(false)` + `setSettingsToChangelog(true)` + `setShowSettings(true)`로 **설정 모달을 변경 이력 뷰로 바로 연다.** `SettingsModal`에 `startChangelog` prop 추가 → `useState(!!startChangelog)`로 초기 뷰 결정, 설정 닫을 때 App의 `settingsToChangelog` 플래그 리셋(다음 일반 열기는 설정 뷰). 변경 이력 뷰 하단의 "그 이전 버전의 전체 변경 이력 보기"(외부) 링크는 그대로라 전체 이력도 계속 접근 가능.
+
+### Technical Notes
+- babel OK, `index.html` ↔ `seahyun/brainstorm_v3.79.12.html` md5 일치.
+
+---
+
 ## [3.79.11] - 2026-06-05
 
 ### Fixed
