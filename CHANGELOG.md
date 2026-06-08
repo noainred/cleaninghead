@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.20] - 2026-06-06
+
+### Added
+- **노드 폭 드래그 리사이즈** — 노드 우측 안쪽 끝에 핸들(`.node-resize-handle`, 호버·선택 시 표시) 추가. 좌우 드래그로 `node.w`(NODE_MIN_W~NODE_RESIZE_MAX 720) 지정, 더블클릭=자동 폭(`delete node.w`). 드래그 중엔 DOM `style.width`만 바꿔 부드럽게, 놓을 때 `setNodeWidth`로 확정→`layoutTree` 재배치. `nodeWidth()`가 `node.w` 우선(없으면 라벨 기반). `nodeHeight`/`labelLineCount`는 새 폭 반영(넓히면 줄 수↓). `sanitizeNode`·`preserveMetadata`에 `w` 보존(저장/텍스트 재편집 유지). `startNodeResize`/`setNodeWidth`/`resetNodeWidth`를 nodeActionsRef로, NodeView에 `onResizeStart`/`onResizeReset` prop.
+
+### Changed
+- **경계(그룹) 박스 겹침 완화** — `boundaryEls` pad 16 고정 → 중첩 깊이(다른 경계 앵커의 하위인 횟수)만큼 단계적 축소 `max(6,16-depth*6)`. `.boundary-rect` 채움/선 투명도 낮춤(0.06→0.045, 0.5→0.4), rx 16→14.
+
+### Technical Notes
+- babel transform PASS(421,387 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.20.html` md5 일치.
+
+---
+
 ## [3.80.19] - 2026-06-06
 
 ### Fixed
