@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.24] - 2026-06-06
+
+### Changed
+- **경계 박스 세로 인접 겹침 완화** — `boundaryEls`의 단일 `pad`를 `padX`(가로, `max(2,13-depth*10)`)·`padY`(세로, `max(2,8-depth*6)`)로 분리. 위·아래로 인접한 다른 그룹 박스가 세로로 가까워 점선이 겹치던 문제를, 세로 여백을 형제 간격보다 작게 잡아 해소(배치 엔진 미수정 — 저위험). rx 14→13.
+
+### Technical Notes
+- babel transform PASS(423,740 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.24.html` md5 일치.
+
+---
+
 ## [3.80.23] - 2026-06-06
 
 ### Changed
