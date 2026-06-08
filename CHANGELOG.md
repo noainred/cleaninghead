@@ -13,6 +13,25 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.22] - 2026-06-06
+
+### Security
+- **About iframe sandbox** (보안 #2) — `sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"` + `referrerPolicy="no-referrer"`. about.html은 정적이라 정상 동작하며, 혹시 모를 스크립트 실행 차단(allow-scripts 미부여).
+
+### Changed
+- **아웃라인 ↑/↓ 이동 캐시** (최적화 #5) — `navigateOutline`이 매 입력마다 `walkVisible` 전체 평탄화 + `groupIdOf`(O(N))×2 하던 것을, `outlineFlat`/`outlineGroupMap` useMemo([tree])로 캐시. 키 연타 시 트리 미변경이면 재계산 없음.
+
+### Notes (보류/정정)
+- 최적화 #1(layoutTree useMemo): **의도적 설계**라 보류 — 코드 주석에 "메모 시 동시성 렌더에서 좌표 mutate 누락→전노드 (0,0) 겹침 버그" 명시. 매 렌더 직접 호출 유지.
+- 최적화 #2(crossLinkEls deps)·#4(nodeEls deps): 선택-여백 기능·설정 반영 회귀 위험 > 효과 → 보류.
+- 최적화 #3(boundaryEls O(B²)): 경계 수가 통상 한 자리라 실효 미미 → 보류.
+- 보안 #1(라벨 링크): URL_RE/MD_LINK_RE가 이미 http(s)만 추출(실위험 낮음). v3.80.21에서 출력 시점 `safeLinkUrl` 심층방어로 처리 완료.
+
+### Technical Notes
+- babel transform PASS(423,134 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.22.html` md5 일치.
+
+---
+
 ## [3.80.21] - 2026-06-06
 
 ### Security
