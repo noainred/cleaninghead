@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.21] - 2026-06-06
+
+### Security
+- **라벨 링크 href 스킴 화이트리스트(심층 방어)** — `safeLinkUrl()` 추가: 제어문자 제거 후 스킴이 있으면 `http/https/mailto`만 허용, `javascript:`·`data:`·`vbscript:` 등은 `null`(링크 미생성). `resolveLabelLink`의 두 경로(MD_LINK_RE, extractFirstUrl)에 적용. 현재 `URL_RE`/`MD_LINK_RE`가 이미 `https?://`만 추출해 실제 노출은 없었으나, 출력 시점에도 막아 정규식 변경·불러온 데이터 등 회귀에 대비. 시뮬: js/data/vbscript(대소문자·개행 우회 포함) 전부 차단 확인.
+
+### Technical Notes
+- babel transform PASS(422,337 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.21.html` md5 일치.
+
+---
+
 ## [3.80.20] - 2026-06-06
 
 ### Added
