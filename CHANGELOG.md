@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.27] - 2026-06-08
+
+### Changed
+- **새 노드가 기준 노드의 모양(shape)을 상속** — 모양을 지정한 노드에서 `Tab`(자식 추가)·`Enter`(형제 추가)로 새 노드를 만들면 같은 모양으로 생성됨. `addChild`는 `parent.shape`를, `addSibling`은 기준 형제(`current.shape`)를 새 노드에 복사. 가지 단위로 모양을 일관되게 유지(이미 모양이 없으면 기본 둥근 그대로). 모든 추가 경로(전역 키보드 Tab/Enter, 플로팅 ＋ 버튼, 패널 +자식/+형제, 아웃라인 추가)가 두 함수를 거치므로 일괄 적용됨.
+
+### Technical Notes
+- babel transform PASS(426,121 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.27.html` md5 일치.
+
+---
+
 ## [3.80.26] - 2026-06-08
 
 ### Fixed
