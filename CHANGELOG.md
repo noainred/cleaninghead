@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.23] - 2026-06-06
+
+### Changed
+- **경계(그룹) 박스 겹침 추가 완화** — `boundaryEls` pad를 `max(6,16-depth*6)`(3.80.20) → `max(2,13-depth*10)`로. 중첩 깊이 1부터 안쪽 여백을 3~2로 확 줄여 부모·자식 박스의 점선 간격을 ~10px 확보, 바깥 여백도 16→13으로 줄여 인접 그룹 겹침 완화. (노드 배치가 매우 가까운 경우의 인접 겹침은 레이아웃 여백 조정이 필요한 별도 작업.)
+
+### Technical Notes
+- babel transform PASS(423,412 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.23.html` md5 일치.
+
+---
+
 ## [3.80.22] - 2026-06-06
 
 ### Security
