@@ -200,8 +200,11 @@
   id, label,                       <span class="c">// 식별자, 텍스트</span>
   children: [ ... ],               <span class="c">// 재귀적 자식 배열</span>
   meta: { date, effort, cost },    <span class="c">// 부가 정보</span>
-  color, icons: [ ... ],           <span class="c">// 시각 속성</span>
+  color, icons: [ ... ], shape,    <span class="c">// 시각 속성 (shape: 둥근·각짐·알약·타원)</span>
+  task, done,                      <span class="c">// 할 일 체크박스 · 완료 상태</span>
+  w,                               <span class="c">// 사용자가 드래그로 지정한 폭(없으면 라벨 기반 자동)</span>
   pinnedSide, autoSide, collapsed, <span class="c">// 배치·접힘 상태</span>
+  createdAt, updatedAt,            <span class="c">// 생성·수정 시각(시스템 기록)</span>
   _x, _y, _w, _h, _subH            <span class="c">// 레이아웃 캐시 (밑줄 = 휘발성)</span>
 }</pre>
     <p>핵심 설계는 <strong>밑줄 접두 필드(<code>_x</code>, <code>_y</code>, …)의 분리</strong>다. 이들은 화면 배치 계산 결과를 임시 저장하는 캐시일 뿐, "내용"이 아니다. 저장·비교 시 이 필드들을 제거한 <em>순수 내용</em>만 다룬다 — 이 구분이 변경 감지(<a href="#safety" style="color:var(--cyan)">자동저장 안전장치</a>)의 정확성을 만든다.</p>
@@ -345,8 +348,9 @@
       <div class="step"><div class="dot">1</div><div class="txt"><b>탭 복귀 / 저장 직전</b> — 트리거 발생</div></div>
       <div class="step"><div class="dot">2</div><div class="txt"><b>드라이브 최신 modifiedTime 조회</b> — 내 기준 시각과 비교</div></div>
       <div class="step"><div class="dot">3</div><div class="txt">최신본이 더 새로우면 → <b>자동저장 보류 + 사용자에게 안내</b></div></div>
-      <div class="step"><div class="dot">4</div><div class="txt">선택: <b>최신본 불러오기 / 무시하고 계속 / 보류</b></div></div>
+      <div class="step"><div class="dot">4</div><div class="txt"><b>저장본 비교 화면</b>: 현재·최신본을 좌우 아웃라인으로 펼쳐 노드별 diff(추가/삭제/변경)를 색으로 비교 후 선택 — <b>불러오기 / 합치기(Merge) / 무시 / 드라이브 파일 삭제</b></div></div>
     </div>
+    <p><strong>저장본 비교 화면</strong>은 <code>nodeDiffStatus(local, remote)</code>가 노드 id별 상태(<code>same/added/removed/changed</code>)를 계산하고, 읽기전용 <code>CompareOutline</code> 컴포넌트가 두 트리를 들여쓰기 목록으로 펼쳐 색(🟢added·🔴removed·🟡changed)으로 표시한다. 결정은 <code>handleDriveLoadFile</code>(화면 교체)·<code>mergeRemoteIntoLocal</code>("복원" 가지로 붙임)·기준시각 갱신(무시)·<code>driveDeleteFile</code>(삭제, <code>window.confirm</code> 2차 확인)로 처리하며, 모든 선택은 비파괴적이거나 Undo·버전 파일로 복구 가능하다.</p>
     <div class="decision"><span class="ic">◆</span><div>비교 기준은 <strong>드라이브 서버의 modifiedTime</strong>이다. 클라이언트 시계(회사·집 PC의 시각 차이)에 의존하지 않으므로 정확하다. 또한 기준 시각이 없거나(이번 세션 미저장) 내 것이 더 최신이면 묻지 않아 오탐을 막는다. 이 기준 시각(<code>lastSyncedTimeRef</code>)은 <strong>IndexedDB(<code>driveSyncedTime</code>)에 영구 저장</strong>되어 새로고침 후에도 복원되므로, 한 번 확인(무시/불러오기/합치기)한 같은 최신본으로 매번 다시 묻는 오탐이 생기지 않는다.</div></div>
   </section>
 
@@ -375,6 +379,10 @@
 SANITIZE_MAX_NODES = <span class="n">20000</span> <span class="c">// 전체 노드 수 (메모리 고갈 차단)</span>
 SANITIZE_MAX_LABEL = <span class="n">5000</span>  <span class="c">// 라벨 글자 수</span></pre>
     <p>악의적으로 깊게 중첩되거나 거대한 JSON을 불러와도 정제 단계에서 잘린다. 한도는 정상 사용 규모(깊이 10 미만, 노드 수백)보다 수십 배 커서, <strong>공격만 막고 사용자는 모르게</strong> 동작한다.</p>
+    <h4>링크 XSS 차단 — href 스킴 화이트리스트</h4>
+    <p>노드 라벨의 URL은 <code>safeLinkUrl()</code>로 출력 시점에 한 번 더 검증한다 — 제어문자 제거 후 스킴이 있으면 <code>http/https/mailto</code>만 통과시키고 <code>javascript:</code>·<code>data:</code>·<code>vbscript:</code>는 차단(링크 미생성). URL 추출 정규식(<code>URL_RE</code>/<code>MD_LINK_RE</code>)이 이미 http(s)만 잡지만, 정규식 변경·불러온 데이터 등 회귀에 대비한 <strong>심층 방어(defense-in-depth)</strong>다.</p>
+    <h4>About 화면 격리 — iframe sandbox</h4>
+    <p>외부 안내 페이지(about.html)를 <code>&lt;iframe sandbox&gt;</code>로 감싸 <strong>스크립트 실행 권한을 부여하지 않는다</strong>(<code>allow-same-origin allow-popups</code>만). 정적 페이지라 정상 동작하면서, 혹시 모를 스크립트 주입을 차단한다.</p>
     <h4>같은 브라우저 중복 탭 감지 — BroadcastChannel</h4>
     <p>같은 브라우저의 두 탭은 IndexedDB를 공유하므로 마지막 저장이 이기는(last-write-wins) 위험이 있다. <code>BroadcastChannel</code>로 who/here 프로토콜을 구성해, <strong>나중에 연 탭에만</strong> 경고 배너를 띄운다.</p>
     <p>여기엔 시뮬레이션 검증이 잡아낸 버그가 하나 있다 — <code>here</code> 응답은 브로드캐스트라 <em>모든 탭</em>에 퍼지므로, 셋째 탭이 열리면 첫째 탭에도 배너가 뜨는 오류였다. "누군가의 <code>who</code>에 응답한 적이 있으면 나는 기존 탭"이라는 <code>isExistingTab</code> 플래그로 남의 <code>here</code>를 무시하게 해 해결했다. 탭 순서·동시 열림을 포함한 9개 시나리오로 검증.</p>
