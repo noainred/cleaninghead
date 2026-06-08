@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.26] - 2026-06-08
+
+### Fixed
+- **노드 모양 선택이 적용되지 않던 버그** — 우측 패널 "모양"(둥근·각짐·알약·타원)이 `borderRadius`를 배경·테두리가 없는 바깥 `.node` div에 인라인으로 적용해 화면상 아무 변화가 없었음. 실제로 배경·모서리를 그리는 `.node-body`(CSS `border-radius:14px`)로 옮겨, `node.shape`에 따라 rect→3 / pill→999 / ellipse→50% / 둥근→기본 14px가 적용되게 함. 선택·편집 강조 링(`.node-body`의 box-shadow)도 고른 모양을 따라가도록 일관성 확보. (메모이제이션 `nodeViewPropsEqual`은 이미 `a.shape!==b.shape`를 비교하고 있어 리렌더는 정상 — 순수 CSS 적용 위치 버그였음.)
+
+### Technical Notes
+- babel transform PASS(425,753 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.26.html` md5 일치.
+
+---
+
 ## [3.80.25] - 2026-06-08
 
 ### Added
