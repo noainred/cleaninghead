@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.80.25] - 2026-06-08
+
+### Added
+- **Ctrl/⌘ + 드래그 노드 복제** — 노드를 `Ctrl`(맥 `⌘`)을 누른 채 다른 노드 위로 끌어다 놓으면 그 노드와 모든 하위 노드를 복제해 대상의 자식으로 추가. 원본은 그대로 유지. `handleDragStart`에서 `effectAllowed='copyMove'`, `handleDragOver`/`handleDrop`은 `e.ctrlKey||e.metaKey`로 복제 모드를 판정해 커서에 `dropEffect='copy'`(+ 표시) 피드백. 복제 시 `cloneTree`로 스냅샷을 떠 `walk`로 전체에 새 id(`c{stamp}_{seq}`)를 부여하고 휘발성 좌표(`_x/_y/_w/_h/_subH`)·`pinnedSide`·`autoSide`를 제거한 뒤 자식으로 push, 접힌 부모는 펼치고 `applyColorToBranch(colorForMovedNode(...))`로 새 부모 톤을 입힘. 복제본은 독립 스냅샷이라 자기 자손 위에 떨궈도 순환이 생기지 않아 `isDescendant` 순환 가드를 건너뜀(이동은 기존대로 가드 유지). `maybePushHistory('노드 복제')`로 `Ctrl+Z` 되돌리기를 지원하고, 토스트에 복제된 노드 개수를 표시.
+
+### Technical Notes
+- babel transform PASS(425,466 chars). `index.html` ↔ `seahyun/brainstorm_v3.80.25.html` md5 일치.
+
+---
+
 ## [3.80.24] - 2026-06-06
 
 ### Changed
