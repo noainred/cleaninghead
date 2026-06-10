@@ -13,6 +13,23 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.81.0] - 2026-06-09
+
+### Added
+- **간트 차트 · 타임라인 뷰** — 마인드맵/아웃라인에 더해 일정 중심의 두 뷰를 추가. 헤더의 `📊 간트`·`🕒 타임라인` 버튼, 단축키 `G`·`T`, 캔버스 우클릭 메뉴로 전환. 마인드맵·아웃라인과 상호 배타(전환 시 서로 해제).
+  - **데이터 모델**: 노드 `meta.start`·`meta.end`(ISO `YYYY-MM-DD`)·`meta.milestone`(bool) 구조화 필드 신설. 기존 자유 텍스트 `meta.date/effort/cost`는 표시용으로 유지. `sanitizeNode`·`preserveMetadata`가 새 필드를 보존(텍스트 동기화·내보내기 안전).
+  - **일정 계산** `computeSchedule(root)`: 노드별 시작/종료 + **하위 롤업**(부모 = 자식 범위 min~max 요약 막대), 진행률은 `computeTaskProgress`(하위 완료 비율)로 막대 채움. 날짜 없는 노드는 목록에만 표시.
+  - **간트**: 좌측 아웃라인(접기·색·할 일 체크) + 우측 시간축 막대(주별 눈금·**오늘선**). **막대 드래그=일정 이동**, **우측 끝 핸들 드래그=기간 조절**(pointer 이벤트, px↔일 환산, 드롭 시 커밋·Undo 1건). 관계선(크로스링크)을 **의존성 화살표**(SVG)로 표시. 마일스톤은 ◆.
+  - **타임라인**: 상위 가지별 **스윔레인**에 시작일 기준 점(pill·◆)을 배치한 경량 뷰.
+  - **우측 패널 “일정” 섹션**: `시작일`·`종료일`(`<input type=date>`) + `마일스톤` 체크. 마일스톤이면 종료일 비활성.
+- 단축키 `G`(간트)·`T`(타임라인) 추가. README 단축키 표 반영.
+
+### Technical Notes
+- 신규 컴포넌트 `GanttView`·`TimelineView`·`ChartTopBar`와 헬퍼 `bbParseISO/bbToISO/bbAddDays/bbDayDiff/bbFmtMD/bbHex/bbDarken`·`computeSchedule`. App에 `chartView` 상태 + `schedule = useMemo(computeSchedule(tree),[tree])` + `chartActions`. 맵 노드 렌더 가드를 `!outlineView && !chartView && nodeEls`로 확장(기본 동작 불변).
+- babel transform PASS(447,166 chars). 일정 로직 단위 테스트(롤업·진행률·마일스톤·미배치·드래그 수학) 통과. `index.html` ↔ `seahyun/brainstorm_v3.81.0.html` md5 일치.
+
+---
+
 ## [3.80.27] - 2026-06-08
 
 ### Changed
