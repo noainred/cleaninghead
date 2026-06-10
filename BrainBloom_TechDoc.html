@@ -154,6 +154,7 @@
       <li><a href="#focus">집중 · 몰입 시스템 — 순수 함수의 재사용</a></li>
       <li><a href="#theme">테마 시스템 — CSS 변수 기반 다크 모드</a></li>
       <li><a href="#overlay">관계선 · 그룹 — 겹쳐 그리는 레이어</a></li>
+      <li><a href="#charts">간트 · 타임라인 — 일정 뷰</a></li>
       <li><a href="#drive">구글 드라이브 통합</a></li>
       <li><a href="#versioning">버전 관리 알고리즘</a></li>
       <li><a href="#safety">자동저장 안전장치</a></li>
@@ -199,7 +200,8 @@
 {
   id, label,                       <span class="c">// 식별자, 텍스트</span>
   children: [ ... ],               <span class="c">// 재귀적 자식 배열</span>
-  meta: { date, effort, cost },    <span class="c">// 부가 정보</span>
+  meta: { date, effort, cost,      <span class="c">// 부가 정보(자유 텍스트)</span>
+          start, end, milestone }, <span class="c">// 간트/타임라인 일정: ISO 시작·종료일 + 마일스톤(bool)</span>
   color, icons: [ ... ], shape,    <span class="c">// 시각 속성 (shape: 둥근·각짐·알약·타원)</span>
   task, done,                      <span class="c">// 할 일 체크박스 · 완료 상태</span>
   w,                               <span class="c">// 사용자가 드래그로 지정한 폭(없으면 라벨 기반 자동)</span>
@@ -280,6 +282,30 @@
     <div class="callout win"><span class="ic">✦</span><div>맥 트랙패드의 네이티브 패닝(세 손가락 드래그)은 React <code>stopPropagation</code>으로 막을 수 없다. 그래서 <code>isPanTarget</code>이 <code>.cross-link-handle</code>·<code>.cross-link-hit</code>·<code>.group-rect</code>·<code>.group-label</code>을 <strong>패닝 대상에서 명시적으로 제외</strong>해, 핸들을 끌 때 화면이 따라 움직이지 않게 했다.</div></div>
     <h4>그룹 · 경계 — 두 종류의 묶음</h4>
     <p>두 가지 묶음을 지원한다. <strong>경계</strong>는 한 노드의 하위 전체를 둥근 박스로 감싸는 <em>트리 기반</em> 묶음이고, <strong>그룹</strong>은 트리에서 떨어져 있는 여러 노드를 <code>Shift</code>+클릭으로 자유롭게 고른 <em>자유</em> 묶음이다. 둘 다 묶인 노드들의 외접 사각형으로 박스를 그리며, 통계 패널에 <em>그룹 수·경계 수</em>로 집계된다.</p>
+  </section>
+
+  <!-- 간트/타임라인 -->
+  <section id="charts">
+    <h2 class="sec"><span class="hash">#</span>간트 · 타임라인 — 일정 뷰</h2>
+    <p class="lead">같은 트리를, 시간축으로 다시 그리는 두 개의 뷰.</p>
+    <p>마인드맵·아웃라인과 <strong>같은 노드 트리</strong>를 입력으로, 일정 중심의 두 뷰(간트·타임라인)를 렌더한다. 저장 포맷·노드 구조는 바뀌지 않고, <code>chartView</code> 상태(<code>null | 'gantt' | 'timeline'</code>)로 오버레이를 전환할 뿐이다 — 아웃라인 뷰와 동일한 <code>position:absolute; inset:0; z-index:25</code> 패턴이며, 마인드맵·아웃라인·간트·타임라인 넷은 <strong>상호 배타</strong>다.</p>
+
+    <h4>일정 데이터 — 구조화 필드 분리</h4>
+    <p>기존 <code>meta.date/effort/cost</code>는 <strong>자유 텍스트</strong>(예: "6/21 - 8/18")라 일정 계산에 부적합하다. 그래서 파싱 가능한 <strong>구조화 필드</strong> <code>meta.start</code>·<code>meta.end</code>(ISO <code>YYYY-MM-DD</code>)·<code>meta.milestone</code>(bool)을 신설하고, 자유 텍스트는 표시용으로 그대로 뒀다. 우측 패널의 <code>&lt;input type="date"&gt;</code>로 편집하며, <code>sanitizeNode</code>(직렬화)와 <code>preserveMetadata</code>(텍스트 재파싱 시 id-경로 기준 <code>{...old.meta}</code> 스프레드)가 새 필드를 보존해 내보내기·텍스트 동기화에도 살아남는다.</p>
+
+    <h4>computeSchedule — 롤업 한 번에</h4>
+    <p>순수 함수 <code>computeSchedule(root)</code>가 후위 순회로 노드별 일정을 계산한다. 리프는 자기 <code>start/end</code>를, 부모는 <strong>자식들의 min(start)~max(end)</strong>로 범위를 합쳐(<em>요약 막대=롤업</em>) 올린다. 진행률은 기존 <code>computeTaskProgress</code>(하위 완료 비율)를 재사용해 막대 채움 %로 쓴다. <code>start</code>가 없는 노드는 결과에서 제외(목록엔 표시, 막대 없음). 전체 <code>min/max</code>로 시간축 범위를 정한다.</p>
+    <pre><span class="c">// 날짜 헬퍼 — TZ 안전(정오 고정)·정수 일수 계산</span>
+bbParseISO / bbToISO / bbAddDays / bbDayDiff / bbFmtMD
+<span class="c">// X(iso) = (axisStart→iso 일수) / 전체일수 × 100  → 막대 left/width %</span></pre>
+
+    <h4>간트 렌더 · 드래그 편집</h4>
+    <p>분할 레이아웃: <strong>좌측</strong>은 접힘을 반영해 평탄화한 노드 목록(아웃라인과 동일한 접기·색·할 일 체크), <strong>우측</strong>은 같은 행 높이(<code>GANTT_ROW_H</code>)로 정렬된 시간축 트랙. 막대는 <code>left/width</code>를 <strong>%</strong>로 절대 배치하고, 세로 그리드·<em>오늘선</em>·의존성은 <code>inset:0</code> 오버레이에 얹는다. 의존성(관계선)은 <code>&lt;svg&gt;</code>에서 <code>x</code>는 %(트랙 폭)·<code>y</code>는 px(행 중심)로 line+marker를 그린다.</p>
+    <p>편집은 <strong>pointer 이벤트</strong>로 구현했다. 막대 <code>pointerdown</code> 시 트랙 폭을 측정해 <code>px/일</code>을 구하고, <code>pointermove</code>의 ΔX를 <strong>일 단위로 반올림</strong>해 미리보기(<code>viewRange</code>)를 갱신, <code>pointerup</code>에서만 <code>setNodeDates</code>로 커밋한다(히스토리 1건 → <code>Ctrl+Z</code>). 막대 본체 드래그=이동(start·end 동시), 우측 끝 핸들=기간(end만), 하한은 <code>end ≥ start</code>로 클램프.</p>
+
+    <h4>타임라인</h4>
+    <p>상위 가지(루트의 직계 자식)별 <strong>스윔레인</strong>에, 자기 일정(<code>hasOwn</code>)이 있는 노드를 <code>start</code> 기준 %로 점(pill/◆)으로 배치한 경량 뷰. 같은 시간축·오늘선을 공유한다.</p>
+    <div class="callout win"><span class="ic">✦</span><div>핵심은 <strong>"표현만 추가, 데이터는 불변"</strong>이다. 맵 노드 렌더 가드를 <code>!outlineView &amp;&amp; !chartView &amp;&amp; nodeEls</code>로 넓힌 것 외에 기존 경로는 손대지 않아, 일정 뷰를 켜지 않으면 동작이 100% 동일하다. 일정 계산·드래그 날짜 수학은 순수 함수라 Node에서 단위 테스트로 검증했다.</div></div>
   </section>
 
   <!-- 7 -->

@@ -176,7 +176,7 @@
       <li><a href="#write">생각을 적는 두 가지 방법</a></li>
       <li><a href="#keys">단축키 한눈에</a></li>
       <li><a href="#decorate">노드 꾸미기 · 잇기 · 묶기 (색·아이콘·관계선·그룹)</a></li>
-      <li><a href="#view">화면 다루기 (확대·접기·검색·필터·몰입)</a></li>
+      <li><a href="#view">화면 다루기 (확대·접기·검색·필터·몰입·아웃라인·간트·타임라인)</a></li>
       <li><a href="#save">저장과 내보내기</a></li>
       <li><a href="#drive">구글 드라이브 연동 (다른 기기에서 이어 쓰기)</a></li>
       <li><a href="#settings">설정 살펴보기</a></li>
@@ -253,6 +253,7 @@
       <tr><td><kbd>Alt</kbd> + <kbd>방향키</kbd></td><td>노드의 <strong>순서·계층 옮기기</strong></td></tr>
       <tr><td><kbd>Space</kbd></td><td>가지 <strong>접기 / 펼치기</strong></td></tr>
       <tr><td><kbd>F</kbd></td><td>마인드맵 ↔ <strong>아웃라인(목록) 화면 전환</strong></td></tr>
+      <tr><td><kbd>G</kbd> / <kbd>T</kbd></td><td><strong>간트 차트 / 타임라인</strong> 화면 전환 (일정)</td></tr>
       <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td>화면 <strong>확대 / 축소</strong></td></tr>
       <tr><td><kbd>Esc</kbd></td><td>편집 취소 / 선택 해제</td></tr>
       <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td><strong>되돌리기</strong> (실수해도 안심)</td></tr>
@@ -303,7 +304,7 @@
 
   <!-- 6 -->
   <section id="view">
-    <h2 class="sec"><span class="num">6</span>화면 다루기 (확대 · 접기 · 검색 · 필터 · 몰입 · 아웃라인)</h2>
+    <h2 class="sec"><span class="num">6</span>화면 다루기 (확대 · 접기 · 검색 · 필터 · 몰입 · 아웃라인 · 간트 · 타임라인)</h2>
     <p class="lead">생각이 많아져도 화면을 편하게 둘러볼 수 있습니다.</p>
     <ul>
       <li><strong>확대 / 축소</strong> — <kbd>Ctrl</kbd>을 누른 채 마우스 휠을 굴리면 가까이/멀리 볼 수 있습니다.</li>
@@ -340,6 +341,19 @@
       <li><strong>맵으로 복귀</strong> — 다시 <kbd>F</kbd>(또는 버튼)를 누르면 마인드맵으로 돌아가며, 아웃라인에서 고른 노드를 <strong>화면 중앙</strong>에 같은 배율로 보여줍니다.</li>
     </ul>
     <p>캔버스 <strong>빈 곳 우클릭 메뉴</strong>의 맨 아래 <em>"아웃라인으로 보기"</em>로도 전환할 수 있어요.</p>
+
+    <h3>간트 차트 · 타임라인 뷰 — 일정으로 보기</h3>
+    <p>날짜가 있는 작업이라면, 마인드맵을 <strong>일정표(간트 차트)</strong>나 <strong>타임라인</strong>으로 펼쳐 "언제 무엇을" 한눈에 볼 수 있습니다. 헤더의 <strong>📊 간트</strong> · <strong>🕒 타임라인</strong> 버튼, 또는 <kbd>G</kbd>·<kbd>T</kbd> 키(빈 곳 우클릭 메뉴)로 전환해요.</p>
+    <p><strong>먼저 노드에 일정 넣기 —</strong> 노드를 고르고 오른쪽 패널의 <strong>"일정"</strong> 칸에서 <strong>시작일</strong>(필요하면 종료일)을 넣습니다. 종료일을 비우면 <em>하루</em>로 잡히고, <strong>마일스톤</strong>을 켜면 기간 없는 <em>◆ 시점</em>으로 표시돼요. (시작일을 넣은 노드가 하나도 없으면 빈 안내만 보입니다.)</p>
+    <ul>
+      <li><strong>간트 — 왼쪽 목록 + 오른쪽 막대</strong> — 왼쪽엔 작업이 아웃라인처럼 나열되고(접기·색·할 일 체크 그대로), 오른쪽엔 시간축 위에 일정 막대가 그려집니다. 위쪽에 날짜 눈금, <strong>빨간 선은 오늘</strong>입니다.</li>
+      <li><strong>진행률 채움</strong> — 할 일 완료 정도에 따라 막대 안이 진하게 채워집니다(예: 35%).</li>
+      <li><strong>부모는 요약 막대(롤업)</strong> — 자식들에 일정이 있으면, 부모 노드는 그 전체 기간을 묶은 요약 막대로 보여줍니다.</li>
+      <li><strong>의존성 화살표</strong> — 관계선(크로스링크)으로 이은 두 작업은 점선 화살표로 연결돼 "이게 끝나야 저게 시작"이 보입니다.</li>
+      <li><strong>끌어서 일정 바꾸기</strong> — 막대를 좌우로 끌면 일정이 <em>통째로 이동</em>, 막대 <em>오른쪽 끝</em>을 끌면 <em>기간(종료일)</em>이 바뀝니다. 바뀐 일정은 <kbd>Ctrl</kbd>+<kbd>Z</kbd>로 되돌릴 수 있어요.</li>
+      <li><strong>타임라인</strong> — 막대 없이 <strong>날짜 점</strong>만 가로축에 흩뿌리는 가벼운 보기입니다. 상위 가지별로 <em>줄(스윔레인)</em>이 나뉘어, 일정이 듬성한 맵을 빠르게 훑을 때 좋아요. 점을 클릭하면 그 노드가 선택됩니다.</li>
+    </ul>
+    <div class="tip"><span class="ic">💡</span><div>마인드맵·아웃라인·간트·타임라인은 <strong>같은 자료를 다르게 보여줄 뿐</strong>이에요. 노드 하나에 <strong>시작일</strong>만 넣어도 바로 막대가 나타나고, 어느 화면에서 고치든 서로 반영됩니다.</div></div>
   </section>
 
   <!-- 7 -->
