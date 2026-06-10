@@ -2164,7 +2164,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.81.2';
+const APP_VERSION = '3.81.1';
 const APP_BUILD_DATE = '2026-06-10';
 
 // 'a.b.c' 형식 버전 비교 — a가 b보다 높으면 true (업그레이드 판정용. 다운그레이드/동일은 false)
@@ -2194,7 +2194,7 @@ const DRIVE_FOLDER_NAME = 'BrainBloom';
    ============================================================ */
 const CHANGELOG_URL = 'https://www.redmir.net/CHANGELOG.md';
 const RECENT_CHANGES = [
-  { version: '3.81.2', date: '2026-06-10', groups: [{ label: '변경', items: ['Tab·Enter로 새 노드를 만들 때 자동으로 채워지는 영감 단어를 앞뒤 ★와 함께 기울임꼴로 표시해요. 한 글자라도 직접 입력하면 표시가 사라져 일반 노드가 돼요 — 엔터를 연달아 눌러도 \'내가 쓴 노드\'와 \'아직 자동 단어 그대로인 노드\'를 한눈에 구분할 수 있어요. (새로고침하거나 다시 열어도 이 구분 표시가 유지돼요)'] }] },
+  { version: '3.81.1', date: '2026-06-10', groups: [{ label: '변경', items: ['Tab·Enter로 새 노드를 만들 때 자동으로 채워지는 영감 단어를 앞뒤 ★와 함께 기울임꼴로 표시해요. 한 글자라도 직접 입력하면 표시가 사라져요 — 엔터를 연달아 눌러도 \'내가 쓴 노드\'와 \'아직 자동 단어 그대로인 노드\'를 한눈에 구분할 수 있어요. (이 표시는 지금 작업하는 동안 유지돼요)'] }] },
   { version: '3.81.0', date: '2026-06-09', groups: [
     { label: '추가', items: [
       '간트 차트·타임라인 뷰가 생겼어요 — 헤더의 📊 간트 / 🕒 타임라인 버튼(또는 G·T 키, 우클릭 메뉴)으로 전환해요. 노드 일정을 막대로 한눈에 보고, 막대를 끌어 일정을 옮기거나 우측 끝을 끌어 기간을 조절할 수 있어요. 빨간 선=오늘, 점선 화살표=관계선(의존성).',
@@ -3184,8 +3184,6 @@ function sanitizeNode(node, seenIds, depth) {
 
   // 나머지 알려진 필드는 타입이 맞을 때만 보존 (모르는 필드는 버려 안전성 확보)
   const clean = { id, label, children };
-  // 자동 채움(샘플) 라벨 표시 플래그 — 보존해야 새로고침/재오픈 후에도 ★샘플★로 구분됨
-  if (node._autoLabel === true) clean._autoLabel = true;
   if (node.meta && typeof node.meta === 'object' && !Array.isArray(node.meta)) {
     clean.meta = {};
     if (typeof node.meta.date === 'string') clean.meta.date = node.meta.date;
@@ -4252,7 +4250,7 @@ function serializeTree(root) {
   walk(clean, n => {
     delete n._x; delete n._y; delete n._w; delete n._h;
     delete n._subH; delete n._subW; delete n._side;
-    // _autoLabel(자동 채움 표시)은 보존 — 새로고침/다음 세션에도 ★샘플★ 구분 표시 유지
+    delete n._autoLabel;
   });
   return clean;
 }

@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.81.2] - 2026-06-10
+
+### Changed
+- **자동 채움 영감 단어를 ★기울임꼴★로 구분 표시 (새로고침 후에도 유지)** — `Tab`/`Enter`로 새 노드를 만들 때 자동으로 들어가는 영감 단어(`_autoLabel` 플래그)를 맵(`NodeViewBase`)·아웃라인(`OutlineRow`) 라벨에서 앞뒤 `★`와 기울임꼴(흐리게)로 렌더링. 사용자가 한 글자라도 입력해 라벨이 바뀌면 `_autoLabel`이 제거되어 일반 표시로 전환. 맵 편집에서 `Enter`/`Tab`으로 "안 바꾸고 끝내기"(`finish()`)할 때 자동 라벨이면 라벨·플래그를 건드리지 않아 표시 유지(`onFinishEdit(label, keepAuto)` 경로 추가) — 기존엔 Enter가 자동 라벨을 그대로 "확정"해 일반 노드처럼 보였음. → 엔터를 연달아 눌러도 '직접 입력한 노드'와 '아직 자동 단어 그대로인 노드'를 한눈에 구분.
+
+### Technical Notes
+- **영구화**: `_autoLabel`을 `serializeTree`에서 더 이상 제거하지 않고 저장에 포함, `sanitizeNode`가 로드 시 보존 → 새로고침·재오픈·드라이브 동기화 후에도 ★샘플★ 표시 유지. `nodesEqual`는 이미 `_autoLabel`을 비교(변경 감지 정상).
+- 변경 파일: `index.html` (`NodeViewBase`·`OutlineRow` 라벨 렌더, `finish()`, NodeView `onFinishEdit`, `serializeTree`, `sanitizeNode`).
+
+---
+
 ## [3.81.0] - 2026-06-09
 
 ### Added
