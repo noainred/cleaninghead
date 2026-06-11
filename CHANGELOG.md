@@ -13,6 +13,24 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.82.0] - 2026-06-11
+
+### Added
+- **다중 문서 — 여러 문서를 따로 만들고 전환·편집** — 헤더에 `📄 문서` 버튼(미니멀·모바일 포함 항상 표시)을 추가. 누르면 문서 패널이 열려 문서 목록(이름·마지막 수정 시각, 현재 문서 강조)을 보고 **클릭으로 전환 / `＋ 새 문서` 생성 / `✎` 이름 변경 / `🗑` 삭제**(마지막 1개는 보호)할 수 있다. 각 문서는 자신의 마인드맵(`tree`)과 텍스트(`inputText`)를 따로 보관하며, 새로고침·재오픈 후에도 마지막에 열어 둔 문서가 복원된다. 문서 이름은 루트 노드 라벨을 따라 자동 부여되고, 사용자가 바꾸면 그 이름으로 고정(`auto:false`)된다.
+
+### Changed
+- 문서 전환·생성·삭제 시 화면을 맵 편집 모드로 정리(`viewMode='edit'`, 아웃라인·간트/타임라인 닫기, 선택/편집 해제, Undo 히스토리 초기화) — `resetViewForDocChange()`.
+
+### Technical Notes
+- **저장 구조(하위호환 우선)**: IndexedDB `kv` 스토어에 `docMeta`(`{currentId, list:[{id,name,savedAt,auto}]}`)와 문서별 `doc:<id>`(`{savedAt,tree,inputText,name}`)를 추가. 기존 `lastWork` 키는 **현재 열린 문서의 거울**로 계속 유지해 시작 복원·"어제 작업?" 다이얼로그·구글 드라이브 동기화 등 기존 로직을 그대로 둔다(회귀 위험 최소화).
+- **마이그레이션**: 첫 실행 시 `docMeta`가 없으면 기존 `lastWork`(또는 새로 시작한 내용)를 "문서 1"로 자동 승격 → 기존 사용자 데이터 보존.
+- **자동저장**: 기존 3곳의 `idbSet('lastWork', …)`를 `writeActiveDoc()`로 교체 — `lastWork` 미러와 `doc:<현재id>` 슬롯을 함께 기록하고 목록 메타(`savedAt`·자동이름)를 갱신. 디바운스(1.5초) 핫패스에서 `setState` 없이 `ref`+IndexedDB만 갱신해 렌더 비용을 더하지 않는다(`docListRef`/`currentDocIdRef`).
+- 자동단어 `_autoLabel`·일정(`meta.start` 등)은 트리에 포함되어 문서와 함께 자연히 이동한다(추가 처리 불필요).
+- `idbDel(key)` 헬퍼 추가(문서 삭제 시 `doc:<id>` 슬롯 제거). 앱 내장 릴리스 노트(`RECENT_CHANGES`)에 3.82.0 항목 추가.
+- 변경 파일: `index.html`(상태·헬퍼·동작·헤더 버튼·문서 패널 모달·CSS·`RECENT_CHANGES`), `seahyun/brainstorm_v3.82.0.html`(스냅샷), `CHANGELOG.md`, `README.md`.
+
+---
+
 ## [3.81.2] - 2026-06-10
 
 ### Changed
