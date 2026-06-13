@@ -204,12 +204,20 @@
           start, end, milestone }, <span class="c">// 간트/타임라인 일정: ISO 시작·종료일 + 마일스톤(bool)</span>
   color, icons: [ ... ], shape,    <span class="c">// 시각 속성 (shape: 둥근·각짐·알약·타원)</span>
   task, done,                      <span class="c">// 할 일 체크박스 · 완료 상태</span>
+  _autoLabel,                      <span class="c">// Tab/Enter 자동 채움(샘플) 단어 표시 — _ 접두지만 저장에 포함(예외)</span>
   w,                               <span class="c">// 사용자가 드래그로 지정한 폭(없으면 라벨 기반 자동)</span>
   pinnedSide, autoSide, collapsed, <span class="c">// 배치·접힘 상태</span>
   createdAt, updatedAt,            <span class="c">// 생성·수정 시각(시스템 기록)</span>
   _x, _y, _w, _h, _subH            <span class="c">// 레이아웃 캐시 (밑줄 = 휘발성)</span>
 }</pre>
-    <p>핵심 설계는 <strong>밑줄 접두 필드(<code>_x</code>, <code>_y</code>, …)의 분리</strong>다. 이들은 화면 배치 계산 결과를 임시 저장하는 캐시일 뿐, "내용"이 아니다. 저장·비교 시 이 필드들을 제거한 <em>순수 내용</em>만 다룬다 — 이 구분이 변경 감지(<a href="#safety" style="color:var(--cyan)">자동저장 안전장치</a>)의 정확성을 만든다.</p>
+    <p>핵심 설계는 <strong>밑줄 접두 필드(<code>_x</code>, <code>_y</code>, …)의 분리</strong>다. 이들은 화면 배치 계산 결과를 임시 저장하는 캐시일 뿐, "내용"이 아니다. 저장·비교 시 이 필드들을 제거한 <em>순수 내용</em>만 다룬다 — 이 구분이 변경 감지(<a href="#safety" style="color:var(--cyan)">자동저장 안전장치</a>)의 정확성을 만든다. (예외: <code>_autoLabel</code>은 밑줄 접두지만 "자동 채움 단어" 표시를 유지하려고 저장에 포함한다.)</p>
+
+    <h4>문서 저장 모델 — 다중 문서</h4>
+    <p>위 트리는 "문서 한 개"의 내용이다. v3.82.0부터 여러 문서를 따로 보관한다 — 저장은 IndexedDB 단일 <code>kv</code> 스토어 위에 세 가지 키로 구성된다:</p>
+    <pre>docMeta = { currentId, list: [ { id, name, savedAt, auto } ] }  <span class="c">// 가벼운 목록(내용은 별도)</span>
+doc:&lt;id&gt; = { savedAt, tree, inputText, name }                  <span class="c">// 문서별 본문</span>
+lastWork = { savedAt, tree, inputText }                          <span class="c">// "현재 열린 문서의 거울"</span></pre>
+    <p><strong>핵심은 <code>lastWork</code>를 거울로 남긴 점</strong>이다. 시작 복원·"어제 작업?" 다이얼로그·드라이브 동기화는 전부 <code>lastWork</code> 기준으로 짜여 있었는데, 이를 그대로 두고 <em>현재 문서</em>를 항상 <code>lastWork</code>에 미러링함으로써 기존 로직을 한 줄도 바꾸지 않고 다중 문서를 얹었다. 첫 실행 시 <code>docMeta</code>가 없으면 기존 <code>lastWork</code>를 "문서 1"로 자동 승격해 기존 사용자 데이터를 보존한다. <code>name</code>은 <code>auto:true</code>면 루트 라벨을 따라가고 사용자가 바꾸면 <code>auto:false</code>로 고정된다. 자동단어(<code>_autoLabel</code>)·일정(<code>meta.start</code>)은 트리 안에 있어 문서와 함께 자연히 이동한다.</p>
   </section>
 
   <!-- 레이아웃 엔진 -->
@@ -363,6 +371,9 @@ bbParseISO / bbToISO / bbAddDays / bbDayDiff / bbFmtMD
 
     <h4>③ 변경 감지 (불필요 저장 제거)</h4>
     <p>자동저장은 <em>내용이 실제로 바뀌었을 때만</em> 동작한다. 레이아웃 캐시(<code>_x</code> 등)를 제거한 직렬화 문자열을 마지막 저장본과 비교 — 좌표만 바뀐 건 "변경"으로 치지 않는다. 이는 무의미한 저장을 없애고, 다중 기기 충돌 가능성까지 낮춘다.</p>
+
+    <h4>④ 활성 문서 미러 (다중 문서)</h4>
+    <p>다중 문서에서 로컬 저장은 <code>writeActiveDoc()</code> 하나로 통일했다 — <code>lastWork</code>(거울)와 <code>doc:&lt;현재id&gt;</code> 슬롯에 <strong>동시에</strong> 쓴다. 디바운스(1.5초) 핫패스에서는 React <code>setState</code>를 일으키지 않고 <code>ref</code>(<code>currentDocIdRef</code>·<code>docListRef</code>)와 IndexedDB만 갱신해, 타이핑 중 추가 렌더 비용이 없다. 문서 목록의 최신 <code>savedAt</code>·자동 이름은 문서 패널을 열 때 <code>docMeta</code>에서 다시 읽어 화면에 반영한다.</p>
   </section>
 
   <!-- 10 -->
