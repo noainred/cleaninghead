@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.82.2] - 2026-06-15
+
+### Added
+- **Shift+←/→로 하위 접기·펼치기 (마인드맵 화면)** — 노드를 고른 상태에서 `Shift`+`←`는 하위 접기, `Shift`+`→`는 펼치기. 평범한 `←`/`→`는 기존대로 노드 사이 이동을 유지한다(충돌 없이 Shift로 구분). 접힌 노드는 숨은 자식 개수 배지로 표시된다.
+
+### Technical Notes
+- 맵 keydown 핸들러에 `Shift`+`ArrowLeft/Right` 분기 추가 — `findNode`로 선택 노드를 찾아 자식이 있을 때만, 접힘 상태(`collapsed`)에 따라 기존 `toggleCollapse(id)`를 재사용(접힘→펼치기는 →, 펼침→접기는 ←). 평범한 화살표 경로(`isPlainArrow`)는 `e.shiftKey`를 제외하므로 이동 동작과 분리됨. 아웃라인 뷰는 기존 `navigateOutlineH`(평범한 ←/→) 사용으로 영향 없음.
+- 변경 파일: `index.html`(keydown·`RECENT_CHANGES`·버전), `seahyun/brainstorm_v3.82.2.html`(스냅샷), `CHANGELOG.md`, `README.md`, `BrainBloom_UserGuide.html`.
+
+---
+
 ## [3.82.1] - 2026-06-11
 
 ### Changed
