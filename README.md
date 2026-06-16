@@ -100,6 +100,7 @@
 - [사용 설명서 (UserGuide)](BrainBloom_UserGuide.html)
 - [기술 설계 문서 (TechDoc)](BrainBloom_TechDoc.html)
 - [변경 이력 (CHANGELOG)](CHANGELOG.md)
+- [보안 점검 · 정책 (SECURITY)](SECURITY.md)
 
 ## 📦 저장소 구성
 
