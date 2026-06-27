@@ -13,6 +13,26 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.83.0] - 2026-06-16
+
+### Added
+- **문서 관리자 (파일 관리)** — 기존 평면 목록 모달을 일반 브레인스토밍 툴 수준의 파일 매니저로 확장. 헤더 `📄 문서` 버튼으로 연다.
+  - **폴더 정리**: 왼쪽 레일에서 `전체`·`★즐겨찾기`·`미분류`·사용자 폴더로 분류. 폴더 만들기·이름변경·삭제(삭제 시 문서는 미분류로 이동)·문서 이동(카드의 폴더 셀렉트).
+  - **카드 미리보기 그리드**: 각 문서를 카드로 표시 — 이름, 상위 가지 칩, 노드 수, 수정 날짜, 현재 문서 배지, ★고정 토글.
+  - **검색·정렬**: 이름·가지 검색, 최근 수정/생성일/이름 정렬(고정 문서는 항상 상단).
+  - **복제(⧉)**: 문서를 통째로 복사해 "…사본"으로 새로 만듦.
+  - **JSON 새 문서로 가져오기(📥)**: 백업 JSON을 현재 문서를 덮지 않고 새 문서로 추가(기존 "열기"는 현재 문서 교체였음).
+
+### Fixed
+- (출시 전 자체 코드리뷰로 발견·수정) 관리자를 연 채 현재 문서를 편집해도 카드 통계가 최신을 보이도록 현재 문서는 라이브 트리에서 노드 수·가지를 계산. 모달 닫기 경로(닫기·Esc·전환·새 문서) 간 상태 초기화 불일치로 재오픈 시 가져오기 안내/폴더 이름편집 잔상이 남던 문제를 열기 시점 초기화로 통일. 터치 기기에서 폴더 ✎/🗑이 안 보이는데 탭되던 오작동 방지(`pointer-events`). 다른 탭에서 폴더 삭제 시 빈 목록에 갇히지 않게 폴더 보기 유효성 보정.
+
+### Technical Notes
+- 저장 모델 확장(하위호환): `docMeta.list` 항목에 `createdAt·pinned·folderId·nodeCount·branches` 추가 + `docMeta.folders:[{id,name}]`. `normalizeDocItem`이 옛 항목을 안전히 채움(트리 미접근, 다음 저장 시 통계 자가치유). `persistDocMeta(list,currentId,folders)`는 folders 미전달 시 `docFoldersRef`로 폴백. `writeActiveDoc`는 저장 시 `docStatsOf`로 노드 수·가지를 갱신하며 `createdAt/pinned/folderId` 보존. 신규: `createFolder/commitFolderRename/deleteFolder/moveDocToFolder/togglePinDoc/duplicateDoc/importDocFromFile`, `visibleDocs` 메모(폴더·검색·정렬·고정우선).
+- 출시 전 **다차원 코드리뷰 + 적대적 검증**(React/저장/동작/UI/회귀 5축) 후 확인된 7건을 반영.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.83.0.html`(스냅샷), `CHANGELOG.md`, `README.md`, `BrainBloom_UserGuide.html`.
+
+---
+
 ## [3.82.2] - 2026-06-15
 
 ### Added
