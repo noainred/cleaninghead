@@ -13,6 +13,24 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.84.0] - 2026-06-16
+
+### Added
+- **문서 관리자 → 구글 드라이브에서 읽어오기** — 관리자 왼쪽 레일에 `☁ Google Drive` 소스 추가. 워드·파워포인트의 "열기"처럼 드라이브에 저장된 마인드맵을 골라 **현재 문서를 덮지 않고 새 문서로 가져온다.**
+  - **미연결 시** 안내 + `☁ Google Drive 연결` 버튼(기존 `handleDriveSignIn`/`drive.file` 범위 재사용).
+  - **파일 카드**: 이름 · 수정일 · 크기(KB). **클릭=미리보기**(노드 수·중심 주제·상위 가지 칩·본문 일부), **더블클릭=열어서 편집**.
+  - **📂 열기**(가져와 바로 열고 관리자 닫기) / **📥 가져오기**(새 문서로만 추가) / **🔄 새로고침** / 이름 검색. 가져온 파일엔 `가져옴` 배지.
+  - 로딩·빈 목록·오류·세션 만료(401/403) 상태 처리. 다크모드·모바일 대응.
+
+### Technical Notes
+- 기존 드라이브 헬퍼 재사용: `driveListFiles()`(앱 폴더의 JSON, 최신순)·`driveLoadFileById(id)`. 파싱은 `JSON.parse → data.tree||data → sanitizeTree → walk(meta)/assignDefaultColors`로 기존 "불러오기"와 동일. 설정 백업 파일(`SETTINGS_FILE_NAME`)은 목록에서 제외.
+- 신규 상태: `driveDocs`(null/'loading'/'error'/배열)·`mgrDrivePreview`·`driveImportedIds`·`driveImportingId`. 신규 함수: `loadDriveDocs`·`previewDriveFileInMgr`·`importDriveFile(file, open)`. 드라이브 소스 진입 시 목록 자동 로드(useEffect, deps `[showDocs, docFolderView, driveSignedIn]`, `driveDocs===null` 가드로 루프 방지). 관리자 열 때 `driveDocs`/`mgrDrivePreview` 초기화로 매번 신선한 목록.
+- 가져오기는 로컬 문서로만 추가(IndexedDB `doc:<id>` + `docMeta`), `lastWork` 거울·기존 자동저장 경로 영향 없음. 드라이브 쓰기(저장/삭제/이름변경)는 건드리지 않음 — 읽기 전용 추가.
+- 출시 전 적대적 코드리뷰로 확인된 항목 반영.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.84.0.html`(스냅샷), `CHANGELOG.md`, `README.md`, `BrainBloom_UserGuide.html`.
+
+---
+
 ## [3.83.0] - 2026-06-16
 
 ### Added
