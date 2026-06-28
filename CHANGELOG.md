@@ -13,6 +13,21 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.0] - 2026-06-16
+
+### Changed
+- **드라이브 저장 구조 개편 — 메인엔 최신 1개, 이전 버전은 `Backup` 하위 폴더로** — 자동·수동 저장 시 새 버전을 메인 `BrainBloom` 폴더에 저장한 뒤, 메인의 다른 같은-형식 파일들을 **`BrainBloom/Backup/`으로 이동**한다. 그래서 메인 폴더는 항상 **가장 최신 1개만** 깔끔하게 유지. `Backup`은 설정의 **보관 개수(`driveKeepCount`, 기본 5)** 를 넘으면 오래된 것부터 삭제.
+- **불러오기 시 메인 + Backup 병합** — 문서 관리자의 `☁ Google Drive` 목록과 설정의 `⬇ 불러오기 목록`이 **메인과 Backup을 합쳐** 같은 이름은 최신만, 최신순으로 보여준다. 백업 항목은 `백업` 배지로 구분(관리자). → 두 폴더를 비교해 항상 최신을 보여줌.
+
+### Technical Notes
+- 신규 헬퍼: `driveFindBackupFolder`(없으면 null, 생성 안 함) · `driveGetOrCreateBackupFolder` · `driveListBackupFiles` · `driveMoveFile`(addParents/removeParents). 모두 `drive.file` 범위(앱이 만든 폴더/파일만).
+- `runVersionedSave` 재작성: ①새 버전 메인 저장 → ②메인의 나머지 우리-형식 파일을 Backup으로 이동(`saved.id`로 새 저장본 식별, id 없으면 재배치 건너뜀) → ③Backup `modifiedTime` 오래된 것부터 keep 초과분 삭제. **충돌 감지가 의존하는 `driveListFiles()`(메인만 반환)는 그대로 둬** 최신이 항상 메인에 있어 다중기기 비교 로직 유효. (옛 `planPastCleanup`/`filesToDeleteToday`는 미사용.)
+- 불러오기 병합: 메인·Backup 목록을 합쳐 `name` 기준 최신만 남기고 `modifiedTime` 내림차순 정렬. 백업 파일도 `driveLoadFileById(id)`로 동일하게 열림.
+- 출시 전 데이터-안전 적대적 코드리뷰 반영.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.0.html`(스냅샷), `CHANGELOG.md`, `README.md`, `BrainBloom_UserGuide.html`.
+
+---
+
 ## [3.85.0] - 2026-06-16
 
 ### Added
