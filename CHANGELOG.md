@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.1] - 2026-06-29
+
+### Fixed
+- **드라이브 Backup 이동이 다른 접두어(리조트) 파일을 안 옮기던 문제** — `runVersionedSave`의 이동/정리가 현재 브라우저 접두어와 일치하는 파일(`parseDriveFileName(...,prefix)`)만 대상으로 해, 다른 브라우저/세션 코드명(예: 마우이·마이애미·모나코)으로 저장된 기존 파일이 메인 폴더에 그대로 남았다. `drive.file` 범위라 폴더엔 앱이 만든 파일만 존재하므로, **접두어 필터를 제거**하고 (방금 저장본·설정파일 제외) **메인의 나머지 전부를 Backup으로 이동**하도록 수정 → 메인엔 최신 1개만 유지.
+- **Backup 정리(삭제)를 계열별로** — 전체를 한꺼번에 `keepCount`로 깎지 않고, **같은 이름 계열(버전번호 제외)별로 `keepCount`개씩** 남기고 오래된 것만 삭제. 서로 다른 날짜·작업본 이력을 보존(대량 삭제 방지).
+
+### Technical Notes
+- 이동: `movables = after.filter(f => f.id !== saved.id && f.name !== SETTINGS_FILE_NAME)`. 정리: `seriesKey(name)=name.replace(/\.json$/i,'').replace(/[_.]\d+$/,'')`로 그룹화 후 그룹별 `modifiedTime` 오래된 것부터 초과분 삭제.
+- 첫 저장 시 기존 메인 파일이 다수면 순차 이동(파일 수만큼 PATCH)이라 잠깐 걸릴 수 있음.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.86.0] - 2026-06-16
 
 ### Changed
