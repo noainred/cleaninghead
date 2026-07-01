@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.2] - 2026-06-29
+
+### Changed
+- **문서 관리자 `☁ Google Drive` 목록: 기본은 최신본만, "🗂 백업 보기" 토글** — Backup 폴더로 옮겨진 이전 버전들이 목록을 가득 채우던 문제. 드라이브 뷰가 기본적으로 `_backup === false`(메인 최신본)만 표시하고, 툴바의 `🗂 백업 보기` 버튼을 켜면 Backup 파일까지 함께 보여준다. 레일의 Google Drive 개수 배지·빈 상태 안내도 토글을 반영. 관리자를 열 때마다 토글은 꺼진 상태로 초기화.
+
+### Technical Notes
+- 신규 상태 `showDriveBackups`(기본 false). 드라이브 파일 렌더 필터에 `.filter(f => showDriveBackups || !f._backup)` 추가. `loadDriveDocs`는 그대로 메인+Backup을 모두 받아오고(토글은 표시만 제어), 열기/가져오기/미리보기는 백업 파일도 `id`로 동일 동작.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.2.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.86.1] - 2026-06-29
 
 ### Fixed
