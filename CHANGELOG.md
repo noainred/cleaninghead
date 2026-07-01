@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.3] - 2026-06-29
+
+### Fixed
+다차원 적대적 코드리뷰(문서 관리자·드라이브·코어 3축)로 찾은 버그 수정:
+- **[MED] 오버레이 뒤로 전역 단축키 누출** — 전역 keydown 가드가 `remoteNewer`(드라이브 저장본 비교)·`colorCascade`(하위 색상 확인)·`showUpdate`·`welcomeQuote` 모달을 빠뜨려, 이들이 떠 있을 때 `Delete`/`Tab`/`Enter`/`Alt+화살표`가 뒤의 맵에 전달돼 노드가 삭제·변경되던 문제. 가드와 effect 의존성에 네 오버레이 추가.
+- **[MED] 비현재 문서 이름을 비우면 표시명 불일치** — 현재 열려 있지 않은 문서의 이름을 빈값으로 지우면 목록/카드가 실제 루트 라벨 대신 "제목 없는 문서"로 표시되고 `docMeta.list`와 `doc:<id>` 이름이 어긋나던 문제. `commitRename`이 슬롯을 읽어 실제 이름으로 목록도 맞추도록 수정.
+- **[LOW] 문서 전환 후 몰입 모드 전체 흐려짐** — `resetViewForDocChange`가 `immerseFocusId`를 초기화하지 않아, 문서 전환 뒤 몰입 모드 재진입 시 옛 포커스 id로 전체 노드가 흐려지던 문제. `setImmerseFocusId(null)` 추가.
+- **[LOW] 문서 삭제/전환 순간의 자동저장 레이스** — `loadDocIntoView`가 `currentDocIdRef`를 슬롯 읽기 **전에** 옮겨, `await` 사이 디바운스 자동저장이 대상 슬롯에 옛 내용을 쓸 수 있던 희박한 창. 슬롯을 먼저 읽고 그 뒤 포인터를 옮기도록 순서 보정.
+
+### Technical Notes
+- 세 리뷰 에이전트가 확인한 여러 오탐(자동저장 cross-doc clobber, `settingsLoadedRef` 손실, 태그·메모 shared draft 누수 등)은 실제로는 안전함을 재검증 — 엔진의 방어 로직 정상.
+- 별도 확인된 **드라이브 멀티문서 식별 부재**(파일명에 문서 ID 없음 → 같은 날 여러 문서가 한 계열로 저장·정리)는 구조 변경이라 별도 논의 예정.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.3.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.86.2] - 2026-06-29
 
 ### Changed
