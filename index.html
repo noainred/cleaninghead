@@ -2,6 +2,21 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
+<script type="text/javascript" nonce="1ac7787bab6a4510a9e28536bf1" src="//local.adguard.org?ts=1783202715555&amp;type=content-script&amp;dmn=claude.ai&amp;url=https%3A%2F%2Fclaude.ai%2Fdesign%2Fv1%2Fdesign%2Fprojects%2Ff6986d21-102b-4b08-8c6f-38d5e3a19501%2Fdownload%3Fpath%3Dindex.html&amp;app=com.google.Chrome&amp;css=2&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1"></script><script type="text/javascript" nonce="1ac7787bab6a4510a9e28536bf1" src="//local.adguard.org?ts=1783202715555&amp;name=AdGuard%20Extra&amp;type=user-script"></script><script>
+/* ── 첫 방문자 랜딩 안내 ──
+   앱을 써 본 적 없는 브라우저만 landing.html로 보낸다.
+   - bb_visited: 랜딩의 "바로 사용하기" 클릭 시 기록
+   - bb_drive_prefix: 앱이 첫 실행 때 기록 → 기존 사용자는 랜딩으로 보내지 않음
+   - redmir.net/?app 처럼 ?app을 붙이면 랜딩을 건너뛰고 바로 앱 (이후 계속 앱으로)
+   - localStorage 차단 환경(시크릿 모드 등)에서는 그냥 앱을 표시 */
+(function () {
+  try {
+    if (location.search.indexOf('app') !== -1) { localStorage.setItem('bb_visited', '1'); return; }
+    if (localStorage.getItem('bb_visited') || localStorage.getItem('bb_drive_prefix')) return;
+    location.replace('landing.html');
+  } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <script>
 /* 구글 애널리틱스(방문 통계) — 공식 주소(redmir.net)로 접속했을 때만 로드.
@@ -2287,7 +2302,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.86.8';
+const APP_VERSION = '3.86.3';
 const APP_BUILD_DATE = '2026-06-29';
 
 // 'a.b.c' 형식 버전 비교 — a가 b보다 높으면 true (업그레이드 판정용. 다운그레이드/동일은 false)
@@ -2317,11 +2332,6 @@ const DRIVE_FOLDER_NAME = 'BrainBloom';
    ============================================================ */
 const CHANGELOG_URL = 'https://www.redmir.net/CHANGELOG.md';
 const RECENT_CHANGES = [
-  { version: '3.86.8', date: '2026-06-29', groups: [{ label: '개선', items: ['내부 최적화 — 큰 마인드맵에서 클릭·드래그·검색 때마다 반복되던 불필요한 전체 훑기를 없애 반응이 가벼워졌어요. 안 쓰는 옛 코드도 정리했고, 노드 겹침 자동복구가 문서를 바꿔도 문서마다 새로 동작하도록 손봤어요.'] }] },
-  { version: '3.86.7', date: '2026-06-29', groups: [{ label: '수정', items: ['이름이 빈 노드가 텍스트 패널을 거치면 사라지고 자식이 위로 붙던 문제를 고쳤어요 — 이제 (이름 없음)으로 표시되어 안전하게 오가요. 같은 이름의 형제 노드가 여러 개일 때 텍스트 편집 후 색·메모·아이콘·관계선이 서로 뒤바뀌던 문제와, 노드 너비 조절이 텍스트 편집 후 풀리던 문제도 고쳤어요.'] }] },
-  { version: '3.86.6', date: '2026-06-29', groups: [{ label: '수정', items: ['텍스트 패널로 편집한 걸 실행 취소(Ctrl+Z)하면 맵만 되돌아가고 텍스트는 그대로여서 두 패널이 어긋나던 문제를 고쳤어요 — 이제 함께 되돌아가요. Tab/Enter로 만든 새 노드를 Esc로 취소하면 실제로 사라지도록 고쳤어요(자동 추천 단어가 붙은 뒤로 취소가 동작하지 않았어요).'] }] },
-  { version: '3.86.5', date: '2026-06-29', groups: [{ label: '수정', items: ['가지를 접어 둔 채 SVG/PDF/JPG로 내보내면 파일이 깨지거나(크기 계산 오류) 접어 숨긴 노드까지 그려지던 문제를 고쳤어요 — 이제 내보내기도 화면과 똑같이 보이는 노드만 담아요. CSV 내보내기에 수식 주입 보호를 넣었고, 드라이브 자동저장이 드문 타이밍에 중복 실행되거나 확인 중을 이상 없음으로 오인하던 문제도 고쳤어요.'] }] },
-  { version: '3.86.4', date: '2026-06-29', groups: [{ label: '수정', items: ['중요한 데이터 보호 수정 — 아침의 "어제 작업 이어서?" 창에서 \'새로 시작\'을 누르거나(또는 설정이 \'자동 새 파일\'일 때), 기존 문서를 덮어쓰지 않고 새 문서로 깨끗하게 시작해요. 어제 작업은 문서 관리자에 그대로 남습니다. 문서 이름 변경과 자동저장이 겹칠 때 드물게 직전 편집이 사라질 수 있던 문제도 고쳤어요.'] }] },
   { version: '3.86.3', date: '2026-06-29', groups: [{ label: '수정', items: ['코드 점검으로 찾은 자잘한 버그들을 고쳤어요 — ① 드라이브 "저장본 비교"·색상 변경 확인 같은 창이 떠 있을 때 Delete/Tab 같은 키가 뒤 화면의 노드를 건드리던 문제 ② 다른 문서 이름을 빈칸으로 지우면 실제 제목 대신 "제목 없는 문서"로 보이던 문제 ③ 문서를 바꾼 뒤 몰입 모드로 다시 들어가면 화면이 통째로 흐려지던 문제 ④ 문서 전환 순간의 드문 자동저장 타이밍 보정.'] }] },
   { version: '3.86.2', date: '2026-06-29', groups: [{ label: '변경', items: ['문서 관리자의 ☁ Google Drive 목록이 기본적으로 최신본만 보여줘요 — 백업(이전 버전)이 많아 지저분하던 걸 정리했어요. 툴바의 "🗂 백업 보기"를 켜면 Backup 폴더의 이전 버전까지 함께 볼 수 있어요.'] }] },
   { version: '3.86.1', date: '2026-06-29', groups: [{ label: '수정', items: ['드라이브 정리(이전 버전을 Backup 폴더로 이동)가 다른 브라우저/세션에서 저장한 파일은 안 옮기던 문제를 고쳤어요 — 이제 저장 폴더의 이전 파일을 모두 Backup으로 옮겨 메인엔 최신 1개만 둡니다. (저장하면 자동 정리. 백업 정리는 "같은 이름 계열별로" 보관 개수만큼 남겨 서로 다른 날짜·작업본 이력은 보존)'] }] },
@@ -2494,8 +2504,7 @@ function parseInput(text) {
 
     for (const line of lines) {
       const indent = line.match(/^(\s*)/)[0].length;
-      const trimmed = line.trim();
-      const label = trimmed === '(이름 없음)' ? '' : trimmed; // treeToText/Markdown의 빈 라벨 자리표시자 복원
+      const label = line.trim();
       const node = { id: newId(), label, children: [], meta: {}, color: null };
 
       if (!root) {
@@ -2700,10 +2709,7 @@ function treeToText(root) {
   if (!root) return '';
   const lines = [];
   function visit(node, depth) {
-    // 빈 라벨은 공백-만 있는 줄이 되어 parseInput의 빈 줄 필터에서 사라진다(노드 소실+자식 승격).
-    // treeToMarkdown과 같은 자리표시자를 써서 왕복을 보존한다(parseInput이 되돌림).
-    const lbl = (node.label || '').trim() ? node.label : '(이름 없음)';
-    lines.push('  '.repeat(depth) + lbl);
+    lines.push('  '.repeat(depth) + (node.label || ''));
     if (node.children) node.children.forEach(c => visit(c, depth + 1));
   }
   visit(root, 0);
@@ -4357,22 +4363,6 @@ async function driveListBackupFiles() {
   if (!res.ok) throw new Error(`Backup 목록 조회 실패 (${res.status})`);
   return (await res.json()).files || [];
 }
-// 메인 + Backup 목록을 합쳐 같은 이름은 최신(modifiedTime)만 남기고 최신순 정렬.
-// 항목에 _backup 표시(설정 백업 파일은 제외) — 관리자 드라이브 뷰·설정 불러오기 목록이 공유하는 단일 규칙.
-async function fetchMergedDriveList() {
-  const [main, backup] = await Promise.all([driveListFiles(), driveListBackupFiles()]);
-  const tagged = [
-    ...main.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: false })),
-    ...backup.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: true })),
-  ];
-  const byName = new Map();
-  for (const f of tagged) {
-    const ex = byName.get(f.name);
-    if (!ex || (Date.parse(f.modifiedTime) || 0) > (Date.parse(ex.modifiedTime) || 0)) byName.set(f.name, f);
-  }
-  return [...byName.values()].sort((a, b) => (Date.parse(b.modifiedTime) || 0) - (Date.parse(a.modifiedTime) || 0));
-}
-
 // 파일을 다른 폴더로 이동 (addParents/removeParents)
 async function driveMoveFile(fileId, addParent, removeParent) {
   await ensureDriveToken();
@@ -4435,6 +4425,37 @@ function nextVersionForDate(files, prefix, date) {
     if (p && p.date === date && p.version != null && p.version > max) max = p.version;
   }
   return max + 1;
+}
+// 오늘 파일이 keep개 초과면 삭제할 id 목록 (오래된 버전부터)
+function filesToDeleteToday(files, prefix, date, keep) {
+  const todays = files
+    .map(f => ({ id: f.id, parsed: parseDriveFileName(f.name.replace(/\.json$/i, ''), prefix) }))
+    .filter(f => f.parsed && f.parsed.date === date && f.parsed.version != null)
+    .sort((a, b) => a.parsed.version - b.parsed.version);
+  if (todays.length <= keep) return [];
+  return todays.slice(0, todays.length - keep).map(f => f.id);
+}
+// 과거 날짜 정리 계획 → { renames:[{id,newBase}], deletes:[id] }
+function planPastCleanup(files, prefix, today) {
+  const byDate = {};
+  for (const f of files) {
+    const p = parseDriveFileName(f.name.replace(/\.json$/i, ''), prefix);
+    if (!p || p.date === today) continue;
+    (byDate[p.date] = byDate[p.date] || []).push({ id: f.id, version: p.version });
+  }
+  const renames = [], deletes = [];
+  for (const date in byDate) {
+    const arr = byDate[date];
+    const hasFinal = arr.some(x => x.version == null);
+    const versioned = arr.filter(x => x.version != null).sort((a, b) => b.version - a.version);
+    if (hasFinal) {
+      for (const v of versioned) deletes.push(v.id);
+    } else if (versioned.length > 0) {
+      renames.push({ id: versioned[0].id, newBase: buildDriveBase(prefix, date, null) });
+      for (let i = 1; i < versioned.length; i++) deletes.push(versioned[i].id);
+    }
+  }
+  return { renames, deletes };
 }
 
 // 다운로드로 파일 저장
@@ -4499,12 +4520,10 @@ function escapeXml(s) {
 // PNG 변환 후 PDF에 삽입할 용도
 function buildDiagramSVG(root) {
   layoutTree(root);
-  // layoutTree는 '보이는' 노드만 좌표를 계산한다(접힌 하위는 _x/_w 없음/구버전 값).
-  // 화면 렌더러와 동일하게 walkVisible + 폴백으로 순회해야 NaN 크기·숨은 노드 유출이 없다.
   let maxX = 0, maxY = 0;
-  walkVisible(root, n => {
-    maxX = Math.max(maxX, (n._x || 0) + (n._w || NODE_W));
-    maxY = Math.max(maxY, (n._y || 0) + (n._h || nodeHeight(n, n === root)));
+  walk(root, n => {
+    maxX = Math.max(maxX, n._x + n._w);
+    maxY = Math.max(maxY, n._y + n._h);
   });
   const PADDING = 40;
   const HEADER_H = 50;
@@ -4536,21 +4555,19 @@ function buildDiagramSVG(root) {
   parts.push(`<text x="${PADDING}" y="28" font-family="${fontFamily}" font-weight="700" font-size="16" fill="#1a1d24">${title}</text>`);
   parts.push(`<text x="${PADDING}" y="44" font-family="${monoFamily}" font-size="10" fill="#4a4f5c">${subtitle}</text>`);
 
-  // 연결선 (베지어) — 자식의 _side에 따라 좌/우 방향 결정 (접힌 노드의 숨은 자식은 제외)
-  walkVisible(root, n => {
-    if (!n.children || (n !== root && n.collapsed === true)) return;
+  // 연결선 (베지어) — 자식의 _side에 따라 좌/우 방향 결정
+  walk(root, n => {
+    if (!n.children) return;
     n.children.forEach(c => {
       const isLeft = c._side === 'left';
-      const nw = n._w || NODE_W, nh = n._h || nodeHeight(n, n === root);
-      const cw = c._w || NODE_W, ch = c._h || nodeHeight(c);
       const fromX = isLeft
-        ? (n._x || 0) + PADDING
-        : (n._x || 0) + nw + PADDING;
-      const fromY = (n._y || 0) + nh / 2 + PADDING + HEADER_H;
+        ? n._x + PADDING
+        : n._x + n._w + PADDING;
+      const fromY = n._y + n._h / 2 + PADDING + HEADER_H;
       const toX = isLeft
-        ? (c._x || 0) + cw + PADDING
-        : (c._x || 0) + PADDING;
-      const toY = (c._y || 0) + ch / 2 + PADDING + HEADER_H;
+        ? c._x + c._w + PADDING
+        : c._x + PADDING;
+      const toY = c._y + c._h / 2 + PADDING + HEADER_H;
       const cx1 = fromX + (toX - fromX) * 0.5;
       const cx2 = fromX + (toX - fromX) * 0.5;
       const color = COLORS[c.color || 'slate']?.bg || '#647396';
@@ -4558,14 +4575,14 @@ function buildDiagramSVG(root) {
     });
   });
 
-  // 노드들 (보이는 노드만)
-  walkVisible(root, n => {
+  // 노드들
+  walk(root, n => {
     const color = COLORS[n.color || 'navy']?.bg || '#3a6ea5';
     const isRoot = (n === root);
-    const x = (n._x || 0) + PADDING;
-    const y = (n._y || 0) + PADDING + HEADER_H;
-    const nw = n._w || NODE_W;
-    const nh = n._h || nodeHeight(n, isRoot);
+    const x = n._x + PADDING;
+    const y = n._y + PADDING + HEADER_H;
+    const nw = n._w;
+    const nh = n._h;
     // 그림자
     parts.push(`<rect x="${x}" y="${y + 2}" width="${nw}" height="${nh}" rx="14" ry="14" fill="rgba(0,0,0,0.08)"/>`);
     // 본체
@@ -4735,10 +4752,8 @@ function buildCSVString(root) {
   visit(root, 0, '');
   const csv = rows.map(row =>
     row.map(cell => {
-      let s = String(cell ?? '');
-      // \uC218\uC2DD \uC8FC\uC785 \uBC29\uC9C0: =,+,-,@,\uD0ED,CR\uB85C \uC2DC\uC791\uD558\uB294 \uC140\uC740 Excel/Sheets\uAC00 \uC218\uC2DD\uC73C\uB85C \uD574\uC11D\uD558\uC9C0 \uC54A\uB3C4\uB85D ' \uC811\uB450
-      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      const s = String(cell ?? '');
+      if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
       return s;
     }).join(',')
   ).join('\n');
@@ -4967,6 +4982,17 @@ async function copyToClipboard(text) {
   }
 }
 
+// 색(hex)을 옅은 rgba 틴트로 — 아웃라인 그룹 배경(파스텔)용. 비-hex면 차분한 라벤더로 폴백.
+function tintColor(c, alpha) {
+  if (!c || typeof c !== 'string') return `rgba(130,150,230,${alpha})`;
+  let h = c.trim();
+  if (h[0] === '#') h = h.slice(1);
+  if (h.length === 3) h = h.split('').map(x => x + x).join('');
+  if (h.length !== 6) return `rgba(130,150,230,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return `rgba(130,150,230,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 // 아웃라인 깊이(뎁스)별 색 — 중첩 블록의 테두리/배경에 사용 (6색 순환)
 const DEPTH_TINTS = ['58,134,255', '16,185,129', '245,158,11', '236,72,153', '139,92,246', '6,182,212'];
@@ -5747,15 +5773,13 @@ function App() {
   const timerTotalMsRef = useRef(0);                           // 이번 타이머의 총 길이 (경과 계산용)
 
   // 히스토리 스냅샷 저장 (변경 직전의 상태를 저장)
-  const pushHistory = useCallback((label, overrides) => {
+  const pushHistory = useCallback((label) => {
     if (isApplyingHistoryRef.current) return;
     if (!tree) return;
     setHistory(h => {
       const snapshot = {
         tree: cloneTree(tree),
-        // 텍스트 편집 경로: setInputText가 이미 커밋된 뒤 디바운스에서 push되므로,
-        // 클로저의 inputText(=새 텍스트)를 그대로 담으면 tree(옛것)와 어긋난다 → 호출측이 옛 텍스트를 넘김
-        inputText: (overrides && typeof overrides.inputText === 'string') ? overrides.inputText : inputText,
+        inputText,
         selectedId,
         label: label || '변경',
       };
@@ -5960,10 +5984,8 @@ function App() {
         // 기존 색상/메타 정보를 라벨 기준으로 보존
         if (tree) preserveMetadata(parsed, tree);
         assignDefaultColors(parsed);
-        // 디바운스 단위로 한 묶음의 텍스트 변경을 히스토리에 저장.
-        // 이 시점의 inputText는 이미 '새 텍스트'라, 스냅샷엔 옛 트리에 대응하는 텍스트를 넘겨
-        // Undo 시 맵과 텍스트 패널이 함께 되돌아가게 한다(어긋남 방지).
-        maybePushHistory('텍스트 편집', 'text-edit', { inputText: tree ? treeToText(tree) : inputText });
+        // 디바운스 단위로 한 묶음의 텍스트 변경을 히스토리에 저장
+        maybePushHistory('텍스트 편집', 'text-edit');
         syncSourceRef.current = null; // 무한 루프 방지
         setTree(parsed);
       }
@@ -5973,35 +5995,25 @@ function App() {
   }, [inputText, editingId]);
 
   // 라벨 경로 기준으로 색상/메타 보존
-  // 키에 '동명 형제 순번(#k)'을 포함해, 같은 이름의 형제가 여러 개여도 메타/관계선이
-  // 마지막 하나로 뭉개지지 않고 발생 순서대로 1:1 매칭된다(라벨이 유니크하면 항상 #0 = 기존과 동일).
   function preserveMetadata(newTree, oldTree) {
-    const childKey = (parentKey, child, occ) => (parentKey ? parentKey + '|' : '') + (child.label || '') + '#' + occ;
-    const visitChildren = (node, parentKey, fn) => {
-      if (!node.children) return;
-      const seen = {};
-      node.children.forEach(c => {
-        const lb = c.label || '';
-        const occ = seen[lb] || 0; seen[lb] = occ + 1;
-        fn(c, childKey(parentKey, c, occ));
-      });
-    };
     const oldMap = new Map();
     const oldIdToKey = new Map(); // 옛 노드 id → 라벨 경로(관계선 재매핑용)
-    function collect(node, key) {
+    function collect(node, path) {
+      const key = path ? path + '|' + node.label : node.label;
       oldMap.set(key, {
         color: node.color, meta: node.meta, tags: node.tags, note: node.note, icons: node.icons,
         pinnedSide: node.pinnedSide, autoSide: node.autoSide,
         collapsed: node.collapsed,
         createdAt: node.createdAt, updatedAt: node.updatedAt,
-        task: node.task, done: node.done, shape: node.shape, w: node.w,
+        task: node.task, done: node.done, shape: node.shape,
       });
       oldIdToKey.set(node.id, key);
-      visitChildren(node, key, collect);
+      if (node.children) node.children.forEach(c => collect(c, key));
     }
-    collect(oldTree, (oldTree.label || '') + '#0');
+    collect(oldTree, '');
     const keyToNewId = new Map(); // 라벨 경로 → 새 노드 id
-    function apply(node, key) {
+    function apply(node, path) {
+      const key = path ? path + '|' + node.label : node.label;
       keyToNewId.set(key, node.id);
       const old = oldMap.get(key);
       if (old) {
@@ -6037,9 +6049,9 @@ function App() {
       }
       // 텍스트로 새로 생긴 노드 → 생성 시각 기록
       if (!node.createdAt) { const t = new Date().toISOString(); node.createdAt = t; node.updatedAt = node.updatedAt || t; }
-      visitChildren(node, key, apply);
+      if (node.children) node.children.forEach(c => apply(c, key));
     }
-    apply(newTree, (newTree.label || '') + '#0');
+    apply(newTree, '');
     // 관계선(links) 재매핑: 옛 id → 라벨키 → 새 id. 양 끝이 모두 살아있을 때만 유지.
     if (Array.isArray(oldTree.links) && oldTree.links.length) {
       const remapped = [];
@@ -6232,9 +6244,6 @@ function App() {
       } catch (e) {}
 
       const behavior = (savedSettings?.startupBehavior) || 'ask';
-      // '자동으로 새 파일'로 시작하면서 기존 작업(lastWork)이 있는 경우 —
-      // 기존 문서를 덮지 않도록 docMeta 초기화에서 새 문서 슬롯을 배정하기 위한 표시
-      let startedFreshOverExisting = false;
 
       if (lastWork && lastWork.tree && isBeforeToday(lastWork.savedAt)) {
         // 어제(혹은 그 이전) 작업이 있음
@@ -6244,8 +6253,7 @@ function App() {
           showToast('마지막 작업을 불러왔습니다');
           focusTextInputAtSecondLine(lastWork.inputText || '');
         } else if (behavior === 'new') {
-          // 자동으로 새 파일 — 어제 문서는 보존해야 하므로 아래 docMeta 초기화에서 '새 문서 슬롯'을 배정한다
-          startedFreshOverExisting = true;
+          // 자동으로 새 파일
           startFresh();
           focusTextInputAtSecondLine(inputText);
         } else {
@@ -6281,24 +6289,12 @@ function App() {
           const list = meta.list.filter(d => d && d.id).map(normalizeDocItem); // 옛 항목에 새 필드 채움
           const curId = (meta.currentId && list.some(d => d.id === meta.currentId)) ? meta.currentId : list[0].id;
           const folders = Array.isArray(meta.folders) ? meta.folders.filter(f => f && f.id && typeof f.name === 'string') : [];
+          docListRef.current = list;
+          setDocList(list);
           docFoldersRef.current = folders;
           setDocFolders(folders);
-          if (startedFreshOverExisting) {
-            // '자동 새 파일' 시작: 기존 문서(curId)를 덮지 않도록 새 문서 슬롯을 만들어 현재로 배정
-            const nid = newDocId(); const now = Date.now();
-            const freshItem = { id: nid, name: DEFAULT_DOC_NAME, savedAt: now, createdAt: now, auto: true, pinned: false, folderId: null, nodeCount: 0, branches: [], tags: [], memo: '' };
-            const list2 = [...list, freshItem];
-            docListRef.current = list2;
-            setDocList(list2);
-            currentDocIdRef.current = nid;
-            setCurrentDocId(nid);
-            persistDocMeta(list2, nid, folders);
-          } else {
-            docListRef.current = list;
-            setDocList(list);
-            currentDocIdRef.current = curId;
-            setCurrentDocId(curId);
-          }
+          currentDocIdRef.current = curId;
+          setCurrentDocId(curId);
         } else {
           // 최초 승격: 현재(=lastWork 미러) 문서를 목록에 등록
           const id = newDocId();
@@ -6306,26 +6302,15 @@ function App() {
           const savedAt = (lastWork && lastWork.savedAt) ? lastWork.savedAt : Date.now();
           const st = docStatsOf(baseTree);
           const item = { id, name: deriveDocName(baseTree), savedAt, createdAt: savedAt, auto: true, pinned: false, folderId: null, nodeCount: st.nodeCount, branches: st.branches, tags: [], memo: '' };
+          docListRef.current = [item];
+          setDocList([item]);
           docFoldersRef.current = [];
           setDocFolders([]);
+          currentDocIdRef.current = id;
+          setCurrentDocId(id);
+          persistDocMeta([item], id, []);
           if (lastWork && lastWork.tree) {
             idbSet(DOC_KEY(id), { savedAt, tree: lastWork.tree, inputText: lastWork.inputText || '', name: item.name });
-          }
-          if (startedFreshOverExisting && lastWork && lastWork.tree) {
-            // 기존 작업은 '문서 1'로 보존하고, 새 화면은 별도 새 문서 슬롯에
-            const nid = newDocId(); const now = Date.now();
-            const freshItem = { id: nid, name: DEFAULT_DOC_NAME, savedAt: now, createdAt: now, auto: true, pinned: false, folderId: null, nodeCount: 0, branches: [], tags: [], memo: '' };
-            docListRef.current = [item, freshItem];
-            setDocList([item, freshItem]);
-            currentDocIdRef.current = nid;
-            setCurrentDocId(nid);
-            persistDocMeta([item, freshItem], nid, []);
-          } else {
-            docListRef.current = [item];
-            setDocList([item]);
-            currentDocIdRef.current = id;
-            setCurrentDocId(id);
-            persistDocMeta([item], id, []);
           }
         }
       } catch (e) { console.warn('docMeta init 실패', e); }
@@ -6476,7 +6461,6 @@ function App() {
     setHistory([]); setFuture([]);
     setSelectedId(null); setEditingId(null);
     setViewMode('edit'); setOutlineView(false); setChartView(null); setImmerseFocusId(null);
-    overlapFixRef.current = 0; // 겹침 자동복구 시도 횟수는 문서별 — 이전 문서에서 소진돼 새 문서에서 비활성화되지 않게
   }
   // doc:<id> 내용을 화면(tree·inputText)에 로드. 직전 문서 보존(flush)은 호출 측 책임.
   async function loadDocIntoView(id) {
@@ -6545,19 +6529,12 @@ function App() {
     docListRef.current = nextList;
     setDocList(nextList);
     persistDocMeta(nextList, currentDocIdRef.current);
-    if (id === currentDocIdRef.current) {
-      // 현재 문서: 슬롯을 읽어 되쓰면(read-modify-write) 그 사이 자동저장과 경합해
-      // 옛 트리를 복원할 수 있다 → 살아있는 트리로 즉시 flush(목록의 새 이름이 함께 반영됨)
-      flushActiveDoc();
-    } else {
-      // 비현재 문서: 자동저장이 이 슬롯에 쓰지 않으므로 재기록 경합 없음
-      idbGet(DOC_KEY(id)).then(d => {
-        const finalName = name || (d ? deriveDocName(d.tree) : DEFAULT_DOC_NAME);
-        if (d) idbSet(DOC_KEY(id), { ...d, name: finalName });
-        // 비운 경우: 살아있는 트리로 라벨을 못 구하므로, 슬롯의 실제(루트) 이름으로 목록도 맞춰 불일치 제거
-        if (!name) patchDocItem(id, { name: finalName });
-      });
-    }
+    idbGet(DOC_KEY(id)).then(d => {
+      const finalName = name || (d ? deriveDocName(d.tree) : DEFAULT_DOC_NAME);
+      if (d) idbSet(DOC_KEY(id), { ...d, name: finalName });
+      // 비운 경우: 현재 문서가 아니면 살아있는 트리로 라벨을 못 구하므로, 슬롯의 실제(루트) 이름으로 목록도 맞춰 불일치 제거
+      if (!name && id !== currentDocIdRef.current) patchDocItem(id, { name: finalName });
+    });
     setRenamingDocId(null);
   }
   // 문서 삭제 (마지막 1개는 삭제 불가)
@@ -6672,7 +6649,18 @@ function App() {
     setMgrDrivePreview(null);
     try {
       // 메인 + Backup을 합쳐, 같은 이름은 최신(modifiedTime)만, 최신순으로
-      setDriveDocs(await fetchMergedDriveList());
+      const [main, backup] = await Promise.all([driveListFiles(), driveListBackupFiles()]);
+      const tagged = [
+        ...main.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: false })),
+        ...backup.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: true })),
+      ];
+      const byName = new Map();
+      for (const f of tagged) {
+        const ex = byName.get(f.name);
+        if (!ex || (Date.parse(f.modifiedTime) || 0) > (Date.parse(ex.modifiedTime) || 0)) byName.set(f.name, f);
+      }
+      const merged = [...byName.values()].sort((a, b) => (Date.parse(b.modifiedTime) || 0) - (Date.parse(a.modifiedTime) || 0));
+      setDriveDocs(merged);
     } catch (e) {
       if (/401|403/.test(String(e && e.message))) { setDriveSignedIn(false); setDriveDocs(null); }
       else setDriveDocs('error');
@@ -6807,20 +6795,6 @@ function App() {
       setTree(parsed);
     }
     setMorningQuote(pickQuote());
-  }
-
-  // 시작 다이얼로그의 "새로 시작" 전용: 기존 문서 슬롯을 덮지 않도록
-  // 새 문서 슬롯을 배정한 뒤 startFresh를 실행한다. (docMeta는 이 시점에 이미 초기화됨)
-  function startFreshInNewDoc() {
-    const nid = newDocId(); const now = Date.now();
-    const freshItem = { id: nid, name: DEFAULT_DOC_NAME, savedAt: now, createdAt: now, auto: true, pinned: false, folderId: null, nodeCount: 0, branches: [], tags: [], memo: '' };
-    const nextList = [...docListRef.current, freshItem];
-    docListRef.current = nextList;
-    setDocList(nextList);
-    currentDocIdRef.current = nid;
-    setCurrentDocId(nid);
-    persistDocMeta(nextList, nid);
-    startFresh();
   }
 
   // 사용자가 작업 중에 "새로 시작" 버튼을 눌렀을 때
@@ -6988,10 +6962,6 @@ function App() {
         return 'remote';
       }
       const remote = await checkRemoteNewer();
-      if (remote === 'busy') {
-        setDriveStatus('다른 확인 작업이 진행 중이에요 — 잠시 후 다시 저장해 주세요.');
-        return 'busy';
-      }
       if (remote) {
         setDriveStatus('다른 기기에서 더 최신 작업본을 발견해 저장을 멈췄어요 — 안내 창에서 선택해 주세요.');
         return 'remote';
@@ -7134,9 +7104,7 @@ function App() {
   };
 
   const checkRemoteNewer = async () => {
-    // 이미 다른 검사가 진행 중: '충돌 없음(false)'과 구분되는 'busy'를 반환 —
-    // false로 답하면 호출측(저장 직전 안전문)이 "확인 완료"로 오인해 원격 최신본을 덮어쓸 수 있다
-    if (isCheckingRemoteRef.current) return 'busy';
+    if (isCheckingRemoteRef.current) return false;
     if (!autoSaveRef.current.signedIn) return false;
     isCheckingRemoteRef.current = true;
     try {
@@ -7273,13 +7241,11 @@ function App() {
       if (lastSavedContentRef.current !== null && currentContent === lastSavedContentRef.current) {
         return;
       }
-      // 검사~저장 전체 구간을 isSavingRef로 점유 — 검사 await 사이에 다음 tick/수동 저장이
-      // 끼어들어 중복 저장(중복 버전 파일·Backup 재배치 경합)되는 것을 막는다. finally가 해제.
+      // 저장 직전: 다른 기기에서 더 새 버전이 올라왔는지 확인. 있으면 덮어쓰지 않고 안내만.
+      const remote = await checkRemoteNewer();
+      if (remote || cancelled) return;
       isSavingRef.current = true;
       try {
-        // 저장 직전: 다른 기기에서 더 새 버전이 올라왔는지 확인. 있으면(busy 포함) 덮어쓰지 않음.
-        const remote = await checkRemoteNewer();
-        if (remote || cancelled) return;
         setDriveAutoStatus('자동저장 중…');
         // shouldCancel: effect가 정리됐거나(cancelled) 자동저장이 꺼졌으면 중단
         const saved = await runVersionedSave(st.tree, st.prefix, () => cancelled || !autoSaveRef.current.signedIn, st.keepCount);
@@ -7378,7 +7344,17 @@ function App() {
     setDriveStatus('목록 불러오는 중…');
     try {
       // 메인 + Backup을 합쳐, 같은 이름은 최신만, 최신순으로 (설정 백업은 제외)
-      const files = await fetchMergedDriveList();
+      const [main, backup] = await Promise.all([driveListFiles(), driveListBackupFiles()]);
+      const tagged = [
+        ...main.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: false })),
+        ...backup.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: true })),
+      ];
+      const byName = new Map();
+      for (const f of tagged) {
+        const ex = byName.get(f.name);
+        if (!ex || (Date.parse(f.modifiedTime) || 0) > (Date.parse(ex.modifiedTime) || 0)) byName.set(f.name, f);
+      }
+      const files = [...byName.values()].sort((a, b) => (Date.parse(b.modifiedTime) || 0) - (Date.parse(a.modifiedTime) || 0));
       setDriveFiles(files);
       setDrivePreview(null); // 목록을 새로 받으면 이전 미리보기는 닫음
       setDriveStatus(files.length === 0 ? '저장된 파일이 없습니다.' : `${files.length}개의 파일이 있습니다. 불러올 파일을 선택하세요.`);
@@ -7742,7 +7718,7 @@ function App() {
   // 예: 우측 패널에서 라벨을 한 글자씩 수정 → 한 묶음으로
   const lastCoalesceRef = useRef({ key: null, time: 0 });
   const COALESCE_MS = 800;
-  const maybePushHistory = (label, coalesceKey, overrides) => {
+  const maybePushHistory = (label, coalesceKey) => {
     const now = Date.now();
     if (coalesceKey &&
         lastCoalesceRef.current.key === coalesceKey &&
@@ -7751,7 +7727,7 @@ function App() {
       lastCoalesceRef.current.time = now;
       return;
     }
-    pushHistory(label, overrides);
+    pushHistory(label);
     lastCoalesceRef.current = { key: coalesceKey || null, time: now };
   };
 
@@ -8081,11 +8057,10 @@ function App() {
   // - 추가 직전 상태(히스토리 top)로 되돌려서 Undo 스택을 깨끗하게 유지
   // - 즉 "노드를 만든 적이 없는 것처럼" 처리
   const cancelNewNode = (id) => {
-    // 안전 가드: '빈 라벨' 또는 '자동단어 라벨(_autoLabel, 아직 사용자가 확정 안 함)'인 새 노드만 취소.
-    // (자동단어 도입 후 새 노드 라벨이 항상 비어있지 않게 되어, 빈 라벨만 보던 옛 가드는 취소를 전부 막았다)
+    // 안전 가드: 라벨이 진짜 비어있는 노드만 취소 처리
     const target = findNode(tree, id);
     if (!target) return;
-    if (target._autoLabel !== true && (target.label || '').trim() !== '') return; // 사용자가 정한 라벨이면 그냥 둠
+    if ((target.label || '').trim() !== '') return; // 이미 라벨이 있으면 그냥 둠
 
     setHistory(h => {
       if (h.length === 0) {
@@ -9831,15 +9806,11 @@ function App() {
     return lines;
   }, [tree]);
 
-  // 노드별 할 일 진행률 맵(done/total) — 트리가 바뀔 때만 재계산해 맵·아웃라인이 공유
-  // (예전엔 nodeEls가 클릭·드래그·검색 등 모든 상호작용마다 O(n) 재순회했다)
-  const outlineTaskMap = useMemo(() => (tree ? computeTaskProgress(tree) : new Map()), [tree]);
-
   const nodeEls = useMemo(() => {
     if (!tree) return null;
     const els = [];
     const rootChildIds = new Set((tree.children || []).map(c => c.id));
-    const taskMap = outlineTaskMap;              // 노드별 하위 작업 완료/전체 (진행률 표시용)
+    const taskMap = computeTaskProgress(tree);   // 노드별 하위 작업 완료/전체 (진행률 표시용, O(n) 1회)
     walkVisible(tree, n => {
       const isRoot = n.id === tree.id;
       const isRootChild = rootChildIds.has(n.id);
@@ -9912,7 +9883,10 @@ function App() {
       );
     });
     return els;
-  }, [tree, selectedId, dropTargetId, editingId, searchOpen, searchMatchIds, searchPos, focusIds, tagVisibleIds, iconVisibleIds, groupSelectIds, settings, outlineTaskMap]);
+  }, [tree, selectedId, dropTargetId, editingId, searchOpen, searchMatchIds, searchPos, focusIds, tagVisibleIds, iconVisibleIds, groupSelectIds, settings]);
+
+  // 아웃라인 뷰용 할 일 진행률 맵(노드별 done/total) — 트리가 바뀔 때만 재계산
+  const outlineTaskMap = useMemo(() => (tree ? computeTaskProgress(tree) : new Map()), [tree]);
 
   // 더 이상 맵에 없는 아이콘은 필터에서 자동 제거
   useEffect(() => {
@@ -11042,7 +11016,7 @@ function App() {
             focusTextInputAtSecondLine(txt);
           }}
           onNew={() => {
-            startFreshInNewDoc(); // 기존 문서를 덮지 않고 새 문서 슬롯에서 새로 시작
+            startFresh();
             setStartupDialog(null);
             focusTextInputAtSecondLine(inputText);
           }}
