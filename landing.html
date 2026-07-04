@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrainBloom — 브라우저에서 바로 쓰는 마인드맵</title>
+<meta name="description" content="설치도 가입도 없이 브라우저에서 바로 쓰는 개인용 마인드맵 · 브레인스토밍 도구. 내용은 내 브라우저에만 저장됩니다." />
+<meta name="theme-color" content="#15213a" />
+
+<!-- Favicon — 앱(index.html)과 동일한 서버 등록 파일 사용 -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+<!-- Fonts: 앱 본체(Fraunces·Plus Jakarta Sans·JetBrains Mono) + 한글 세리프(Nanum Myeongjo, about.html과 동일 계열) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================================
+     BrainBloom 랜딩 — "밤의 캔버스"
+     - 단일 정적 HTML (백엔드·프레임워크 없음, 저장소에 그대로 배치)
+     - CTA는 index.html(앱 본체)로 연결
+     ============================================================ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Plus Jakarta Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: #15213a;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 780px;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 42%, #1d2c4a 0%, #15213a 58%, #101a30 100%);
+  }
+  /* 배경 점 패턴 (앱 캔버스와 동일한 24px 격자) */
+  .stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(120,160,255,0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  /* ── 별자리(마인드맵) 레이어 ── */
+  .constellation {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-family: 'Fraunces', 'Nanum Myeongjo', serif;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.35;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .node.root { padding: 12px 16px; font-size: 17px; }
+  .node.small { padding: 8px 12px; font-size: 13px; }
+
+  .seed {
+    position: absolute;
+    border-radius: 50%;
+    animation: bbFloat 6s ease-in-out infinite;
+  }
+  @keyframes bbFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* ── 중앙 히어로 ── */
+  .hero {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 780px;
+    max-width: 92vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 3;
+    background: radial-gradient(ellipse at 50% 50%, rgba(21,33,58,0.9) 0%, rgba(21,33,58,0.56) 52%, transparent 74%);
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+  .brand-logo { width: 32px; height: 32px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+  .brand-mark {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    color: #e2e9f5;
+  }
+  .brand-mark em { font-style: italic; font-weight: 400; color: #d96b54; }
+  .brand-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #7488ab;
+    padding: 3px 8px;
+    border: 1px solid #324269;
+    border-radius: 100px;
+  }
+  .hero h1 {
+    font-family: 'Fraunces', 'Nanum Myeongjo', serif;
+    font-weight: 800;
+    font-size: 66px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: #eef3fb;
+    word-break: keep-all;
+  }
+  .hero h1 em { font-style: italic; font-weight: 600; color: #e8927c; }
+  .hero .sub {
+    margin-top: 24px;
+    font-size: 17px;
+    line-height: 1.8;
+    color: #98a8c8;
+    word-break: keep-all;
+    max-width: 540px;
+    text-wrap: pretty;
+  }
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 42px;
+    background: #d96b54;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 17px 36px;
+    border-radius: 999px;
+    text-decoration: none;
+    animation: bbGlow 3.5s ease-in-out infinite;
+    transition: transform 0.2s ease;
+  }
+  .cta:hover { transform: translateY(-2px); }
+  .cta .arrow { font-size: 18px; }
+  @keyframes bbGlow {
+    0%, 100% { box-shadow: 0 10px 36px rgba(217,107,84,0.45); }
+    50% { box-shadow: 0 10px 48px rgba(217,107,84,0.7); }
+  }
+  .micro {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: #7488ab;
+    letter-spacing: 0.1em;
+    margin-top: 16px;
+  }
+
+  /* ── 뷰 모드 4종 필 ── */
+  .views { display: flex; gap: 10px; margin-top: 40px; flex-wrap: wrap; justify-content: center; }
+  .view-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 15px;
+    border-radius: 999px;
+    border: 1px solid #324269;
+    background: rgba(30,45,76,0.75);
+    color: #cdd9ee;
+    font-size: 13px;
+    font-weight: 600;
+    backdrop-filter: blur(3px);
+  }
+  .view-pill svg { display: block; }
+
+  /* ── 하단 개인정보 배지 ── */
+  .privacy-wrap {
+    position: absolute;
+    left: 0; right: 0; bottom: 30px;
+    display: flex;
+    justify-content: center;
+    z-index: 4;
+    padding: 0 16px;
+  }
+  .privacy {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 20px;
+    border-radius: 999px;
+    border: 1px solid #324269;
+    background: rgba(21,33,58,0.8);
+    backdrop-filter: blur(4px);
+  }
+  .privacy .txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #98a8c8;
+  }
+
+  /* ── 화면이 좁을 때 ── */
+  @media (max-width: 900px) {
+    .stage { min-height: 640px; }
+    .hero h1 { font-size: 42px; }
+    .hero .sub { font-size: 15px; }
+    .constellation .node, .constellation-svg { opacity: 0.5; }
+    .privacy .txt { font-size: 9.5px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- 별자리 연결선 — 노드 중심과 같은 분수 좌표계(1440×900), 화면 비율에 맞춰 늘어남 -->
+  <svg class="constellation constellation-svg" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M 200 424 C 306 424, 306 199, 413 199" stroke="#d9743f" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 413 199 C 552 199, 552 119, 692 119" stroke="#d9743f" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 692 119 C 832 119, 832 159, 972 159" stroke="#d9743f" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 972 159 C 1106 159, 1106 229, 1240 229" stroke="#8268ac" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 200 424 C 316 424, 316 659, 433 659" stroke="#2a8c7d" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 433 659 C 505 659, 505 765, 576 765" stroke="#2a8c7d" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 576 765 C 749 765, 749 770, 922 770" stroke="#2a8c7d" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 922 770 C 1087 770, 1087 659, 1252 659" stroke="#6f8f3e" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 200 424 C 269 424, 269 330, 338 330" stroke="#cc5e80" stroke-width="2" fill="none" opacity="0.55"/>
+    <path d="M 200 424 C 275 424, 275 538, 351 538" stroke="#4a7bc4" stroke-width="2" fill="none" opacity="0.55"/>
+  </svg>
+
+  <!-- 별(노드)들 — 앱의 14색 팔레트 그대로 -->
+  <div class="constellation" aria-hidden="true">
+    <div class="node root"  style="left:13.9%; top:47.1%; background:#3a6ea5; box-shadow:0 0 0 1px rgba(255,255,255,0.10), 0 8px 34px rgba(58,110,165,0.55);">여행 계획</div>
+    <div class="node"       style="left:28.7%; top:22.1%; background:#d9743f; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(217,116,63,0.5);">제주</div>
+    <div class="node"       style="left:48.1%; top:13.2%; background:#d9743f; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(217,116,63,0.5);">성산 일출</div>
+    <div class="node"       style="left:67.5%; top:17.6%; background:#d9743f; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(217,116,63,0.5);">아침 바다</div>
+    <div class="node"       style="left:86.1%; top:25.4%; background:#8268ac; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(130,104,172,0.5);">필름 카메라</div>
+    <div class="node"       style="left:30.1%; top:73.2%; background:#2a8c7d; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(42,140,125,0.5);">교토</div>
+    <div class="node"       style="left:40%;   top:85%;   background:#2a8c7d; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(42,140,125,0.5);">단풍 시즌</div>
+    <div class="node"       style="left:64%;   top:85.5%; background:#2a8c7d; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(42,140,125,0.5);">산책로</div>
+    <div class="node"       style="left:86.9%; top:73.2%; background:#6f8f3e; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(111,143,62,0.5);">가을 일기</div>
+    <div class="node small" style="left:23.5%; top:36.7%; background:#cc5e80; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(204,94,128,0.5);">예산</div>
+    <div class="node small" style="left:24.4%; top:59.8%; background:#4a7bc4; box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 28px rgba(74,123,196,0.5);">준비물</div>
+
+    <!-- 씨앗 점 (브랜드 로고의 색점) -->
+    <span class="seed" style="left:38.9%; top:28.9%; width:6px; height:6px; background:#ffd60a; opacity:0.85;"></span>
+    <span class="seed" style="left:77.8%; top:46.7%; width:7px; height:7px; background:#ff5d8f; opacity:0.8; animation-duration:7s; animation-delay:0.6s;"></span>
+    <span class="seed" style="left:59.7%; top:62.2%; width:5px; height:5px; background:#06d6a0; opacity:0.8; animation-duration:5.5s; animation-delay:1.2s;"></span>
+    <span class="seed" style="left:16.7%; top:14.4%; width:5px; height:5px; background:#ffb703; opacity:0.8; animation-duration:6.5s; animation-delay:0.3s;"></span>
+    <span class="seed" style="left:52%;   top:7.5%;  width:5px; height:5px; background:#ffd60a; opacity:0.7; animation-duration:7.5s; animation-delay:0.9s;"></span>
+    <span class="seed" style="left:8%;    top:80%;   width:6px; height:6px; background:#06d6a0; opacity:0.7; animation-duration:6.8s; animation-delay:1.6s;"></span>
+  </div>
+
+  <!-- 중앙 히어로 -->
+  <main class="hero">
+    <div class="brand-row">
+      <svg class="brand-logo" viewBox="0 0 96 96" role="img" aria-label="BrainBloom">
+        <defs>
+          <linearGradient id="bbFunnel" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#3a86ff"/>
+            <stop offset="1" stop-color="#00b4d8"/>
+          </linearGradient>
+        </defs>
+        <rect width="96" height="96" rx="22" fill="url(#bbFunnel)"/>
+        <circle cx="32" cy="22" r="3.5" fill="#ffd60a"/>
+        <circle cx="44" cy="17" r="3.5" fill="#ff5d8f"/>
+        <circle cx="56" cy="20" r="3.5" fill="#06d6a0"/>
+        <circle cx="64" cy="25" r="3" fill="#80ed99"/>
+        <circle cx="38" cy="27" r="3" fill="#ffb703"/>
+        <path d="M24 32h48l-15 22v8H39v-8z" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M48 68l2.5 7 7 .5-5.5 4.5 2 7-6-4-6 4 2-7-5.5-4.5 7-.5z" fill="#fff"/>
+      </svg>
+      <span class="brand-mark">Brain<em>Bloom</em></span>
+      <span class="brand-tag">Mind Map</span>
+    </div>
+
+    <h1>밤하늘에 심은 생각이<br><em>별자리로 이어집니다.</em></h1>
+    <p class="sub">쓰는 대로 이어지고, 이은 대로 선명해집니다.<br>흩어진 생각을 한 장의 지도로.</p>
+
+    <a class="cta" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span class="arrow">→</span></a>
+    <div class="micro">무료 · 설치 없음 · 가입 없음</div>
+
+    <div class="views">
+      <span class="view-pill">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.4"><path d="M6.5 11 L 15.5 5.5"/><path d="M7 12 L 16.5 12"/><path d="M6.5 13 L 15.5 18.5"/></g><circle cx="4.6" cy="12" r="2.9" fill="#3a86ff"/><circle cx="17.8" cy="5" r="2.3" fill="#ff5d8f"/><circle cx="18.8" cy="12" r="2.3" fill="#06d6a0"/><circle cx="17.8" cy="19" r="2.3" fill="#ffb703"/></svg>
+        마인드맵</span>
+      <span class="view-pill">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"><line x1="9" y1="4" x2="20.5" y2="4"/><line x1="13" y1="9.3" x2="20.5" y2="9.3"/><line x1="13" y1="14.7" x2="20.5" y2="14.7"/><line x1="9" y1="20" x2="20.5" y2="20"/></g><circle cx="4.8" cy="4" r="2.1" fill="#3a86ff"/><circle cx="8.8" cy="9.3" r="2.1" fill="#ff5d8f"/><circle cx="8.8" cy="14.7" r="2.1" fill="#06d6a0"/><circle cx="4.8" cy="20" r="2.1" fill="#ffb703"/></svg>
+        아웃라인</span>
+      <span class="view-pill">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><line x1="14" y1="2.5" x2="14" y2="21.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.35"/><rect x="2" y="4" width="10" height="3.8" rx="1.9" fill="#3a86ff"/><rect x="6" y="10.1" width="13" height="3.8" rx="1.9" fill="#06d6a0"/><rect x="3.5" y="16.2" width="8" height="3.8" rx="1.9" fill="#ffb703"/></svg>
+        간트</span>
+      <span class="view-pill">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/><circle cx="6" cy="12" r="2.4" fill="#3a86ff"/><circle cx="12.5" cy="12" r="2.4" fill="#ff5d8f"/><path d="M19 9.4 L21.6 12 L19 14.6 L16.4 12 Z" fill="#ffb703"/></svg>
+        타임라인</span>
+    </div>
+  </main>
+
+  <!-- 하단 개인정보 배지 -->
+  <div class="privacy-wrap">
+    <div class="privacy">
+      <span style="font-size:13px;">🔒</span>
+      <span class="txt">NO SERVER — 내용은 내 브라우저에만, 원할 때만 내 구글 드라이브에만 저장됩니다</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
