@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.6] - 2026-06-29
+
+### Fixed
+집중 코드 감사 3라운드 — **편집 UX 2건**:
+- **[HIGH] 텍스트 편집 Undo 시 맵·텍스트 패널 어긋남** — 텍스트→트리 디바운스가 `setInputText`(새 텍스트) 커밋 **후에** 히스토리를 push해, 스냅샷이 `{옛 트리, 새 텍스트}`로 저장됐다. Ctrl+Z 하면 맵만 되돌아가고 텍스트는 그대로 → 이후 트리 편집 시 텍스트가 재생성되며 새 줄이 조용히 소실. `pushHistory(label, overrides)`로 스냅샷 텍스트를 주입할 수 있게 하고, 텍스트 편집 push는 옛 트리에 대응하는 `treeToText(tree)`를 담도록 수정 — Undo 시 두 패널이 함께 복귀.
+- **[MED] Esc/포커스 이탈로 새 노드 취소 불가** — `cancelNewNode`가 "빈 라벨만 취소" 가드였는데, 자동단어(★) 도입 후 새 노드 라벨이 항상 비어있지 않아 **취소 분기가 죽은 코드**가 됐다(Tab으로 만든 노드를 Esc 해도 남음). `_autoLabel === true`(사용자가 라벨 미확정)인 노드도 취소 대상에 포함.
+
+### Technical Notes
+- Undo 자체는 `syncSourceRef=null`로 동기화 effect를 막으므로 텍스트 복원이 재파싱 루프를 만들지 않음(기존 방어 그대로).
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.6.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.86.5] - 2026-06-29
 
 ### Fixed
