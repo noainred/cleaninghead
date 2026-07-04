@@ -13,6 +13,21 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.87.0] - 2026-06-29
+
+### Added
+- **첫 방문자 랜딩 페이지(`landing.html`)** — "밤의 캔버스" 컨셉의 정적 소개 페이지. 앱과 동일한 폰트·14색 팔레트·24px 도트 그리드로 만든 별자리 마인드맵 데모, 뷰 4종(마인드맵·아웃라인·간트·타임라인) 소개, `NO SERVER` 개인정보 배지, `바로 사용하기` CTA(→ `index.html?app`).
+- **첫 방문 리다이렉트** — `index.html` 최상단에서 앱 사용 이력이 없는 브라우저만 `landing.html`로 안내:
+  - `bb_visited`(랜딩 CTA 클릭 시 기록) 또는 `bb_drive_prefix`(앱 첫 실행 때 기록 — **기존 사용자 신호**)가 있으면 곧장 앱.
+  - `?app` 쿼리가 있으면 랜딩을 건너뛰고 방문 기록 후 앱(이후 계속 앱).
+  - localStorage 차단 환경(시크릿 모드 등)은 안전하게 그냥 앱 표시. `location.replace`라 뒤로가기 오염 없음.
+
+### Technical Notes
+- 원본은 Claude 디자인 도구 산출물 — 두 파일에 **AdGuard 확장이 주입한 `local.adguard.org` 스크립트 태그**가 섞여 있어 제거 후 통합(프로젝트 ID 노출·죽은 요청 방지). 업로드본 앱 파일은 v3.86.3 기반이라 통째로 쓰지 않고 **리다이렉트 스크립트만 v3.86.8에 이식**(그간의 수정 15건 보존). `?app` 검사는 `indexOf`(느슨) 대신 `URLSearchParams.has('app')`(정확 매치)로 강화.
+- 변경 파일: `index.html`, `landing.html`(신규), `seahyun/brainstorm_v3.87.0.html`(스냅샷), `CHANGELOG.md`, `README.md`.
+
+---
+
 ## [3.86.8] - 2026-06-29
 
 ### Changed

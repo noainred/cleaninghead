@@ -109,6 +109,7 @@
 
 ```
 index.html                  # 앱 본체 (현재 배포 버전)
+landing.html                # 첫 방문자 소개 랜딩(앱 사용 이력 없는 브라우저만 안내, ?app으로 건너뛰기)
 seahyun/                    # 버전별 스냅샷 보관(brainstorm_v*.html)
 BrainBloom_UserGuide.html   # 사용 설명서
 BrainBloom_TechDoc.html     # 기술 문서
