@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.8] - 2026-06-29
+
+### Changed
+집중 코드 감사 5라운드 — **최적화·정리 4건**:
+- **상호작용마다의 O(n) 재순회 제거** — `nodeEls`가 클릭·드래그오버·검색 이동 등 모든 상호작용마다 `computeTaskProgress(tree)`(전체 트리 순회+Map 생성)를 다시 돌렸다. `[tree]`에만 의존하는 기존 `outlineTaskMap` 메모를 앞으로 옮겨 맵·아웃라인이 공유(트리가 바뀔 때만 재계산). 큰 맵에서 상호작용 반응성 개선.
+- **죽은 코드 제거(~52줄)** — 옛 드라이브 정리 로직 잔재 `planPastCleanup`·`filesToDeleteToday`(v3.86.1 재작성 후 미사용)와 미사용 `tintColor` 삭제(전 파일 참조 0 확인).
+- **드라이브 병합 규칙 단일화** — 관리자 드라이브 뷰(`loadDriveDocs`)와 설정 불러오기 목록(`handleDriveListFiles`)에 그대로 중복돼 있던 메인+Backup 병합·dedupe·정렬 11줄을 전역 `fetchMergedDriveList()` 하나로 통일(두 화면 규칙이 어긋날 여지 제거).
+- **겹침 자동복구 카운터 문서별 리셋** — `overlapFixRef`(세션당 4회 제한)가 문서 전환 후에도 유지돼, 한 문서에서 소진되면 이후 모든 문서에서 자동복구가 꺼졌다. `resetViewForDocChange`에서 리셋.
+
+### Technical Notes
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.8.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.86.7] - 2026-06-29
 
 ### Fixed
