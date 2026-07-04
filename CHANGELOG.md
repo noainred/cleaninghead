@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.86.4] - 2026-06-29
+
+### Fixed
+- **[HIGH] 시작 "새로 시작"이 기존 문서를 덮어쓰던 데이터 손실** — 멀티문서 도입 후에도 시작 경로(startupDialog의 "새로 시작", `startupBehavior==='new'` 자동 새 파일, 최초 승격+새 파일)가 새 문서 슬롯을 만들지 않아, 빈 트리가 1.5초 뒤 자동저장으로 기존 문서 슬롯(`doc:<id>`)에 기록돼 내용·이름이 파괴되던 문제. 세 경로 모두 **새 문서 슬롯을 배정**(`startFreshInNewDoc`/`startedFreshOverExisting`)하도록 수정 — 기존 문서는 관리자에 그대로 보존.
+- **[MED] `commitRename` ↔ 자동저장 lost-update 경합** — 현재 문서 이름 변경이 슬롯을 read-modify-write 해, 그 사이 자동저장이 커밋한 최신 트리를 옛 트리로 되돌릴 수 있던 문제. 현재 문서는 재기록 대신 `flushActiveDoc()`(살아있는 트리로 기록)으로, 비현재 문서만 기존 방식 유지.
+
+### Technical Notes
+- 시작 IIFE에 `startedFreshOverExisting` 플래그 → docMeta 초기화(메타 존재/최초 승격 두 분기)에서 새 슬롯 배정. 다이얼로그 경로는 `startFreshInNewDoc()`.
+- 3축(편집·레이아웃·상태) + 성능 병렬 심층 리뷰 캠페인의 Round 1/5.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.86.4.html`, `CHANGELOG.md`.
+
+---
+
 ## [3.86.3] - 2026-06-29
 
 ### Fixed
