@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.91.1] - 2026-07-05
+
+### Fixed
+- **랜딩 주소창에 파일명 노출** — 랜덤 분배 후 주소가 `landing07.html`처럼 변형 파일명으로 남던 문제. 각 변형이 로드 직후 `history.replaceState(null,'','landing.html')`로 주소를 되돌려, 디스패처 경유든 직접 접속이든 **주소창엔 항상 `landing.html`만** 보인다. (새로고침하면 분배기가 다시 랜덤 — 자연스러운 동작)
+
+### Technical Notes
+- 10개 변형의 공통 스크립트에 1줄 추가. 변경 파일: `landing01~10.html`, `index.html`(버전·RECENT_CHANGES), `seahyun/brainstorm_v3.91.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.91.0] - 2026-07-05
 
 ### Added
