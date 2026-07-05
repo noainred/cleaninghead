@@ -289,7 +289,12 @@
     <h1>밤하늘에 심은 생각이<br><em>별자리로 이어집니다.</em></h1>
     <p class="sub">쓰는 대로 이어지고, 이은 대로 선명해집니다.<br>흩어진 생각을 한 장의 지도로.</p>
 
-    <a class="cta" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span class="arrow">→</span></a>
+    <a class="cta" id="ctaGo" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span class="arrow">→</span></a>
+    <script>
+    /* 폰(터치 + 짧은 변 600px 미만)이면 무거운 앱 본체를 거치지 않고 모바일 버전으로 바로 */
+    try { if (window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
+      document.getElementById('ctaGo').href = 'mobile.html?app'; } catch (e) {}
+    </script>
     <div class="micro">무료 · 설치 없음 · 가입 없음</div>
 
     <div class="views">
