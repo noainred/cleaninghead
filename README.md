@@ -112,7 +112,8 @@
 
 ```
 index.html                  # 앱 본체 (현재 배포 버전)
-landing.html                # 첫 방문자 소개 랜딩(앱 사용 이력 없는 브라우저만 안내, ?app으로 건너뛰기)
+landing.html                # 첫 방문 랜딩 랜덤 분배기(landing01~10 중 하나로, ?app으로 건너뛰기)
+landing01~10.html           # 랜딩 디자인 10종(접속마다 랜덤, N/10 ↻ 버튼으로 다른 디자인 보기)
 mobile.html                 # 📱 모바일 전용 버전(폰 접속 시 자동 안내, ?desktop으로 데스크톱 강제)
 seahyun/                    # 버전별 스냅샷 보관(brainstorm_v*.html)
 BrainBloom_UserGuide.html   # 사용 설명서

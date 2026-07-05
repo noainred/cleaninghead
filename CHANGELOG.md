@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.91.0] - 2026-07-05
+
+### Added
+- **랜덤 랜딩 10종** — 첫 방문 소개 페이지가 10가지 디자인(`landing01~10.html`)으로 확장: 밤의 캔버스 · 여백의 정원 · 열린 스튜디오 · 활판 포스터 · 텍스트 에디터 · 새벽 타임라인 · 간트 리듬 · 피어나는 정원 · 생각의 설계도 · 첫 한 줄. `landing.html`은 **초경량 랜덤 분배기**가 되어 접속마다 하나를 골라 `location.replace`로 즉시 이동(히스토리 오염 없음). 각 페이지 우하단 **`N/10 ↻`** 버튼은 방금 본 디자인을 제외하고 다시 굴린다(`sessionStorage.bb_landing_last`).
+
+### Technical Notes
+- `index.html`의 첫 방문 안내는 그대로 `landing.html`을 가리킴 — 분배기가 흡수하므로 앱 쪽 변경 불필요. 각 변형에 공통 스크립트 주입: 자기 번호 기록 + **폰(터치·짧은 변 <600px)이면 CTA를 `mobile.html?app`으로 교체**(앱 본체 다운로드 생략). noscript 폴백(직접 링크 10개) 포함. 업로드 원본 10종 모두 AdGuard 오염 없음 확인, 태그 균형·분배기 `node --check` 통과.
+- 변경 파일: `landing.html`(분배기로 교체), `landing01~10.html`(신규), `index.html`(버전·RECENT_CHANGES), `seahyun/brainstorm_v3.91.0.html`(스냅샷), `CHANGELOG.md`, `README.md`.
+
+---
+
 ## [3.90.0] - 2026-07-05
 
 ### Added

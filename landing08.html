@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrainBloom — 피어나는 정원</title>
+<meta name="description" content="설치도 가입도 없이 브라우저에서 바로 쓰는 개인용 마인드맵. 내용은 내 브라우저에만 저장됩니다." />
+<meta name="theme-color" content="#fbf7ef" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 08 피어나는 정원 — 한 알의 생각이 정원이 됩니다 */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Plus Jakarta Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background: #fbf7ef; -webkit-font-smoothing: antialiased; color: #2b2724; }
+  .stage { position: relative; width: 100%; height: 100vh; min-height: 760px; overflow: hidden; background: radial-gradient(circle at 78% 50%, #f4ecdd 0%, transparent 52%), #fbf7ef; }
+  .stage::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(140,110,50,0.06) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none; }
+  .copy { position: absolute; left: 7.5%; top: 50%; transform: translateY(-50%); width: min(460px, 44vw); z-index: 3; }
+  .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+  .brand-logo { width: 28px; height: 28px; border-radius: 7px; box-shadow: 0 2px 6px rgba(40,30,60,0.18); }
+  .brand-mark { font-family: 'Fraunces', serif; font-weight: 900; font-size: 22px; letter-spacing: -0.02em; }
+  .brand-mark em { font-style: italic; font-weight: 400; color: #d96b54; }
+  h1 { font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 800; font-size: clamp(40px, 4.4vw, 58px); line-height: 1.24; letter-spacing: -0.015em; word-break: keep-all; }
+  h1 em { font-style: italic; font-weight: 600; color: #d96b54; }
+  .sub { margin-top: 22px; font-size: 16.5px; line-height: 1.8; color: #6b635a; word-break: keep-all; text-wrap: pretty; }
+  .cta-row { display: flex; align-items: center; gap: 18px; margin-top: 36px; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: #6f8f3e; color: #fdfbf5; font-size: 16.5px; font-weight: 700; padding: 16px 32px; border-radius: 999px; text-decoration: none; box-shadow: 0 10px 28px rgba(111,143,62,0.35); transition: background 0.2s; }
+  .cta:hover { background: #2b2724; }
+  .micro { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8175; letter-spacing: 0.08em; line-height: 1.7; }
+  .views-line { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #8a8175; margin-top: 28px; }
+  .bloom { position: absolute; right: 4%; top: 50%; transform: translateY(-50%); width: min(680px, 50vw); height: min(680px, 84vh); z-index: 2; }
+  .node { position: absolute; transform: translate(-50%, -50%); color: #fff; padding: 9px 14px; border-radius: 14px; font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 700; font-size: 14px; white-space: nowrap; box-shadow: 0 6px 20px rgba(60,50,40,0.22); animation: bbFloat 7s ease-in-out infinite; }
+  .node.root { padding: 14px 20px; font-size: 19px; box-shadow: 0 10px 34px rgba(58,110,165,0.4); animation: none; }
+  @keyframes bbFloat { 0%, 100% { transform: translate(-50%, -50%); } 50% { transform: translate(-50%, calc(-50% - 8px)); } }
+  .privacy-wrap { position: absolute; left: 0; right: 0; bottom: 26px; display: flex; justify-content: center; z-index: 4; padding: 0 16px; }
+  .privacy { display: inline-flex; align-items: center; gap: 9px; padding: 9px 20px; border-radius: 999px; border: 1px solid #e2dccb; background: rgba(255,255,255,0.75); backdrop-filter: blur(3px); }
+  .privacy .txt { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.04em; color: #6b635a; }
+  .switch { position: fixed; bottom: 16px; right: 16px; z-index: 9; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #cdd9ee; background: rgba(16,24,40,0.78); border: 1px solid rgba(255,255,255,0.18); padding: 6px 12px; border-radius: 999px; text-decoration: none; }
+  .switch:hover { background: rgba(30,45,76,0.95); }
+  @media (max-width: 980px) {
+    .bloom { display: none; }
+    .copy { width: min(560px, 86vw); }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="copy">
+    <div class="brand-row">
+      <svg class="brand-logo" viewBox="0 0 96 96" role="img" aria-label="BrainBloom">
+        <defs><linearGradient id="bbFunnel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86ff"/><stop offset="1" stop-color="#00b4d8"/></linearGradient></defs>
+        <rect width="96" height="96" rx="22" fill="url(#bbFunnel)"/>
+        <circle cx="32" cy="22" r="3.5" fill="#ffd60a"/><circle cx="44" cy="17" r="3.5" fill="#ff5d8f"/><circle cx="56" cy="20" r="3.5" fill="#06d6a0"/><circle cx="64" cy="25" r="3" fill="#80ed99"/><circle cx="38" cy="27" r="3" fill="#ffb703"/>
+        <path d="M24 32h48l-15 22v8H39v-8z" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M48 68l2.5 7 7 .5-5.5 4.5 2 7-6-4-6 4 2-7-5.5-4.5 7-.5z" fill="#fff"/>
+      </svg>
+      <span class="brand-mark">Brain<em>Bloom</em></span>
+    </div>
+    <h1>한 알의 생각이<br><em>정원이 됩니다.</em></h1>
+    <p class="sub">가운데 씨앗 하나를 심으면, 가지가 사방으로 자랍니다.<br>Tab 한 번으로 자식 가지, Enter 한 번으로 형제 가지.</p>
+    <div class="cta-row">
+      <a class="cta" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span>→</span></a>
+      <span class="micro">무료 · 설치 없음<br>가입 없음</span>
+    </div>
+    <div class="views-line">마인드맵 · 아웃라인 · 간트 · 타임라인</div>
+  </div>
+
+  <div class="bloom" aria-hidden="true">
+    <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 680 680" preserveAspectRatio="xMidYMid meet">
+      <path d="M 340 340 C 340 265, 340 230, 340 155" stroke="#d9743f" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 393 287, 419 261, 472 208" stroke="#c08a2d" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 415 340, 450 340, 525 340" stroke="#2a8c7d" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 393 393, 419 419, 472 472" stroke="#4a7bc4" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 340 415, 340 450, 340 525" stroke="#cc5e80" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 287 393, 261 419, 208 472" stroke="#6f8f3e" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 265 340, 230 340, 155 340" stroke="#8268ac" stroke-width="2" fill="none" opacity="0.5"/>
+      <path d="M 340 340 C 287 287, 261 261, 208 208" stroke="#e8927c" stroke-width="2" fill="none" opacity="0.5"/>
+    </svg>
+    <div class="node root" style="left:50%; top:50%; background:#3a6ea5;">가을 정원</div>
+    <div class="node" style="left:50%; top:20%; background:#d9743f;">구근 심기</div>
+    <div class="node" style="left:71%; top:29%; background:#c08a2d; animation-delay:0.5s;">퇴비 만들기</div>
+    <div class="node" style="left:79%; top:50%; background:#2a8c7d; animation-delay:1s;">물주기표</div>
+    <div class="node" style="left:71%; top:71%; background:#4a7bc4; animation-delay:1.5s;">씨앗 목록</div>
+    <div class="node" style="left:50%; top:79%; background:#cc5e80; animation-delay:2s;">화분 정리</div>
+    <div class="node" style="left:29%; top:71%; background:#6f8f3e; animation-delay:2.5s;">울타리 손보기</div>
+    <div class="node" style="left:22%; top:50%; background:#8268ac; animation-delay:3s;">산책길</div>
+    <div class="node" style="left:29%; top:29%; background:#e8927c; animation-delay:3.5s;">장미 가지치기</div>
+  </div>
+
+  <div class="privacy-wrap">
+    <div class="privacy"><span style="font-size:12px;">🔒</span><span class="txt">NO SERVER — 내용은 내 브라우저에만 저장됩니다</span></div>
+  </div>
+</div>
+<a class="switch" href="landing.html" title="다른 디자인 보기">08/10 ↻</a>
+<script>
+/* 랜덤 랜딩 공통: 이번 디자인 번호를 기록해 "다른 디자인 ↻"가 같은 걸 다시 고르지 않게 하고,
+   폰(터치+짧은 변 600px 미만)이면 CTA가 무거운 앱 본체 대신 모바일 버전으로 가게 한다 */
+try {
+  sessionStorage.setItem('bb_landing_last', '08');
+  if (window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
+    document.querySelectorAll('a[href^="index.html?app"]').forEach(function(a) { a.href = 'mobile.html?app'; });
+} catch (e) {}
+</script>
+</body>
+</html>
