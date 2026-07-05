@@ -10,11 +10,13 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 <script>
-/* ?app: 랜딩 건너뛰기 방문 기록(데스크톱과 동일 규칙) · ?desktop: 데스크톱 강제 → index.html로 */
+/* ?app: 랜딩 건너뛰기 방문 기록(데스크톱과 동일 규칙) · ?desktop: 데스크톱 강제 → index.html로
+   머무는 경우 주소창은 도메인만 남김(mobile.html?app 숨김 — 새로고침하면 index가 다시 모바일로 안내) */
 (function(){ try {
   var q = new URLSearchParams(location.search);
   if (q.has('app')) localStorage.setItem('bb_visited','1');
-  if (q.has('desktop')) { localStorage.setItem('bb_force_desktop','1'); location.replace('index.html?desktop'); }
+  if (q.has('desktop')) { localStorage.setItem('bb_force_desktop','1'); location.replace('index.html?desktop'); return; }
+  if (location.protocol==='http:'||location.protocol==='https:') history.replaceState(null,'','/');
 } catch(e){} })();
 </script>
 <style>

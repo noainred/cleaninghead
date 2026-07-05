@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.91.3] - 2026-07-05
+
+### Fixed
+- **앱·모바일도 주소창에 도메인만** — 랜딩(v3.91.2)에 이어 `index.html?app`·`mobile.html?app` 같은 파일명·쿼리도 로드 직후 `history.replaceState(null,'','/')`로 정리. 쿼리(`?app`/`?desktop`)는 최상단 리다이렉트 스크립트만 읽으므로 처리 완료 후 지워도 안전(전수 확인). `file://` 개발 사본에서는 건드리지 않음(http/https만). 모바일에서 루트 새로고침 시 index가 다시 모바일로 안내(1회 리다이렉트) — 정상 흐름.
+
+### Technical Notes
+- 변경 파일: `index.html`(리다이렉트 스크립트 + 버전·RECENT_CHANGES), `mobile.html`(head 스크립트), `seahyun/brainstorm_v3.91.3.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.91.2] - 2026-07-05
 
 ### Fixed
