@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.91.2] - 2026-07-05
+
+### Fixed
+- **랜딩 주소창에 도메인만 표시** — v3.91.1의 `landing.html` 표기도 지우고, 변형 로드 직후 `history.replaceState(null,'','/')`로 **주소창엔 `www.redmir.net`만** 보이게. 루트 새로고침 시 첫 방문자는 `index.html` 최상단 안내를 타고 다시 랜덤 랜딩, 기존 사용자는 앱 — 기존 흐름 그대로.
+
+### Technical Notes
+- 변경 파일: `landing01~10.html`(replaceState 경로 `/`), `index.html`(버전·RECENT_CHANGES), `seahyun/brainstorm_v3.91.2.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.91.1] - 2026-07-05
 
 ### Fixed

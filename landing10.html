@@ -95,7 +95,7 @@
    폰(터치+짧은 변 600px 미만)이면 CTA가 무거운 앱 본체 대신 모바일 버전으로 가게 한다 */
 try {
   sessionStorage.setItem('bb_landing_last', '10');
-  history.replaceState(null, '', 'landing.html'); // 주소창에 파일명(landingNN.html) 대신 landing.html만 보이게
+  history.replaceState(null, '', '/'); // 주소창엔 도메인만(파일명 숨김) — 루트 새로고침 시 첫 방문자는 다시 랜덤 랜딩, 기존 사용자는 앱
   if (window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
     document.querySelectorAll('a[href^="index.html?app"]').forEach(function(a) { a.href = 'mobile.html?app'; });
 } catch (e) {}
