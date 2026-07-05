@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.90.0] - 2026-07-05
+
+### Added
+- **📱 모바일: 맵 화면에서 바로 노드 추가** — 맵 탭에도 **＋ FAB**가 표시되고(선택 노드 또는 중심에 하위 추가), 길게 누르기 메뉴의 **추가(같은/하위 레벨)·이름 바꾸기**도 이제 편집 화면으로 전환하지 않는다. 대신 **하단 빠른 입력 바**(`#quickBar`)가 떠서 맵을 보면서 이름을 입력 — `확인`/Enter=확정, `✕`/Escape=취소(새 노드는 제거), 이름 없이 확인해도 취소 처리.
+
+### Technical Notes
+- `addChild/addSibling(pid, silent)` — `silent`면 편집 모드 진입 없이 노드만 생성·반환(맵 경로 전용), 맵 탭이면 `renderMap` 즉시 반영. `openQuickBar(id,isNew)`/`quickCommit`/`quickCancelAct`/`removeNewNode` + 탭 이탈 시 입력 바 자동 정리. 뷰포트(줌·팬)는 유지(fit 재실행 없음).
+- 변경 파일: `mobile.html`, `index.html`(버전·RECENT_CHANGES), `seahyun/brainstorm_v3.90.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.89.0] - 2026-07-05
 
 ### Added

@@ -165,6 +165,21 @@ nav button.on{color:var(--accent);}
 }
 .sh-actions .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
 
+/* ── 맵 빠른 입력 바 (맵에서 추가/이름 변경 시 화면 전환 없이 입력) ── */
+#quickBar{
+  position:fixed; left:10px; right:10px; bottom:calc(env(safe-area-inset-bottom) + 64px);
+  z-index:30; display:none; gap:8px; align-items:center;
+  background:var(--sheet); border:1px solid var(--line); border-radius:14px;
+  padding:8px; box-shadow:0 8px 30px rgba(0,0,0,0.25);
+}
+#quickBar.on{display:flex;}
+#quickInput{
+  flex:1 1 auto; min-width:0; font-size:15px; padding:11px 12px;
+  border:1.5px solid var(--accent); border-radius:10px; background:var(--panel); color:var(--ink);
+}
+#quickOk{flex:0 0 auto; background:var(--accent); color:#fff; font-size:14px; font-weight:700; padding:11px 16px; border-radius:10px;}
+#quickCancel{flex:0 0 auto; font-size:18px; color:var(--ink-soft); padding:10px 8px;}
+
 /* 토스트 */
 #toast{
   position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 84px); transform:translateX(-50%);
@@ -203,6 +218,11 @@ nav button.on{color:var(--accent);}
 
 <div class="sheet-back" id="sheetBack"></div>
 <div class="sheet" id="sheet"></div>
+<div id="quickBar">
+  <input id="quickInput" placeholder="노드 이름" autocomplete="off" />
+  <button id="quickOk">확인</button>
+  <button id="quickCancel" title="취소">✕</button>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -389,19 +409,24 @@ $('#outlineView').addEventListener('click',(e)=>{
 });
 
 /* ═══════════ 노드 조작 ═══════════ */
-function addChild(pid){
+/* silent=true: 편집 모드로 들어가지 않고 노드만 만들어 반환(맵의 빠른 입력 바가 이어받음) */
+function addChild(pid, silent){
   const p=findNode(S.tree,pid||S.selectedId)||S.tree;
   const c={ id:genId(), label:'', children:[], meta:{}, color:(p.id===S.tree.id?PALETTE_ORDER[(p.children||[]).length%PALETTE_ORDER.length]:p.color), createdAt:new Date().toISOString() };
   p.children=p.children||[]; p.children.push(c); p.collapsed=undefined;
-  S.selectedId=c.id; S.editingId=c.id; scheduleSave(); renderOutline();
+  S.selectedId=c.id; if(!silent) S.editingId=c.id;
+  scheduleSave(); renderOutline(); if(S.tab==='map') renderMap();
+  return c;
 }
-function addSibling(id){
-  if(id===S.tree.id){ addChild(id); return; }
-  const p=findParent(S.tree,id); if(!p) return;
+function addSibling(id, silent){
+  if(id===S.tree.id){ return addChild(id, silent); }
+  const p=findParent(S.tree,id); if(!p) return null;
   const i=p.children.findIndex(c=>c.id===id);
   const c={ id:genId(), label:'', children:[], meta:{}, color:(p.id===S.tree.id?PALETTE_ORDER[(i+1)%PALETTE_ORDER.length]:p.children[i].color), createdAt:new Date().toISOString() };
   p.children.splice(i+1,0,c);
-  S.selectedId=c.id; S.editingId=c.id; scheduleSave(); renderOutline();
+  S.selectedId=c.id; if(!silent) S.editingId=c.id;
+  scheduleSave(); renderOutline(); if(S.tab==='map') renderMap();
+  return c;
 }
 function indentNode(id){
   const p=findParent(S.tree,id); if(!p) return;
@@ -433,7 +458,47 @@ function deleteNode(id){
   if(S.selectedId===id) S.selectedId=p.id;
   scheduleSave(); renderOutline();
 }
-$('#fab').addEventListener('click',()=>{ if(S.tab!=='outline'){ switchTab('outline'); } addChild(S.selectedId||S.tree.id); });
+$('#fab').addEventListener('click',()=>{
+  if(S.tab==='map'){ // 맵에서는 화면 전환 없이 하단 입력 바로 바로 추가
+    const c=addChild(S.selectedId||S.tree.id, true);
+    if(c) openQuickBar(c.id, true);
+    return;
+  }
+  if(S.tab!=='outline') switchTab('outline');
+  addChild(S.selectedId||S.tree.id);
+});
+
+/* ═══════════ 맵 빠른 입력 바 — 추가/이름 변경을 맵에서 바로 ═══════════ */
+const QB={id:null,isNew:false};
+function openQuickBar(id,isNew){
+  const n=findNode(S.tree,id); if(!n) return;
+  QB.id=id; QB.isNew=isNew;
+  const inp=$('#quickInput');
+  inp.value=n.label||''; inp.placeholder=isNew?'새 노드 이름':'노드 이름';
+  $('#quickBar').classList.add('on');
+  setTimeout(()=>{ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); },30);
+}
+function closeQuickBar(){ QB.id=null; $('#quickBar').classList.remove('on'); $('#quickInput').blur(); }
+function quickCommit(){
+  const n=QB.id&&findNode(S.tree,QB.id); if(!n){ closeQuickBar(); return; }
+  const v=$('#quickInput').value.replace(/\n+/g,' ').trim();
+  if(!v&&QB.isNew){ removeNewNode(QB.id); closeQuickBar(); return; } // 이름 없이 확인=취소
+  if(v&&v!==n.label){ n.label=v; n.updatedAt=new Date().toISOString(); scheduleSave(); }
+  closeQuickBar(); renderMap(); renderOutline(); renderHeader();
+}
+function quickCancelAct(){
+  if(QB.isNew&&QB.id) removeNewNode(QB.id); // 새로 만든 노드 취소=제거
+  closeQuickBar(); renderMap(); renderOutline();
+}
+function removeNewNode(id){
+  const p=findParent(S.tree,id); if(!p) return;
+  p.children=p.children.filter(c=>c.id!==id);
+  if(S.selectedId===id) S.selectedId=p.id;
+  scheduleSave();
+}
+$('#quickOk').addEventListener('click',quickCommit);
+$('#quickCancel').addEventListener('click',quickCancelAct);
+$('#quickInput').addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); quickCommit(); } else if(e.key==='Escape'){ quickCancelAct(); } });
 
 /* ═══════════ 시트 공통 ═══════════ */
 function openSheet(html){ $('#sheet').innerHTML='<div class="grip"></div>'+html; $('#sheet').classList.add('on'); $('#sheetBack').classList.add('on'); }
@@ -462,8 +527,13 @@ function openNodeSheet(id){
     const cb=e.target.closest('[data-color]'); if(cb){ const k=cb.dataset.color; walk(n,x=>x.color=k); scheduleSave(); renderOutline(); if(S.tab==='map') renderMap(); closeSheet(); return; }
     const a=e.target.closest('[data-a]')?.dataset.a; if(!a) return;
     closeSheet();
-    // 구조를 만들거나 이름을 바꾸는 동작은 편집(아웃라인) 화면에서 이어가는 게 자연스러움
-    if((a==='child'||a==='sibling'||a==='rename')&&S.tab==='map') switchTab('outline');
+    // 맵에서는 추가/이름 변경도 화면 전환 없이 하단 빠른 입력 바로 처리
+    if(S.tab==='map'&&(a==='child'||a==='sibling'||a==='rename')){
+      if(a==='rename'){ openQuickBar(id,false); return; }
+      const c=(a==='child')?addChild(id,true):addSibling(id,true);
+      if(c) openQuickBar(c.id,true);
+      return;
+    }
     if(a==='child') addChild(id); else if(a==='sibling') addSibling(id);
     else if(a==='rename'){ S.selectedId=id; S.editingId=id; renderOutline(); }
     else if(a==='indent') indentNode(id); else if(a==='outdent') outdentNode(id);
@@ -787,7 +857,8 @@ function switchTab(tab){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   $('#outlineView').classList.toggle('on',tab==='outline');
   $('#mapView').classList.toggle('on',tab==='map');
-  $('#fab').style.display=tab==='outline'?'flex':'none';
+  $('#fab').style.display=(tab==='outline'||tab==='map')?'flex':'none'; // 맵에서도 ＋로 바로 추가
+  if(tab!=='map'&&typeof closeQuickBar==='function'&&QB.id) quickCancelAct(); // 탭 이탈 시 입력 바 정리
   if(tab==='map'){ MAP.fitDone=false; renderMap(); }
   if(tab==='docs'){ openDocsSheet(); S.tab='outline'; document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='outline')); }
 }
