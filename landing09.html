@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrainBloom — 생각의 설계도</title>
+<meta name="description" content="설치도 가입도 없이 브라우저에서 바로 쓰는 개인용 마인드맵. 내용은 내 브라우저에만 저장됩니다." />
+<meta name="theme-color" content="#14263e" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 09 생각의 설계도 — 블루프린트 */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Plus Jakarta Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background: #14263e; -webkit-font-smoothing: antialiased; }
+  .stage { position: relative; width: 100%; height: 100vh; min-height: 760px; overflow: hidden; background: #14263e;
+    background-image:
+      linear-gradient(rgba(150,190,255,0.10) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(150,190,255,0.10) 1px, transparent 1px),
+      linear-gradient(rgba(150,190,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(150,190,255,0.05) 1px, transparent 1px);
+    background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; }
+  .copy { position: absolute; left: 8%; top: 50%; transform: translateY(-52%); width: min(480px, 60vw); z-index: 3; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.24em; color: #7fa8d9; margin-bottom: 22px; }
+  h1 { font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 800; font-size: clamp(42px, 4.6vw, 60px); line-height: 1.24; letter-spacing: -0.01em; color: #eaf2fd; word-break: keep-all; }
+  h1 em { font-style: italic; font-weight: 600; color: #e8927c; }
+  .sub { margin-top: 22px; font-size: 16.5px; line-height: 1.8; color: #9db4d8; word-break: keep-all; text-wrap: pretty; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; margin-top: 36px; background: #d96b54; color: #fff; font-size: 17px; font-weight: 700; padding: 16px 34px; border-radius: 999px; text-decoration: none; box-shadow: 0 12px 36px rgba(217,107,84,0.4); transition: transform 0.2s; }
+  .cta:hover { transform: translateY(-2px); }
+  .micro { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7fa8d9; letter-spacing: 0.1em; margin-top: 14px; }
+  .bp { position: absolute; right: 5%; top: 50%; transform: translateY(-50%); width: min(600px, 46vw); height: 480px; z-index: 2; }
+  .bnode { position: absolute; border: 1.5px solid rgba(170,205,255,0.85); background: rgba(20,38,62,0.7); color: #dcebff; padding: 9px 14px 7px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.06em; white-space: nowrap; }
+  .bnode .idx { display: block; font-size: 8px; letter-spacing: 0.18em; color: #7fa8d9; margin-bottom: 2px; }
+  .bnode.hl { border-color: #e8927c; color: #ffd9cd; box-shadow: 0 0 0 1px rgba(232,146,124,0.3), 0 0 24px rgba(232,146,124,0.25); }
+  .bnode.hl .idx { color: #e8927c; }
+  .titleblock { position: absolute; top: 26px; right: 26px; z-index: 4; border: 1px solid rgba(170,205,255,0.5); background: rgba(16,30,50,0.8); font-family: 'JetBrains Mono', monospace; color: #9db4d8; font-size: 9.5px; letter-spacing: 0.1em; }
+  .titleblock div { padding: 6px 14px; border-bottom: 1px solid rgba(170,205,255,0.25); display: flex; justify-content: space-between; gap: 26px; }
+  .titleblock div:last-child { border-bottom: none; }
+  .titleblock b { color: #dcebff; font-weight: 600; }
+  .mark { position: absolute; width: 18px; height: 18px; border-color: rgba(170,205,255,0.5); border-style: solid; z-index: 3; }
+  .privacy-line { position: absolute; left: 8%; bottom: 30px; z-index: 4; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; color: #7fa8d9; }
+  .switch { position: fixed; bottom: 16px; right: 16px; z-index: 9; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #cdd9ee; background: rgba(16,24,40,0.78); border: 1px solid rgba(255,255,255,0.18); padding: 6px 12px; border-radius: 999px; text-decoration: none; }
+  .switch:hover { background: rgba(30,45,76,0.95); }
+  @media (max-width: 980px) { .bp { display: none; } .copy { width: min(560px, 86vw); } .titleblock { display: none; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <span class="mark" style="left:20px; top:20px; border-width:1px 0 0 1px;"></span>
+  <span class="mark" style="right:20px; top:20px; border-width:1px 1px 0 0;"></span>
+  <span class="mark" style="left:20px; bottom:20px; border-width:0 0 1px 1px;"></span>
+  <span class="mark" style="right:20px; bottom:20px; border-width:0 1px 1px 0;"></span>
+
+  <div class="titleblock" aria-hidden="true">
+    <div><span>PROJECT</span><b>BRAINBLOOM</b></div>
+    <div><span>SHEET</span><b>MIND-01</b></div>
+    <div><span>SCALE</span><b>1 : 1</b></div>
+    <div><span>SERVER</span><b>NONE</b></div>
+  </div>
+
+  <div class="copy">
+    <div class="kicker">THINKING, DRAFTED</div>
+    <h1>머릿속 스케치를<br><em>설계도로.</em></h1>
+    <p class="sub">떠오른 생각을 정확한 구조로 옮기세요.<br>가지 하나, 날짜 하나까지 — 내 계획의 도면이 됩니다.</p>
+    <a class="cta" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span>→</span></a>
+    <div class="micro">무료 · 설치 없음 · 가입 없음 · 마인드맵 | 아웃라인 | 간트 | 타임라인</div>
+  </div>
+
+  <div class="bp" aria-hidden="true">
+    <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 600 480" preserveAspectRatio="xMidYMid meet">
+      <path d="M 130 240 C 190 240, 190 90, 250 90" stroke="rgba(170,205,255,0.7)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 130 240 C 190 240, 190 240, 250 240" stroke="rgba(170,205,255,0.7)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 130 240 C 190 240, 190 390, 250 390" stroke="rgba(170,205,255,0.7)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 360 90 C 415 90, 415 60, 470 60" stroke="rgba(170,205,255,0.55)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 360 90 C 415 90, 415 130, 470 130" stroke="rgba(170,205,255,0.55)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 355 240 C 412 240, 412 215, 470 215" stroke="rgba(232,146,124,0.8)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 355 240 C 412 240, 412 285, 470 285" stroke="rgba(170,205,255,0.55)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <path d="M 348 390 C 404 390, 404 420, 460 420" stroke="rgba(170,205,255,0.55)" stroke-width="1.5" fill="none" stroke-dasharray="6 5"/>
+      <circle cx="130" cy="240" r="3" fill="#e8927c"/>
+    </svg>
+    <div class="bnode" style="left:36px; top:216px;"><span class="idx">A-00 · ROOT</span>이사 준비</div>
+    <div class="bnode" style="left:250px; top:66px;"><span class="idx">B-01</span>집 알아보기</div>
+    <div class="bnode" style="left:470px; top:38px;"><span class="idx">C-01</span>동네 후보 3</div>
+    <div class="bnode" style="left:470px; top:108px;"><span class="idx">C-02</span>대출 계산</div>
+    <div class="bnode" style="left:250px; top:216px;"><span class="idx">B-02</span>일정</div>
+    <div class="bnode hl" style="left:470px; top:192px;"><span class="idx">C-03 · D-30</span>10/26 계약</div>
+    <div class="bnode" style="left:470px; top:262px;"><span class="idx">C-04</span>11/09 입주</div>
+    <div class="bnode" style="left:250px; top:366px;"><span class="idx">B-03</span>버릴 것 목록</div>
+    <div class="bnode" style="left:460px; top:396px;"><span class="idx">C-05</span>중고 판매</div>
+  </div>
+
+  <div class="privacy-line">🔒 NO SERVER — 내용은 내 브라우저에만, 원할 때만 내 구글 드라이브에만 저장됩니다</div>
+</div>
+<a class="switch" href="landing.html" title="다른 디자인 보기">09/10 ↻</a>
+<script>
+/* 랜덤 랜딩 공통: 이번 디자인 번호를 기록해 "다른 디자인 ↻"가 같은 걸 다시 고르지 않게 하고,
+   폰(터치+짧은 변 600px 미만)이면 CTA가 무거운 앱 본체 대신 모바일 버전으로 가게 한다 */
+try {
+  sessionStorage.setItem('bb_landing_last', '09');
+  if (window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
+    document.querySelectorAll('a[href^="index.html?app"]').forEach(function(a) { a.href = 'mobile.html?app'; });
+} catch (e) {}
+</script>
+</body>
+</html>

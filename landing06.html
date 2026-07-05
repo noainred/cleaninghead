@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrainBloom — 새벽 타임라인</title>
+<meta name="description" content="설치도 가입도 없이 브라우저에서 바로 쓰는 개인용 마인드맵. 내용은 내 브라우저에만 저장됩니다." />
+<meta name="theme-color" content="#101a30" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 06 새벽 타임라인 — 생각에도 순서가 생깁니다 */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Plus Jakarta Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background: #101a30; -webkit-font-smoothing: antialiased; }
+  .stage { position: relative; width: 100%; height: 100vh; min-height: 760px; overflow: hidden; background: linear-gradient(180deg, #0d1526 0%, #15213a 42%, #3d3050 68%, #8c4a4e 88%, #d96b54 118%); }
+  .stage::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(200,180,255,0.07) 1px, transparent 1px); background-size: 26px 26px; pointer-events: none; }
+  .sun { position: absolute; left: 50%; top: 63%; transform: translate(-50%, -50%); width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, rgba(232,146,124,0.28) 0%, rgba(232,146,124,0.08) 45%, transparent 70%); pointer-events: none; }
+  .head { position: absolute; left: 0; right: 0; top: 14%; text-align: center; z-index: 3; padding: 0 16px; }
+  .brand-row { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+  .brand-logo { width: 30px; height: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+  .brand-mark { font-family: 'Fraunces', serif; font-weight: 900; font-size: 24px; letter-spacing: -0.02em; color: #e2e9f5; }
+  .brand-mark em { font-style: italic; font-weight: 400; color: #e8927c; }
+  h1 { font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 800; font-size: clamp(40px, 4.8vw, 62px); line-height: 1.25; letter-spacing: -0.01em; color: #eef3fb; word-break: keep-all; }
+  h1 em { font-style: italic; font-weight: 600; color: #e8927c; }
+  .sub { margin-top: 20px; font-size: 16.5px; line-height: 1.8; color: #b3a8c4; word-break: keep-all; text-wrap: pretty; }
+  .timeline { position: absolute; left: 8%; right: 8%; top: 58%; z-index: 3; }
+  .tl-line { position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,0.12), rgba(255,255,255,0.4), rgba(255,255,255,0.12)); }
+  .tl-item { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .tl-dot { width: 16px; height: 16px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.85); }
+  .tl-label { font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 700; font-size: 15px; color: #eef3fb; white-space: nowrap; }
+  .tl-cap { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.12em; color: #b3a8c4; white-space: nowrap; margin-top: -8px; }
+  .foot { position: absolute; left: 0; right: 0; top: 72%; text-align: center; z-index: 3; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: #fff; color: #8c3a2e; font-size: 17px; font-weight: 800; padding: 16px 36px; border-radius: 999px; text-decoration: none; box-shadow: 0 12px 40px rgba(255,255,255,0.25); transition: transform 0.2s; }
+  .cta:hover { transform: translateY(-2px); }
+  .micro { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #d8c2c4; letter-spacing: 0.1em; margin-top: 14px; }
+  .privacy-wrap { position: absolute; left: 0; right: 0; bottom: 26px; display: flex; justify-content: center; z-index: 4; padding: 0 16px; }
+  .privacy { display: inline-flex; align-items: center; gap: 9px; padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(16,22,38,0.5); backdrop-filter: blur(4px); }
+  .privacy .txt { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.04em; color: #e6d8d4; }
+  .switch { position: fixed; bottom: 16px; right: 16px; z-index: 9; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #cdd9ee; background: rgba(16,24,40,0.78); border: 1px solid rgba(255,255,255,0.18); padding: 6px 12px; border-radius: 999px; text-decoration: none; }
+  .switch:hover { background: rgba(30,45,76,0.95); }
+  @media (max-width: 900px) {
+    .tl-item.opt { display: none; }
+    .foot { top: 70%; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="sun"></div>
+
+  <div class="head">
+    <div class="brand-row">
+      <svg class="brand-logo" viewBox="0 0 96 96" role="img" aria-label="BrainBloom">
+        <defs><linearGradient id="bbFunnel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86ff"/><stop offset="1" stop-color="#00b4d8"/></linearGradient></defs>
+        <rect width="96" height="96" rx="22" fill="url(#bbFunnel)"/>
+        <circle cx="32" cy="22" r="3.5" fill="#ffd60a"/><circle cx="44" cy="17" r="3.5" fill="#ff5d8f"/><circle cx="56" cy="20" r="3.5" fill="#06d6a0"/><circle cx="64" cy="25" r="3" fill="#80ed99"/><circle cx="38" cy="27" r="3" fill="#ffb703"/>
+        <path d="M24 32h48l-15 22v8H39v-8z" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M48 68l2.5 7 7 .5-5.5 4.5 2 7-6-4-6 4 2-7-5.5-4.5 7-.5z" fill="#fff"/>
+      </svg>
+      <span class="brand-mark">Brain<em>Bloom</em></span>
+    </div>
+    <h1>어젯밤의 생각이,<br><em>내일의 일정이 됩니다.</em></h1>
+    <p class="sub">떠오른 생각을 붙잡아 가지로 잇고, 날짜를 달아 흐름 위에 올리세요.<br>마인드맵에서 시작해 타임라인으로 끝나는 하루.</p>
+  </div>
+
+  <div class="timeline" aria-hidden="true">
+    <div class="tl-line"></div>
+    <div class="tl-item" style="left:6%;"><span class="tl-dot" style="background:#3a6ea5;"></span><span class="tl-label">떠오른 생각</span><span class="tl-cap">SEED</span></div>
+    <div class="tl-item opt" style="left:28%;"><span class="tl-dot" style="background:#d9743f;"></span><span class="tl-label">마인드맵</span><span class="tl-cap">BLOOM</span></div>
+    <div class="tl-item" style="left:50%;"><span class="tl-dot" style="background:#2a8c7d;"></span><span class="tl-label">아웃라인</span><span class="tl-cap">SORT</span></div>
+    <div class="tl-item opt" style="left:72%;"><span class="tl-dot" style="background:#c08a2d;"></span><span class="tl-label">간트</span><span class="tl-cap">PLAN</span></div>
+    <div class="tl-item" style="left:94%;"><span class="tl-dot" style="background:#cc5e80;"></span><span class="tl-label">타임라인</span><span class="tl-cap">FLOW</span></div>
+  </div>
+
+  <div class="foot">
+    <a class="cta" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span>→</span></a>
+    <div class="micro">무료 · 설치 없음 · 가입 없음</div>
+  </div>
+
+  <div class="privacy-wrap">
+    <div class="privacy"><span style="font-size:12px;">🔒</span><span class="txt">NO SERVER — 내용은 내 브라우저에만 저장됩니다</span></div>
+  </div>
+</div>
+<a class="switch" href="landing.html" title="다른 디자인 보기">06/10 ↻</a>
+<script>
+/* 랜덤 랜딩 공통: 이번 디자인 번호를 기록해 "다른 디자인 ↻"가 같은 걸 다시 고르지 않게 하고,
+   폰(터치+짧은 변 600px 미만)이면 CTA가 무거운 앱 본체 대신 모바일 버전으로 가게 한다 */
+try {
+  sessionStorage.setItem('bb_landing_last', '06');
+  if (window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
+    document.querySelectorAll('a[href^="index.html?app"]').forEach(function(a) { a.href = 'mobile.html?app'; });
+} catch (e) {}
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrainBloom — 활판 포스터</title>
+<meta name="description" content="설치도 가입도 없이 브라우저에서 바로 쓰는 개인용 마인드맵. 내용은 내 브라우저에만 저장됩니다." />
+<meta name="theme-color" content="#f6f1e7" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 04 활판 포스터 — 타이포그래피가 주인공 */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Plus Jakarta Sans', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background: #f6f1e7; -webkit-font-smoothing: antialiased; color: #2b2724; }
+  .stage { position: relative; width: 100%; height: 100vh; min-height: 760px; overflow: hidden; background: radial-gradient(circle at 80% 15%, #f0e6d2 0%, transparent 40%), #f6f1e7; }
+  .stage::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(120,90,40,0.06) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none; }
+  .frame { position: absolute; inset: 22px; border: 1px solid #d8cdb4; pointer-events: none; }
+  .frame::after { content: ''; position: absolute; inset: 5px; border: 1px solid #d8cdb4; }
+  .stamp-tl { position: absolute; top: 46px; left: 52px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: #8a8175; }
+  .stamp-tr { position: absolute; top: 46px; right: 52px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: #8a8175; text-align: right; line-height: 1.8; }
+  .poster { position: absolute; left: 52px; top: 50%; transform: translateY(-52%); z-index: 3; max-width: calc(100vw - 104px); }
+  h1 { font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 900; font-size: clamp(64px, 9.6vw, 132px); line-height: 1.06; letter-spacing: -0.025em; word-break: keep-all; }
+  h1 .l2 { margin-left: 0.55em; display: inline-block; }
+  h1 em { font-style: italic; font-weight: 600; color: #d96b54; }
+  .sub { margin-top: 30px; font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-style: italic; font-size: clamp(16px, 1.6vw, 21px); color: #6b635a; letter-spacing: 0.01em; word-break: keep-all; }
+  .cta-row { display: flex; align-items: center; gap: 20px; margin-top: 40px; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: #2b2724; color: #f6f1e7; font-size: 17px; font-weight: 700; padding: 17px 36px; border-radius: 999px; text-decoration: none; box-shadow: 0 10px 28px rgba(43,39,36,0.25); transition: background 0.2s; }
+  .cta:hover { background: #d96b54; }
+  .micro { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8175; letter-spacing: 0.08em; line-height: 1.7; }
+  .chip { position: absolute; z-index: 2; color: #fff; padding: 7px 12px; border-radius: 12px; font-family: 'Fraunces', 'Nanum Myeongjo', serif; font-weight: 700; font-size: 13.5px; white-space: nowrap; box-shadow: 0 4px 14px rgba(43,39,36,0.18); animation: chipFloat 6s ease-in-out infinite; }
+  @keyframes chipFloat { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-8px) rotate(var(--r, 0deg)); } }
+  .chip::before { content: ''; position: absolute; left: 50%; top: 100%; width: 1px; height: 26px; background: #c9bda0; }
+  .footer { position: absolute; left: 0; right: 0; bottom: 44px; text-align: center; z-index: 3; }
+  .footer .line1 { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #6b635a; }
+  .footer .line2 { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: #8a8175; margin-top: 9px; }
+  .switch { position: fixed; bottom: 16px; right: 16px; z-index: 9; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #cdd9ee; background: rgba(16,24,40,0.78); border: 1px solid rgba(255,255,255,0.18); padding: 6px 12px; border-radius: 999px; text-decoration: none; }
+  .switch:hover { background: rgba(30,45,76,0.95); }
+  @media (max-width: 900px) { .chip { display: none; } .stamp-tr { display: none; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="frame"></div>
+  <div class="stamp-tl">BRAINBLOOM — PERSONAL MIND CANVAS</div>
+  <div class="stamp-tr">NO SERVER · NO SIGN-UP<br>WWW.REDMIR.NET</div>
+
+  <div class="chip" style="right:16%; top:22%; background:#d9743f; --r:-4deg;">제주</div>
+  <div class="chip" style="right:9%; top:38%; background:#2a8c7d; --r:3deg; animation-delay:0.7s;">회고 세션</div>
+  <div class="chip" style="right:20%; top:56%; background:#cc5e80; --r:-2deg; animation-delay:1.3s;">예산</div>
+  <div class="chip" style="right:7%; top:70%; background:#c08a2d; --r:5deg; animation-delay:0.4s;">굿즈</div>
+  <div class="chip" style="right:26%; top:78%; background:#4a7bc4; --r:-5deg; animation-delay:1.8s;">준비물</div>
+
+  <main class="poster">
+    <h1>생각은<br><span class="l2">적는 순간,</span><br><em>피어납니다.</em></h1>
+    <p class="sub">설치도 가입도 없이 — 브라우저에서 바로 쓰는 마인드맵.</p>
+    <div class="cta-row">
+      <a class="cta" href="index.html?app" onclick="try{localStorage.setItem('bb_visited','1')}catch(e){}">바로 사용하기 <span>→</span></a>
+      <span class="micro">무료 · 설치 없음 · 가입 없음</span>
+    </div>
+  </main>
+
+  <div class="footer">
+    <div class="line1">마인드맵 · 아웃라인 · 간트 · 타임라인 — 같은 생각, 네 가지 화면</div>
+    <div class="line2">🔒 NO SERVER — 내용은 내 브라우저에만, 원할 때만 내 구글 드라이브에만 저장됩니다</div>
+  </div>
+</div>
+<a class="switch" href="landing.html" title="다른 디자인 보기">04/10 ↻</a>
+<script>
+/* 랜덤 랜딩 공통: 이번 디자인 번호를 기록해 "다른 디자인 ↻"가 같은 걸 다시 고르지 않게 하고,
+   폰(터치+짧은 변 600px 미만)이면 CTA가 무거운 앱 본체 대신 모바일 버전으로 가게 한다 */
+try {
+  sessionStorage.setItem('bb_landing_last', '04');
+  if (window.matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600)
+    document.querySelectorAll('a[href^="index.html?app"]').forEach(function(a) { a.href = 'mobile.html?app'; });
+} catch (e) {}
+</script>
+</body>
+</html>
