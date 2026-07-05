@@ -77,7 +77,8 @@ nav button.on{color:var(--accent);}
 
 /* ── 아웃라인(편집) ── */
 #outlineView{overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 8px 90px;}
-.ol-row{display:flex; align-items:flex-start; gap:4px; border-radius:12px; padding:2px 4px;}
+.ol-row{display:flex; align-items:flex-start; gap:4px; border-radius:12px; padding:2px 4px;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;} /* 길게 누르기 메뉴용 — 브라우저 텍스트 선택/콜아웃 방지 */
 .ol-row.sel{background:var(--accent-soft);}
 .ol-fold{flex:0 0 34px; height:44px; display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--ink-soft);}
 .ol-dot{flex:0 0 12px; height:44px; display:flex; align-items:center;}
@@ -187,7 +188,7 @@ nav button.on{color:var(--accent);}
     <div class="view on" id="outlineView"></div>
     <div class="view" id="mapView">
       <svg id="mapSvg"></svg>
-      <div id="mapHint">한 손가락 이동 · 두 손가락 확대 · 노드 탭 = 선택</div>
+      <div id="mapHint">한 손가락 이동 · 두 손가락 확대 · 노드 꾹 누르면 메뉴</div>
     </div>
   </main>
 
@@ -439,7 +440,7 @@ function openSheet(html){ $('#sheet').innerHTML='<div class="grip"></div>'+html;
 function closeSheet(){ $('#sheet').classList.remove('on'); $('#sheetBack').classList.remove('on'); }
 $('#sheetBack').addEventListener('click',closeSheet);
 
-/* 노드 액션 시트 */
+/* 노드 액션 시트 — ⋯ 버튼 또는 노드 길게 누르기(아웃라인·맵)로 열림 */
 function openNodeSheet(id){
   const n=findNode(S.tree,id); if(!n) return;
   const isRoot=id===S.tree.id;
@@ -447,8 +448,9 @@ function openNodeSheet(id){
     '<h3>'+esc((n.label||'').trim()||'(이름 없음)')+'</h3>'+
     '<div class="color-grid">'+Object.keys(COLORS).map(k=>'<button data-color="'+k+'" class="'+(n.color===k?'on':'')+'" style="background:'+COLORS[k]+'"></button>').join('')+'</div>'+
     '<div class="sh-sep"></div>'+
-    '<button class="sh-item" data-a="child"><span class="ic">🌿</span>하위 가지 추가</button>'+
-    (!isRoot?'<button class="sh-item" data-a="sibling"><span class="ic">🌱</span>아래에 형제 추가</button>':'')+
+    (!isRoot?'<button class="sh-item" data-a="sibling"><span class="ic">➕</span>추가 — 같은 레벨</button>':'')+
+    '<button class="sh-item" data-a="child"><span class="ic">🌿</span>추가 — 하위 레벨</button>'+
+    '<button class="sh-item" data-a="rename"><span class="ic">✏️</span>이름 바꾸기</button>'+
     (!isRoot?'<button class="sh-item" data-a="indent"><span class="ic">⤵️</span>들여쓰기 (하위로)</button>':'')+
     (!isRoot?'<button class="sh-item" data-a="outdent"><span class="ic">⤴️</span>내어쓰기 (상위로)</button>':'')+
     (!isRoot?'<button class="sh-item" data-a="up"><span class="ic">🔼</span>위로 이동</button>':'')+
@@ -457,16 +459,47 @@ function openNodeSheet(id){
     (!isRoot?'<div class="sh-sep"></div><button class="sh-item danger" data-a="del"><span class="ic">🗑</span>삭제</button>':'')
   );
   $('#sheet').onclick=(e)=>{
-    const cb=e.target.closest('[data-color]'); if(cb){ const k=cb.dataset.color; walk(n,x=>x.color=k); scheduleSave(); renderOutline(); closeSheet(); return; }
+    const cb=e.target.closest('[data-color]'); if(cb){ const k=cb.dataset.color; walk(n,x=>x.color=k); scheduleSave(); renderOutline(); if(S.tab==='map') renderMap(); closeSheet(); return; }
     const a=e.target.closest('[data-a]')?.dataset.a; if(!a) return;
     closeSheet();
+    // 구조를 만들거나 이름을 바꾸는 동작은 편집(아웃라인) 화면에서 이어가는 게 자연스러움
+    if((a==='child'||a==='sibling'||a==='rename')&&S.tab==='map') switchTab('outline');
     if(a==='child') addChild(id); else if(a==='sibling') addSibling(id);
+    else if(a==='rename'){ S.selectedId=id; S.editingId=id; renderOutline(); }
     else if(a==='indent') indentNode(id); else if(a==='outdent') outdentNode(id);
     else if(a==='up') moveNode(id,-1); else if(a==='down') moveNode(id,1);
     else if(a==='done'){ n.done=!n.done; scheduleSave(); renderOutline(); }
     else if(a==='del') deleteNode(id);
+    if(S.tab==='map') renderMap(); // 맵 화면에서 실행한 이동/완료/삭제도 즉시 반영
   };
 }
+
+/* ═══════════ 길게 누르기(long-press) → 노드 메뉴 ═══════════ */
+function bindLongPress(el, resolveId){
+  let timer=null, sx=0, sy=0, fired=false;
+  el.addEventListener('pointerdown',(e)=>{
+    const id=resolveId(e); if(!id) return;
+    if(e.target.closest('.ol-edit')) return; // 라벨 편집 중엔 기본 텍스트 선택 동작 유지
+    sx=e.clientX; sy=e.clientY; fired=false;
+    clearTimeout(timer);
+    timer=setTimeout(()=>{
+      timer=null; fired=true;
+      try{ navigator.vibrate && navigator.vibrate(12); }catch(_){}
+      S.selectedId=id;
+      if(S.tab==='map') renderMap(); else renderOutline();
+      openNodeSheet(id);
+    },500);
+  });
+  const cancel=()=>{ clearTimeout(timer); timer=null; };
+  el.addEventListener('pointermove',(e)=>{ if(timer&&(Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)) cancel(); }); // 스크롤/팬 시작이면 취소
+  el.addEventListener('pointerup',cancel);
+  el.addEventListener('pointercancel',cancel);
+  // 길게 누르기가 발동한 직후 따라오는 click은 무시(행 선택/편집 토글 방지)
+  el.addEventListener('click',(e)=>{ if(fired){ fired=false; e.stopPropagation(); e.preventDefault(); } },true);
+  el.addEventListener('contextmenu',(e)=>e.preventDefault()); // 브라우저 기본 컨텍스트 메뉴 방지
+}
+bindLongPress($('#outlineView'), (e)=>e.target.closest('.ol-row')?.dataset.id);
+bindLongPress($('#mapView'), (e)=>e.target.closest('.map-node')?.dataset.id);
 
 /* ═══════════ 문서 시트 ═══════════ */
 function fmtWhen(ts){ if(!ts) return ''; const d=new Date(ts); return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }

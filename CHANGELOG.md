@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.89.0] - 2026-07-05
+
+### Added
+- **📱 모바일: 길게 누르기(long-press) 노드 메뉴** — 아웃라인 행이나 맵 노드를 **0.5초 꾹 누르면** 진동(지원 기기)과 함께 액션 시트가 뜬다: **➕ 추가 — 같은 레벨 · 🌿 추가 — 하위 레벨 · ✏️ 이름 바꾸기(신규) · 들여쓰기/내어쓰기 · 위/아래 이동 · ✅ 완료 · 14색 · 🗑 삭제**. 맵에서 추가/이름 바꾸기를 고르면 편집 화면으로 자연 전환, 맵에서 실행한 변경(이동·완료·삭제·색)은 맵에 즉시 반영.
+
+### Technical Notes
+- `bindLongPress(el, resolveId)` 공용 헬퍼 — pointerdown 500ms 타이머, 10px 이동(스크롤·팬 시작)/pointerup/cancel 시 취소, 발동 직후 따라오는 click은 캡처 단계에서 무시(행 선택/편집 토글 방지), `contextmenu` 기본 동작 차단. `.ol-row`에 `user-select:none`·`-webkit-touch-callout:none`로 브라우저 텍스트 선택/콜아웃 억제(편집 textarea는 예외). 아웃라인·맵 뷰에 동일 바인딩.
+- 변경 파일: `mobile.html`, `index.html`(버전·RECENT_CHANGES), `seahyun/brainstorm_v3.89.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.88.0] - 2026-07-05
 
 ### Added
