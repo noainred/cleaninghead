@@ -13,6 +13,25 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.88.0] - 2026-07-05
+
+### Added
+- **📱 모바일 전용 버전(`mobile.html`)** — 폰(터치 + 짧은 변 600px 미만)으로 접속하면 자동으로 열리는 터치 퍼스트 경량 앱. 데스크톱 앱은 터치 이벤트가 없어 폰에서 사실상 조작 불가였던 문제 해결.
+  - **편집(아웃라인)**: 행 탭=선택→재탭=인라인 편집, ▸접기/펼치기, `⋯` 액션 시트(하위/형제 추가·들여쓰기·내어쓰기·위/아래 이동·완료 표시·삭제·14색 팔레트), ＋ FAB, 44px+ 터치 타깃.
+  - **맵(보기)**: SVG 렌더(우측 트리 레이아웃), 한 손가락 팬 · 두 손가락 핀치줌, 노드 탭=선택. 첫 진입 시 화면 맞춤.
+  - **문서**: 목록(고정↑·최신순)·전환·새 문서·이름변경·삭제(마지막 보호).
+  - **☁ 드라이브**: 연결(GIS 팝업), `⬆ 현재 문서 저장`(새 버전 업로드 → 이전 파일 Backup 이동 → 계열별 5개 정리 — 데스크톱 v3.86.1 규칙 동일), `⬇ 불러오기 목록`(메인+Backup 병합, `백업`/`최신` 배지, 탭=새 문서로 가져오기).
+  - 다크모드(`prefers-color-scheme`), safe-area 대응, 화면 이탈 시 자동 저장(visibilitychange/pagehide).
+- **모바일 자동 안내** — `index.html` 최상단 스크립트가 폰이면 `mobile.html`로 안내(쿼리 유지). `?desktop`(또는 모바일 메뉴 "데스크톱 버전으로 보기")으로 `bb_force_desktop`을 기록하면 이후 계속 데스크톱. 랜딩 CTA도 폰이면 `mobile.html?app`으로 직행(무거운 앱 본체 다운로드 생략).
+
+### Technical Notes
+- **프레임워크 없는 바닐라 JS 단일 파일(~700줄)** — 모바일 로딩 속도를 위해 React/Babel Standalone(수 MB 컴파일) 미사용.
+- **데스크톱과 저장 규칙 완전 공유**: 같은 IndexedDB(`brainbloom`/`kv`)의 `docMeta`·`doc:<id>`·`lastWork`(미러) 사용, 항목 필드(`tags/memo/folderId/pinned` 등)는 `...d` 전개로 보존, `treeToText`(빈 라벨 `(이름 없음)` 자리표시자)·`serializeTree`(_필드 제거)·`normalizeDocItem`·통계(`nodeCount/branches`) 규칙 동일. 새 노드 id는 `m` 접두(데스크톱 `n<seed>`와 충돌 불가). 드라이브도 동일 상수(클라이언트 ID·`drive.file`·`BrainBloom`/`Backup` 폴더·`날짜_리조트_NN.json`·`bb_drive_tok` 세션 토큰)라 데스크톱↔모바일이 같은 폴더를 안전하게 공유(기기별 리조트 접두어로 계열 분리).
+- 태블릿(짧은 변 ≥600px)은 데스크톱 UI 유지. 검증: mobile.html `node --check` 문법·태그 균형, index.html Babel 컴파일 통과.
+- 변경 파일: `index.html`, `mobile.html`(신규), `landing.html`, `seahyun/brainstorm_v3.88.0.html`(스냅샷), `CHANGELOG.md`, `README.md`.
+
+---
+
 ## [3.87.0] - 2026-06-29
 
 ### Added
