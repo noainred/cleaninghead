@@ -1,0 +1,11259 @@
+const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = React;
+
+/* ============================================================
+   ★ 버전 정보
+   ──────────────────────────────────────────────
+   ⚠️ 새 버전 릴리즈 시 ↓ 두 줄을 함께 업데이트
+   1) APP_VERSION
+   2) CHANGELOG.md 최상단의 [x.y.z] 헤더
+   ──────────────────────────────────────────────
+   변경 규칙 (SemVer):
+   - 메이저(X.0.0): 기존 데이터/UI에 영향 주는 큰 변경
+   - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
+   - 패치(x.y.Z): 버그 수정, 미세 조정
+   ============================================================ */
+const APP_VERSION = '3.91.3';
+const APP_BUILD_DATE = '2026-06-29';
+
+// 'a.b.c' 형식 버전 비교 — a가 b보다 높으면 true (업그레이드 판정용. 다운그레이드/동일은 false)
+function isNewerVersion(a, b) {
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return false;
+}
+
+// ───────── 구글 드라이브 연동 ─────────
+// OAuth 클라이언트 ID (브라우저 노출 OK, 시크릿 아님). 구글 클라우드 콘솔에서 발급.
+const GOOGLE_CLIENT_ID = '775516377969-o87en42sib8h2ubvo0t68kdb05j3s7l3.apps.googleusercontent.com';
+// drive.file = 이 앱이 만든/연 파일만 접근(가장 안전한 범위, 민감 검수 불필요)
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+// 드라이브에 만들 앱 전용 폴더 이름 (이 폴더 안에 날짜별 파일을 저장)
+const DRIVE_FOLDER_NAME = 'BrainBloom';
+
+/* ============================================================
+   ★ 변경 이력 (CHANGELOG)
+   - 최근 2개 버전만 앱에 내장. 그 이전은 전체 변경 이력 링크로 안내.
+   - 새 버전 낼 때마다 맨 앞에 추가하고, 가장 오래된 항목 1개 제거(2개 유지).
+   - CHANGELOG_URL: 전체 이력 링크 (배포 후 실제 주소로 교체)
+   ============================================================ */
+const CHANGELOG_URL = 'https://www.redmir.net/CHANGELOG.md';
+const RECENT_CHANGES = [
+  { version: '3.91.3', date: '2026-07-05', groups: [{ label: '수정', items: ['앱과 모바일 버전도 주소창에 도메인(www.redmir.net)만 보이도록 다듬었어요 — index.html?app, mobile.html 같은 파일명·꼬리표가 더는 안 나옵니다.'] }] },
+  { version: '3.91.2', date: '2026-07-05', groups: [{ label: '수정', items: ['소개 페이지가 떠 있을 때 주소창에 도메인(www.redmir.net)만 보이도록 다듬었어요 — landing.html 같은 파일명이 아예 안 나옵니다.'] }] },
+  { version: '3.91.1', date: '2026-07-05', groups: [{ label: '수정', items: ['소개 페이지의 주소창이 깔끔해졌어요 — 어떤 디자인이 떠도 주소에 landing07.html 같은 파일명이 남지 않고 landing.html로만 보입니다.'] }] },
+  { version: '3.91.0', date: '2026-07-05', groups: [{ label: '추가', items: ['첫 방문 소개 페이지가 10가지 디자인으로 늘었어요 — 접속할 때마다 밤의 캔버스·여백의 정원·열린 스튜디오·활판 포스터·텍스트 에디터·새벽 타임라인·간트 리듬·피어나는 정원·생각의 설계도·첫 한 줄 중 하나가 랜덤으로 나와요. 오른쪽 아래 "N/10 ↻" 버튼을 누르면 방금 본 것을 빼고 다른 디자인으로 바꿔 보여줍니다.'] }] },
+  { version: '3.90.0', date: '2026-07-05', groups: [{ label: '추가', items: ['📱 모바일: 맵 화면에서 바로 노드를 추가할 수 있어요 — 맵에도 ＋ 버튼이 생겼고, 노드를 꾹 눌러 "추가"를 고르면 화면 전환 없이 하단 입력 칸이 떠서 이름을 바로 적어요(이름 바꾸기도 동일). 이름 없이 확인하거나 ✕를 누르면 깔끔하게 취소됩니다.'] }] },
+  { version: '3.89.0', date: '2026-07-05', groups: [{ label: '추가', items: ['📱 모바일: 노드를 꾹 길게 누르면 메뉴가 떠요 — 추가(같은 레벨/하위 레벨), 이름 바꾸기, 이동, 완료, 색, 삭제를 바로 할 수 있어요. 편집 목록과 맵 화면 어디서나 되고, 눌리는 순간 짧은 진동으로 알려줘요.'] }] },
+  { version: '3.88.0', date: '2026-07-05', groups: [{ label: '추가', items: ['📱 모바일 전용 버전이 생겼어요 — 휴대폰으로 접속하면 터치에 맞춘 가벼운 화면(mobile.html)이 자동으로 열려요. 아웃라인 편집(추가·이동·들여쓰기·색·완료), 맵 보기(두 손가락 확대·이동), 문서 전환, ☁ 드라이브 저장·불러오기를 지원하고, 데스크톱과 같은 저장소·드라이브 폴더를 씁니다. 메뉴의 "데스크톱 버전으로 보기"(또는 주소에 ?desktop)로 언제든 전체 기능 화면으로 바꿀 수 있어요.'] }] },
+  { version: '3.87.0', date: '2026-06-29', groups: [{ label: '추가', items: ['처음 방문하는 분에게 소개 랜딩 페이지를 보여드려요 — 밤하늘 별자리처럼 이어지는 마인드맵 데모와 함께 "바로 사용하기"로 시작할 수 있어요. 이미 쓰고 계신 분(이 브라우저에 기록이 있는 분)은 지금처럼 곧장 앱이 열립니다. 주소에 ?app을 붙이면 언제든 랜딩 없이 바로 앱으로 와요.'] }] },
+  { version: '3.86.8', date: '2026-06-29', groups: [{ label: '개선', items: ['내부 최적화 — 큰 마인드맵에서 클릭·드래그·검색 때마다 반복되던 불필요한 전체 훑기를 없애 반응이 가벼워졌어요. 안 쓰는 옛 코드도 정리했고, 노드 겹침 자동복구가 문서를 바꿔도 문서마다 새로 동작하도록 손봤어요.'] }] },
+  { version: '3.86.7', date: '2026-06-29', groups: [{ label: '수정', items: ['이름이 빈 노드가 텍스트 패널을 거치면 사라지고 자식이 위로 붙던 문제를 고쳤어요 — 이제 (이름 없음)으로 표시되어 안전하게 오가요. 같은 이름의 형제 노드가 여러 개일 때 텍스트 편집 후 색·메모·아이콘·관계선이 서로 뒤바뀌던 문제와, 노드 너비 조절이 텍스트 편집 후 풀리던 문제도 고쳤어요.'] }] },
+  { version: '3.86.6', date: '2026-06-29', groups: [{ label: '수정', items: ['텍스트 패널로 편집한 걸 실행 취소(Ctrl+Z)하면 맵만 되돌아가고 텍스트는 그대로여서 두 패널이 어긋나던 문제를 고쳤어요 — 이제 함께 되돌아가요. Tab/Enter로 만든 새 노드를 Esc로 취소하면 실제로 사라지도록 고쳤어요(자동 추천 단어가 붙은 뒤로 취소가 동작하지 않았어요).'] }] },
+  { version: '3.86.5', date: '2026-06-29', groups: [{ label: '수정', items: ['가지를 접어 둔 채 SVG/PDF/JPG로 내보내면 파일이 깨지거나(크기 계산 오류) 접어 숨긴 노드까지 그려지던 문제를 고쳤어요 — 이제 내보내기도 화면과 똑같이 보이는 노드만 담아요. CSV 내보내기에 수식 주입 보호를 넣었고, 드라이브 자동저장이 드문 타이밍에 중복 실행되거나 확인 중을 이상 없음으로 오인하던 문제도 고쳤어요.'] }] },
+  { version: '3.86.4', date: '2026-06-29', groups: [{ label: '수정', items: ['중요한 데이터 보호 수정 — 아침의 "어제 작업 이어서?" 창에서 \'새로 시작\'을 누르거나(또는 설정이 \'자동 새 파일\'일 때), 기존 문서를 덮어쓰지 않고 새 문서로 깨끗하게 시작해요. 어제 작업은 문서 관리자에 그대로 남습니다. 문서 이름 변경과 자동저장이 겹칠 때 드물게 직전 편집이 사라질 수 있던 문제도 고쳤어요.'] }] },
+  { version: '3.86.3', date: '2026-06-29', groups: [{ label: '수정', items: ['코드 점검으로 찾은 자잘한 버그들을 고쳤어요 — ① 드라이브 "저장본 비교"·색상 변경 확인 같은 창이 떠 있을 때 Delete/Tab 같은 키가 뒤 화면의 노드를 건드리던 문제 ② 다른 문서 이름을 빈칸으로 지우면 실제 제목 대신 "제목 없는 문서"로 보이던 문제 ③ 문서를 바꾼 뒤 몰입 모드로 다시 들어가면 화면이 통째로 흐려지던 문제 ④ 문서 전환 순간의 드문 자동저장 타이밍 보정.'] }] },
+  { version: '3.86.2', date: '2026-06-29', groups: [{ label: '변경', items: ['문서 관리자의 ☁ Google Drive 목록이 기본적으로 최신본만 보여줘요 — 백업(이전 버전)이 많아 지저분하던 걸 정리했어요. 툴바의 "🗂 백업 보기"를 켜면 Backup 폴더의 이전 버전까지 함께 볼 수 있어요.'] }] },
+  { version: '3.86.1', date: '2026-06-29', groups: [{ label: '수정', items: ['드라이브 정리(이전 버전을 Backup 폴더로 이동)가 다른 브라우저/세션에서 저장한 파일은 안 옮기던 문제를 고쳤어요 — 이제 저장 폴더의 이전 파일을 모두 Backup으로 옮겨 메인엔 최신 1개만 둡니다. (저장하면 자동 정리. 백업 정리는 "같은 이름 계열별로" 보관 개수만큼 남겨 서로 다른 날짜·작업본 이력은 보존)'] }] },
+  { version: '3.86.0', date: '2026-06-16', groups: [
+    { label: '변경', items: [
+      '구글 드라이브 저장 방식이 깔끔해졌어요 — 저장 폴더엔 항상 가장 최신 1개만 두고, 이전 버전들은 그 안의 "Backup" 폴더로 자동으로 옮겨요. (보관 개수를 넘으면 오래된 백업부터 정리)',
+      '불러올 때는 저장 폴더와 Backup 폴더를 합쳐 같은 이름은 최신만, 최신순으로 보여줘요 — 예전 버전도 골라 되살릴 수 있어요(관리자에선 "백업" 배지로 구분).',
+    ] },
+  ] },
+  { version: '3.85.0', date: '2026-06-16', groups: [
+    { label: '추가', items: [
+      '문서 관리자의 ☁ Google Drive 목록을 정렬할 수 있어요 — 최신순·오래된순·이름순·크기순.',
+      '문서마다 태그와 메모를 달 수 있어요 — 카드의 🏷 버튼을 누르고 태그(Enter로 추가)와 메모를 적으세요. 카드에 #태그로 보이고, 태그를 누르면 그 태그로 바로 검색돼요. 검색창은 이름뿐 아니라 태그·메모까지 찾아줍니다. (문서와 함께 저장돼 새로고침 후에도 남아요)',
+    ] },
+  ] },
+  { version: '3.84.0', date: '2026-06-16', groups: [
+    { label: '추가', items: [
+      '문서 관리자에서 구글 드라이브에 저장한 마인드맵을 바로 읽어올 수 있어요 — 왼쪽 맨 아래 "☁ Google Drive"를 누르면 드라이브 저장본이 카드로 떠요. 워드·파워포인트의 "열기"처럼 카드를 클릭하면 미리보기(노드 수·중심 주제·내용 일부), 더블클릭하면 바로 열려요.',
+      '"📂 열기"는 가져와서 바로 편집, "📥 가져오기"는 새 문서로만 추가해요(둘 다 지금 문서를 덮지 않아요). 연결돼 있지 않으면 그 자리에서 연결할 수 있고, 🔄 새로고침·이름 검색도 됩니다.',
+    ] },
+  ] },
+  { version: '3.83.0', date: '2026-06-16', groups: [
+    { label: '추가', items: [
+      '문서를 제대로 관리하는 "문서 관리자"가 생겼어요 — 상단 📄 문서 버튼을 누르면 열려요. 왼쪽에서 폴더로 정리하고(전체·★즐겨찾기·미분류·내 폴더), 오른쪽에서 카드로 한눈에 봐요. 각 카드엔 상위 가지·노드 수·수정 날짜가 미리보기로 떠요.',
+      '검색(이름·가지)·정렬(최근/생성일/이름), 문서 복제(⧉), ★즐겨찾기 고정(상단 모음), 폴더 만들기·이동, 그리고 JSON 백업을 현재 문서를 덮지 않고 "새 문서"로 가져오기(📥)까지 — 일반 브레인스토밍 툴처럼 여러 문서를 자유롭게 다룰 수 있어요.',
+    ] },
+  ] },
+  { version: '3.82.2', date: '2026-06-15', groups: [{ label: '추가', items: ['마인드맵 화면에서 노드를 고른 뒤 Shift+←로 하위를 접고, Shift+→로 다시 펼칠 수 있어요(접힌 노드엔 숨은 자식 개수 배지가 보여요). 평범한 ←/→는 노드 사이 이동 그대로예요.'] }] },
+  { version: '3.82.1', date: '2026-06-11', groups: [{ label: '변경', items: ['내보내기(PDF·JPG·SVG·CSV·MD·JSON) 파일 이름이 이제 문서 이름으로 시작해요 — 예: "회사 프로젝트_2026-06-11T14-30-45.json". 여러 문서를 내보내도 파일명만 보면 어떤 문서인지 바로 알 수 있어요. (문서 이름을 쓸 수 없으면 설정의 파일명 접두사 사용 · 구글 드라이브 자동저장 파일명은 기존 규칙 그대로)'] }] },
+  { version: '3.82.0', date: '2026-06-11', groups: [
+    { label: '추가', items: [
+      '여러 문서를 따로 만들고 오갈 수 있어요 — 상단 "📄 문서" 버튼을 누르면 문서 목록이 열려요. "＋ 새 문서"로 새 마인드맵을 시작하고, 목록에서 골라 바로 전환할 수 있어요. 각 문서는 따로 저장되고, 새로고침해도 마지막에 열어둔 문서가 그대로 다시 열려요.',
+      '문서 이름은 맨 위(루트) 노드 제목을 따라 자동으로 붙고, ✎ 버튼으로 직접 바꿀 수 있어요. 🗑 버튼으로 지울 수도 있어요(마지막 한 개는 보호돼요). 기존에 작업하던 내용은 자동으로 "문서 1"이 되어 그대로 남아요.',
+    ] },
+  ] },
+  { version: '3.81.2', date: '2026-06-10', groups: [{ label: '변경', items: ['Tab·Enter로 새 노드를 만들 때 자동으로 채워지는 영감 단어를 앞뒤 ★와 함께 기울임꼴로 표시해요. 한 글자라도 직접 입력하면 표시가 사라져 일반 노드가 돼요 — 엔터를 연달아 눌러도 \'내가 쓴 노드\'와 \'아직 자동 단어 그대로인 노드\'를 한눈에 구분할 수 있어요. (새로고침하거나 다시 열어도 이 구분 표시가 유지돼요)'] }] },
+  { version: '3.81.0', date: '2026-06-09', groups: [
+    { label: '추가', items: [
+      '간트 차트·타임라인 뷰가 생겼어요 — 헤더의 📊 간트 / 🕒 타임라인 버튼(또는 G·T 키, 우클릭 메뉴)으로 전환해요. 노드 일정을 막대로 한눈에 보고, 막대를 끌어 일정을 옮기거나 우측 끝을 끌어 기간을 조절할 수 있어요. 빨간 선=오늘, 점선 화살표=관계선(의존성).',
+      '우측 패널에 “일정” 칸이 생겼어요 — 시작일·종료일을 넣으면 간트/타임라인에 막대로 나타나고, “마일스톤”을 켜면 ◆ 점으로 표시돼요. 부모 노드는 하위 일정을 합친 요약 막대로, 진행률(하위 완료)은 막대 채움으로 보여줘요.',
+    ] },
+  ] },
+  { version: '3.80.27', date: '2026-06-08', groups: [{ label: '변경', items: ['모양을 지정한 노드에서 Tab(자식)·Enter(형제)로 새 노드를 만들면, 새 노드도 같은 모양으로 만들어져요 — 가지마다 모양을 다시 고를 필요 없이 통일됩니다.'] }] },
+  { version: '3.80.26', date: '2026-06-08', groups: [{ label: '수정', items: ['노드 모양(둥근·각짐·알약·타원)을 골라도 바뀌지 않던 문제를 고쳤어요. 모양이 실제로 보이는 노드 본체에 적용되도록 수정해, 이제 선택·편집 강조 테두리도 고른 모양을 따라가요.'] }] },
+  { version: '3.80.25', date: '2026-06-08', groups: [{ label: '추가', items: ['Ctrl(⌘)을 누른 채 노드를 다른 노드 위로 끌어다 놓으면, 그 노드와 모든 하위 노드를 한꺼번에 복제해 대상의 자식으로 붙여 넣어요. 원본은 그대로 남아요. (드래그 중 커서에 + 표시 · Ctrl+Z로 되돌리기)'] }] },
+  { version: '3.80.24', date: '2026-06-06', groups: [{ label: '변경', items: ['위·아래로 가까이 있는 경계(그룹) 박스끼리 겹쳐 보이던 걸 줄였어요 — 박스의 세로 여백을 가로보다 작게 잡아, 인접한 다른 그룹의 점선과 떨어지게 했어요.'] }] },
+  { version: '3.80.23', date: '2026-06-06', groups: [{ label: '변경', items: ['경계(그룹) 점선 박스가 겹쳐 보이던 걸 더 줄였어요 — 박스 안에 박스가 들어갈 때 안쪽 여백을 크게 줄여 두 점선이 충분히 떨어지고, 바깥 여백도 살짝 줄여 옆 그룹과 덜 겹쳐요.'] }] },
+  { version: '3.80.22', date: '2026-06-06', groups: [
+    { label: '변경', items: [
+      '보안 강화 — About 화면(외부 안내 페이지)을 sandbox로 감싸 혹시 모를 스크립트 실행을 막았어요.',
+      '아웃라인에서 ↑/↓로 빠르게 이동할 때 내부 계산을 캐시해 조금 더 가볍게 동작해요.',
+    ] }] },
+  { version: '3.80.21', date: '2026-06-06', groups: [{ label: '변경', items: ['보안 강화 — 노드 라벨의 링크를 열 때 http·https·mailto만 허용하도록 한 번 더 검증해, 혹시 모를 위험한 링크(javascript: 등)를 막았어요. (심층 방어)'] }] },
+  { version: '3.80.20', date: '2026-06-06', groups: [
+    { label: '추가', items: ['노드 우측 가장자리를 좌우로 끌어 노드 폭을 직접 조절할 수 있어요(노드에 마우스를 올리면 오른쪽에 핸들이 보여요). 핸들을 더블클릭하면 글자에 맞는 자동 폭으로 돌아가요. 폭은 저장됩니다.'] },
+    { label: '변경', items: ['경계(그룹) 점선 박스가 서로 겹쳐 보이던 걸 줄였어요 — 박스가 중첩될수록 안쪽 여백을 단계적으로 줄이고, 선·채움을 더 연하게 했어요.'] },
+  ] },
+  { version: '3.80.19', date: '2026-06-06', groups: [{ label: '수정', items: ['노드를 편집할 때 글자가 길어져도 노드 폭이 더 이상 가로로 늘어나지 않아, 옆/자식 노드와 겹치지 않아요. 긴 글은 입력칸 안에서 좌우로 스크롤됩니다. (편집 중 노드 폭 고정)'] }] },
+  { version: '3.80.18', date: '2026-06-06', groups: [{ label: '수정', items: ['노드를 편집할 때 글자가 길어지면 옆 노드에 가려지던 문제를 고쳤어요. 이제 편집 중인 노드가 항상 맨 위에 또렷하게 보입니다.'] }] },
+  { version: '3.80.17', date: '2026-06-06', groups: [{ label: '변경', items: ['설정 → 화면 탭에서 "배경 점 패턴 표시"와 "미니멀 상단바"를 자주 쓰기 좋게 위쪽(좌측 패널 표시 위)으로 옮겼어요.'] }] },
+  { version: '3.80.16', date: '2026-06-06', groups: [{ label: '변경', items: ['설정 메뉴를 6개 종류(정보 · 화면 · 타이머 · 작업/콘텐츠 · 저장/드라이브 · 연동) 탭으로 정리했어요. 위쪽 탭을 눌러 원하는 종류만 볼 수 있어, 길게 스크롤하지 않아도 돼요. (기능·설정값은 그대로예요)'] }] },
+  { version: '3.80.15', date: '2026-06-06', groups: [{ label: '추가', items: ['키보드 + / − 키로 화면을 확대·축소할 수 있어요. (마인드맵 화면에서, 입력·편집 중이 아닐 때)'] }] },
+  { version: '3.80.14', date: '2026-06-06', groups: [{ label: '추가', items: ['드라이브에 더 최신 작업본이 있을 때, 두 맵을 좌우로 펼쳐(아웃라인) 노드 차이를 색으로 비교하는 화면이 생겼어요 — 🟢새로 생김 · 🔴이쪽에만 · 🟡변경됨. 비교 후 [현재 유지·무시 / 드라이브 것 불러오기 / 둘 합치기(Merge) / Google Drive 저장 파일 삭제] 중에서 고를 수 있어요. (선택 전엔 아무것도 바뀌지 않아요)'] }] },
+  { version: '3.80.13', date: '2026-06-06', groups: [{ label: '변경', items: ['노드를 잇는 관계선이 노드에서 항상 같은 간격으로 끝나게 다듬었어요. 노드를 선택하면 생기는 강조 링 두께만큼 자동으로 더 띄워서, 선택한 노드와 안 한 노드의 관계선 여백이 들쭉날쭉하던 문제를 없앴어요.'] }] },
+  { version: '3.80.12', date: '2026-06-06', groups: [
+    { label: '추가', items: ['아웃라인에서 항목을 선택하고 → 키를 누르면 펼쳐져요(이미 펼쳐져 있으면 첫 자식으로 이동). ← 키는 접기(접혀 있으면 부모로 이동)예요. ↑/↓ 이동과 함께 키보드만으로 트리를 빠르게 다닐 수 있어요.'] },
+    { label: '변경', items: [
+      '구글 드라이브 자동저장이 켜져 있을 때 헤더 "설정" 글자 색을, 눈에 튀던 진한 파랑에서 테마와 어울리는 차분한 소프트블루로 바꾸고 굵기도 낮춰 집중을 방해하지 않게 했어요.',
+      '저장 안내 같은 하단 알림(토스트)이 화면 아래쪽의 아이콘·태그 모아보기 바와 겹치지 않도록, 바가 있으면 그 위로 올려 보여줘요.',
+    ] },
+  ] },
+  { version: '3.80.11', date: '2026-06-06', groups: [{ label: '변경', items: ['아웃라인에서 F(또는 버튼·메뉴)로 마인드맵 화면으로 돌아갈 때, 아웃라인에서 선택해 둔 노드를 화면 중앙에 보여주고 배율도 아웃라인에 들어가기 전 그대로 복원해요.'] }] },
+  { version: '3.80.10', date: '2026-06-06', groups: [
+    { label: '수정', items: ['아웃라인에서 항목을 입력하고 Enter를 치면 이제 입력이 끝나요(편집 종료). 예전엔 Enter가 새 항목을 만들어 계속 입력 상태가 됐어요. 새 항목은 + 버튼이나 Tab(자식 추가)으로 만들면 돼요.'] },
+    { label: '변경', items: ['마우스 우클릭 메뉴에서 "아웃라인으로 보기"를 맨 아래로 옮기고, 위 메뉴와 구분선으로 나눴어요.'] },
+  ] },
+  { version: '3.80.9', date: '2026-06-06', groups: [{ label: '변경', items: ['아웃라인에서 계층을 깊이(뎁스)별로 다른 색의 중첩 박스로 감싸 보여줘요. 한 가지가 어디서 시작해 어디서 끝나는지 한눈에 들어와 가시성과 집중력이 좋아져요. 선택한 항목이 속한 최상위 그룹 박스는 살짝 더 또렷하게 표시돼요.'] }] },
+  { version: '3.80.8', date: '2026-06-06', groups: [
+    { label: '추가', items: [
+      '아웃라인에서 ↑/↓ 화살표로 보이는 목록을 차례대로 이동해요. 선택한 항목이 속한 그룹(최상위 가지) 전체를 그 가지 색의 옅은 파스텔로 묶어 보여줘요.',
+      '그룹의 끝/처음에서 화살표를 누르면 "현재 그룹의 마지막(첫) 노드입니다" 안내가 뜨고, 빠르게 두 번 누르면 다음/이전 그룹으로 넘어가요. 안내는 "다음부터 보지 않기"로 끌 수 있어요.',
+    ] },
+  ] },
+  { version: '3.80.7', date: '2026-06-06', groups: [
+    { label: '수정', items: ['아웃라인에서 Enter(형제)·Tab(자식)·더블클릭으로 항목을 추가/편집할 때, 새 항목이 곧바로 편집 상태가 되도록 고쳤어요. (가려진 마인드맵 화면이 입력 포커스를 가로채던 문제였어요.)'] },
+    { label: '추가', items: ['키보드 F로 마인드맵 ↔ 아웃라인 화면을 바로 전환할 수 있어요.', '마인드맵에서 마우스 우클릭 메뉴에 "아웃라인으로 보기"를 넣었어요.'] },
+  ] },
+  { version: '3.80.6', date: '2026-06-06', groups: [{ label: '변경', items: ['설정에서 "미니멀 상단바"를 켜면 상단 버튼이 글자 없이 아이콘만 보이게 했어요 — 더 깔끔하고 좁아져요. 버튼 이름은 마우스를 올리면 툴팁으로 확인할 수 있어요.'] }] },
+  { version: '3.80.5', date: '2026-06-06', groups: [{ label: '변경', items: ['헤더의 아웃라인/지도 전환 버튼 아이콘을 캘린더·AI 요약처럼 컬러풀하게 다시 그렸어요 — 아웃라인은 색색의 글머리 점이 있는 목록, 지도는 색 가지가 뻗는 미니 마인드맵 모양이에요.'] }] },
+  { version: '3.80.4', date: '2026-06-06', groups: [{ label: '변경', items: ['아웃라인에서 항목을 입력하고 Enter를 치면, 바로 아래에 새 항목이 만들어지고 곧장 편집 상태가 돼요(연속 입력). Tab은 자식 항목을 만들어 편집해요. 빈 줄에서 Enter를 치면 연속 입력이 끝나요.'] }] },
+  { version: '3.80.3', date: '2026-06-06', groups: [
+    { label: '추가', items: ['아웃라인(목록) 화면이 생겼어요. 헤더의 🗂 버튼으로 마인드맵 ↔ 아웃라인을 오갈 수 있어요. 들여쓰기 목록으로 접고/펼치고, 할 일 체크박스를 누르고, 더블클릭(또는 F2)으로 이름을 바로 고칠 수 있어요. 긴 문서를 위에서 아래로 죽 훑어볼 때 편해요.'] },
+    { label: '변경', items: ['노드의 하위 할 일 진행률(예: 0/1) 배지를 이름 아래 줄로 내려, 이름이 길어도 글자가 잘리지 않게 했어요.'] },
+  ] },
+  { version: '3.80.2', date: '2026-06-06', groups: [{ label: '추가', items: ['설정 → 화면 표시에서 "노드 간격"을 촘촘·보통·넓게로 고를 수 있어요. 큰 지도를 빽빽하게 모아 보거나, 여유 있게 펼쳐 볼 수 있어요.'] }] },
+  { version: '3.80.1', date: '2026-06-06', groups: [{ label: '추가', items: ['노드 모양을 고를 수 있어요 — 둥근·각짐·알약·타원. 우측 패널 "모양"에서 노드마다 다르게 지정해 한눈에 구분할 수 있어요.'] }] },
+  { version: '3.80.0', date: '2026-06-06', groups: [{ label: '추가', items: ['노드를 "할 일(체크박스)"로 만들 수 있어요. 우측 패널 "할 일"에서 켜고, 지도의 ☑를 눌러 완료 처리해요. 하위에 할 일이 있는 노드는 완료 개수(예: 2/4)를 자동으로 보여줘요.'] }] },
+  { version: '3.79.13', date: '2026-06-05', groups: [{ label: '변경', items: ['변경 이력의 "더 읽기"를 한 번에 50개씩 보여주도록 바꾸고, 이전 버전 기록도 더 많이 담았어요.'] }] },
+  { version: '3.79.12', date: '2026-06-05', groups: [{ label: '변경', items: ['업데이트 안내 팝업에서 "전체 변경 이력 보기"를 누르면, 외부 페이지 대신 앱 안의 변경 이력 화면이 바로 열려요.'] }] },
+  { version: '3.79.11', date: '2026-06-05', groups: [{ label: '수정', items: ['설정을 누르면 화면이 통째로 비어버리던 문제를 고쳤어요. (설정 안 드라이브 상태 표시에서 난 오류 — 이제 정상으로 열려요.)'] }] },
+  { version: '3.79.10', date: '2026-06-05', groups: [{ label: '수정', items: ['화면을 그리다 오류가 나도 전체가 빈 화면이 되지 않게, 오류 안내와 새로고침 버튼을 보여주는 안전장치를 넣었어요.'] }] },
+  { version: '3.79.9', date: '2026-06-05', groups: [{ label: '변경', items: ['사이트 아이콘을 더 크고 또렷하게 다듬고, 브라우저 탭·홈 화면 추가·앱 등록에 쓰이는 여러 크기(파비콘·Apple 터치·PWA 매니페스트)로 갖췄어요.'] }] },
+  { version: '3.79.8', date: '2026-06-05', groups: [{ label: '추가', items: ['노드마다 "만든 시각"과 "마지막으로 바꾼 시각"을 자동으로 기록해, 노드를 고르면 우측 패널 "기록"에서 볼 수 있어요. 언제 떠올린 아이디어인지 확인할 때 좋아요. (자동 기록이라 임의로 바꿀 수 없어요.)'] }] },
+  { version: '3.79.7', date: '2026-06-05', groups: [{ label: '변경', items: ['휴대폰·태블릿에서도 한 손가락으로 화면을 끌어 이동하고, 두 손가락을 오므렸다 펴서 확대/축소할 수 있어요. 관계선의 점도 손가락으로 옮길 수 있어요.'] }] },
+  { version: '3.79.6', date: '2026-06-05', groups: [{ label: '변경', items: ['변경 이력 창에서 최근 내용을 10개씩 보여주고, "더 읽기"를 누르면 이전 버전을 10개씩 이어서 볼 수 있어요.'] }] },
+  { version: '3.79.5', date: '2026-06-05', groups: [{ label: '변경', items: ['접근성을 개선했어요 — 키보드(Tab·Enter)만으로도 첫 화면 선택이 가능하고, Tab으로 이동할 때 지금 어디에 포커스가 있는지 또렷하게 보여요.'] }] },
+  { version: '3.79.4', date: '2026-06-05', groups: [{ label: '변경', items: ['노드를 빠르게 연속으로 추가·이동·편집할 때 드물게 변경이 누락될 수 있던 가능성을 없앴어요. (내부 안정성 개선)'] }] },
+  { version: '3.79.3', date: '2026-06-05', groups: [{ label: '변경', items: ['큰 지도에서 화면이 더 부드럽게 동작하도록 그리기를 최적화했어요.', '새로고침 직후 가끔 불필요한 자동저장·"다른 기기 최신본" 알림이 뜨던 것을 줄였어요.'] }] },
+  { version: '3.79.2', date: '2026-06-05', groups: [{ label: '변경', items: ['타이머가 켜져 있어도 화면이 더 가볍게 동작해요.', 'PDF 내보내기를 처음 쓸 때만 불러와 첫 로딩이 조금 더 빨라졌어요.'] }] },
+  { version: '3.79.1', date: '2026-06-05', groups: [{ label: '수정', items: ['About 메뉴를 누르면 파일이 다운로드되던 문제를 고쳤어요.'] }] },
+  { version: '3.79.0', date: '2026-06-05', groups: [{ label: '추가', items: ["설정에 'About' 메뉴가 생겼어요 — 공지사항과 개발자의 말을 확인할 수 있어요."] }] },
+  { version: '3.78.8', date: '2026-06-05', groups: [{ label: '변경', items: ['같은 탭에서 새로고침하면 구글 드라이브 로그인 창이 더는 안 떠요.'] }] },
+  { version: '3.78.7', date: '2026-06-05', groups: [{ label: '변경', items: ['새로고침마다 잠깐 깜빡이던 구글 로그인 창을, 처음 작업을 시작할 때 딱 한 번만 뜨도록 바꿨어요.'] }] },
+  { version: '3.78.6', date: '2026-06-05', groups: [{ label: '수정', items: ['접은 가지가 있는 지도를 새로고침할 때 가끔 노드가 한곳에 겹치던 문제의 근본 원인을 고쳤어요.'] }] },
+  { version: '3.78.5', date: '2026-06-05', groups: [{ label: '수정', items: ['새로고침해도 보던 배율과 스크롤 위치가 그대로 유지돼요.'] }] },
+  { version: '3.78.4', date: '2026-06-05', groups: [{ label: '변경', items: ['접은 가지·펼친 가지 상태까지 기억해 새로고침해도 그대로 복원해요.', '구글 드라이브를 연결하면 자동저장이 기본으로 켜져요.'] }] },
+  { version: '3.78.3', date: '2026-06-05', groups: [{ label: '변경', items: ['새로고침하면 보던 배율 그대로, 마지막에 선택했던 노드를 화면 중앙에 맞춰 보여줘요.'] }] },
+  { version: '3.78.2', date: '2026-06-05', groups: [{ label: '수정', items: ['정상적인 맵이 새로고침 때 멋대로 전체 펼쳐지던 오판을 고쳤어요.'] }] },
+  { version: '3.78.0', date: '2026-06-05', groups: [{ label: '추가', items: ['새로고침해도 줌·스크롤 위치를 유지하는 기능을 처음 넣었어요.'] }] },
+  { version: '3.77.4', date: '2026-06-05', groups: [{ label: '수정', items: ['노드가 겹쳐 보일 때 자동으로 모두 펼쳐 화면을 정상화하는 응급 복구를 넣었어요.'] }] },
+  { version: '3.77.0', date: '2026-06-05', groups: [{ label: '추가', items: ['노드를 선택하지 않았을 때, 우측 패널에 영감을 주는 격언을 보여줘요.'] }] },
+  { version: '3.76.2', date: '2026-06-04', groups: [{ label: '수정', items: ['새로고침할 때 가끔 노드가 한곳에 겹쳐 보이던 문제를 고쳤어요.'] }] },
+  { version: '3.76.1', date: '2026-06-04', groups: [{ label: '추가', items: ['왼쪽 패널 아래에도 "패널 닫기" 버튼을 넣었어요.'] }] },
+  { version: '3.76.0', date: '2026-06-04', groups: [{ label: '추가', items: ['관계선을 우클릭하면 점선/실선·두께 등 옵션 메뉴가 떠요.'] }] },
+  { version: '3.75.2', date: '2026-06-04', groups: [{ label: '수정', items: ['선택한 관계선이 노드에 가려 점이 안 보이던 문제를 고쳤어요(맨 위로 떠오름).'] }] },
+  { version: '3.75.1', date: '2026-06-04', groups: [{ label: '수정', items: ['관계선의 곡선 점을 좌클릭으로 끌어 옮길 수 있게 했어요.'] }] },
+  { version: '3.75.0', date: '2026-06-04', groups: [{ label: '변경', items: ['관계선 곡선을 점 3개로 더 자유롭게 구부릴 수 있어요.'] }] },
+  { version: '3.74.0', date: '2026-06-04', groups: [{ label: '추가', items: ['떨어져 있는 여러 노드를 자유롭게 하나로 묶는 "그룹" 기능을 추가했어요.'] }] },
+  { version: '3.73.0', date: '2026-06-04', groups: [{ label: '변경', items: ['관계선이 많아도 더 가볍게 그려지도록 최적화했어요.'] }] },
+  { version: '3.72.2', date: '2026-06-04', groups: [{ label: '변경', items: ['쓰지 않는 코드를 정리해 용량을 줄였어요.'] }] },
+  { version: '3.72.1', date: '2026-06-04', groups: [{ label: '수정', items: ['맥북 트랙패드로 화면을 움직일 때 배율 바가 안 보이던 문제를 고쳤어요.'] }] },
+  { version: '3.72.0', date: '2026-06-04', groups: [{ label: '추가', items: ['관계선을 곡선·직선·직각 중에서 고를 수 있어요.'] }] },
+  { version: '3.71.1', date: '2026-06-04', groups: [{ label: '변경', items: ['하단 모아보기 바의 문구를 정리했어요.'] }] },
+  { version: '3.71.0', date: '2026-06-04', groups: [{ label: '추가', items: ['관계선을 곡선으로 그리고 끌어서 모양을 조절할 수 있어요.'] }] },
+  { version: '3.70.4', date: '2026-06-04', groups: [{ label: '변경', items: ['하단 모아보기 바를 화면 정중앙(브라우저 기준)에 고정했어요.'] }] },
+  { version: '3.70.2', date: '2026-06-04', groups: [{ label: '변경', items: ['하단의 태그·아이콘 모아보기를 한 줄로 나란히 배치했어요.'] }] },
+  { version: '3.70.0', date: '2026-06-04', groups: [{ label: '추가', items: ['화면 하단에 지도에 쓰인 아이콘을 모아 보는 바를 추가했어요.'] }] },
+  { version: '3.69.1', date: '2026-06-04', groups: [{ label: '추가', items: ['숨은 깜짝 연출(이스터에그)을 넣었어요.'] }] },
+  { version: '3.69.0', date: '2026-06-04', groups: [{ label: '추가', items: ['노드 아이콘(이모지) 기능을 되살리고, 설정에서 원하는 아이콘을 고를 수 있게 했어요.'] }] },
+  { version: '3.68.0', date: '2026-06-04', groups: [{ label: '추가', items: ['한 노드와 그 하위 전체를 둥근 박스로 감싸는 "경계" 기능을 추가했어요.'] }] },
+  { version: '3.67.1', date: '2026-06-04', groups: [{ label: '변경', items: ['화면을 끌어 움직이는 동안에도 배율 버튼이 보이도록 했어요.'] }] },
+  { version: '3.67.0', date: '2026-06-04', groups: [{ label: '추가', items: ['노드에 긴 메모(노트)를 달 수 있어요. 지도에는 📝 표시만 나와요.'] }] },
+  { version: '3.66.0', date: '2026-06-04', groups: [{ label: '추가', items: ['부모-자식이 아닌 두 노드를 화살표로 잇는 "관계선"을 추가했어요.'] }] },
+  { version: '3.65.0', date: '2026-06-04', groups: [{ label: '추가', items: ['노드에 태그를 달고, 태그로 걸러 볼 수 있어요.'] }] },
+  { version: '3.64.2', date: '2026-06-04', groups: [{ label: '수정', items: ['버전을 올린 뒤 첫 접속에 지도가 가운데 뭉쳐 보이던 문제를 고쳤어요.'] }] },
+  { version: '3.64.0', date: '2026-06-04', groups: [{ label: '변경', items: ['자식이 있는 노드 색을 바꿀 때 "하위 전체 / 이 노드만"을 물어봐요.'] }] },
+  { version: '3.63.2', date: '2026-06-04', groups: [{ label: '변경', items: ['우측 패널을 더 깔끔하게 정리했어요(헤더 제거).'] }] },
+  { version: '3.63.1', date: '2026-06-04', groups: [{ label: '변경', items: ['빈 바탕을 클릭하면 우측 패널이 닫혀요(설정으로 고정해 둔 경우는 유지).'] }] },
+  { version: '3.63.0', date: '2026-06-04', groups: [{ label: '추가', items: ['노드를 우클릭하면 "노드 세부 정보" 메뉴가 떠요.'] }] },
+];
+
+/* ============================================================
+   ★ 개발자 모듈: 텍스트 파서 (들여쓰기 기반 단순 파서)
+   - 들여쓰기로 계층 표현
+   - "AA-A" 같은 하이픈 표기도 지원 (들여쓰기 없을 때만)
+   ============================================================ */
+function parseInput(text) {
+  const rawLines = text.split('\n');
+  const lines = rawLines.filter(l => l.trim());
+  if (!lines.length) return null;
+
+  const hasIndent = lines.some(l => /^\s+/.test(l));
+  let idCounter = 0;
+  const newId = () => `n${++idCounter}`;
+
+  if (hasIndent) {
+    // 들여쓰기 파싱: 첫 번째 들여쓰기 안 된 라인이 루트
+    const stack = [];
+    let root = null;
+
+    for (const line of lines) {
+      const indent = line.match(/^(\s*)/)[0].length;
+      const trimmed = line.trim();
+      const label = trimmed === '(이름 없음)' ? '' : trimmed; // treeToText/Markdown의 빈 라벨 자리표시자 복원
+      const node = { id: newId(), label, children: [], meta: {}, color: null };
+
+      if (!root) {
+        root = node;
+        stack.push({ indent, node });
+        continue;
+      }
+      while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+      if (stack.length === 0) {
+        // 들여쓰기 없는 줄이 또 나옴 → 첫 줄(root)의 자식으로 붙임
+        // (가상 루트 'Brainstorm' 만드는 대신 첫 줄을 진짜 루트로 유지)
+        root.children.push(node);
+        stack.length = 0;
+        stack.push({ indent: -1, node: root });
+        stack.push({ indent, node });
+      } else {
+        stack[stack.length - 1].node.children.push(node);
+        stack.push({ indent, node });
+      }
+    }
+    return root;
+  }
+
+  // 하이픈 기반 파싱
+  // 단일 루트가 자연스럽게 나오지 않을 수 있어, 첫 prefix를 루트로 사용
+  // (예: "AA-A", "AA-B"가 들어오면 "AA"가 자연스러운 루트가 됨)
+  // 만약 prefix가 다 다르면 (예: "AA-A", "BB-A") → 첫 prefix의 노드가 루트가 되고
+  //   다른 prefix들은 그 자식으로 붙음
+  const tree = { id: newId(), label: '', children: [], meta: {}, color: 'navy' };
+  const map = new Map();
+
+  for (const line of lines) {
+    const label = line.trim();
+    const parts = label.split('-');
+    let parent = tree;
+    let pathKey = '';
+    for (let i = 0; i < parts.length; i++) {
+      pathKey = pathKey ? pathKey + '-' + parts[i] : parts[i];
+      let node = map.get(pathKey);
+      if (!node) {
+        node = { id: newId(), label: pathKey, children: [], meta: {}, color: null };
+        map.set(pathKey, node);
+        parent.children.push(node);
+      }
+      parent = node;
+    }
+  }
+
+  if (tree.children.length === 1) {
+    const root = tree.children[0];
+    root.color = 'navy';
+    return root;
+  }
+  // 여러 prefix가 있는 경우: 첫 번째 prefix의 노드를 루트로 승격하고
+  // 나머지를 그 자식으로 붙임 (빈 가상 루트 안 보이게)
+  if (tree.children.length > 1) {
+    const root = tree.children[0];
+    root.color = 'navy';
+    for (let i = 1; i < tree.children.length; i++) {
+      root.children.push(tree.children[i]);
+    }
+    return root;
+  }
+  return tree;
+}
+
+/* ============================================================
+   ★ 캘린더/마크다운 복원 — BrainBloom이 내보낸 마크다운을 다시 트리로
+   - 캘린더 일정 설명에 들어간 텍스트를 좌측 패널에 붙여넣으면 복원되도록
+   - treeToMarkdown의 출력 형식을 역으로 파싱:
+       # 루트   /   ## 1뎁스   /   (들여쓰기 0/2/4…)- 2뎁스 이하
+   - 메타 꼬리표(—  📅 날짜 · ⚡ 노력 · 💰 비용), 아이콘 접두사 분리
+   - '---' 이후 통계/생성 줄은 무시
+   ============================================================ */
+// 이 텍스트가 BrainBloom 마크다운 형식인지 판별
+function looksLikeBrainBloomMarkdown(text) {
+  if (!text) return false;
+  const lines = text.split('\n');
+  let hasH1 = false, hasH2orBullet = false;
+  for (const raw of lines) {
+    const l = raw.trim();
+    if (l.startsWith('# ')) hasH1 = true;
+    else if (l.startsWith('## ') || /^-\s/.test(l)) hasH2orBullet = true;
+    // '생성: ... / BrainBloom' 서명이 있으면 거의 확실
+    if (l.includes('/ BrainBloom')) return true;
+  }
+  return hasH1 && hasH2orBullet;
+}
+
+// 라벨에서 아이콘 접두사와 메타 꼬리표를 분리
+function splitLabelMeta(rawLabel) {
+  let label = rawLabel;
+  const meta = {};
+
+  // 메타 꼬리표 분리: "—  📅 2026-05-31 · ⚡ 3 · 💰 5"
+  // 구분자 '—' (em dash) 기준으로 뒤쪽을 메타로 해석
+  const dashIdx = label.indexOf('—');
+  if (dashIdx >= 0) {
+    const metaPart = label.slice(dashIdx + 1).trim();
+    // 메타가 실제 메타 패턴(📅/⚡/💰)을 포함할 때만 분리 (본문에 — 가 있을 수 있으니)
+    if (/[📅⚡💰]/.test(metaPart)) {
+      label = label.slice(0, dashIdx).trim();
+      metaPart.split('·').forEach(seg => {
+        const s = seg.trim();
+        if (s.startsWith('📅')) meta.date = s.replace('📅', '').trim();
+        else if (s.startsWith('⚡')) {
+          const n = parseFloat(s.replace('⚡', '').trim());
+          if (!isNaN(n)) meta.effort = n;
+        } else if (s.startsWith('💰')) {
+          const n = parseFloat(s.replace('💰', '').trim());
+          if (!isNaN(n)) meta.cost = n;
+        }
+      });
+    }
+  }
+
+  // 아이콘 접두사 분리: 선행 이모지들(공백 구분). 흔한 마인드맵 아이콘만 보수적으로 인식.
+  const icons = [];
+  const ICON_SET = ['⭐','🔥','✅','❗','❓','💡','📌','🎯','⚠️','❤️','👍','🚀','🏁','🔑','📝'];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const ic of ICON_SET) {
+      if (label.startsWith(ic + ' ')) {
+        icons.push(ic);
+        label = label.slice(ic.length).trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  // '(이름 없음)'은 빈 라벨로 환원
+  if (label === '(이름 없음)') label = '';
+  return { label, meta, icons };
+}
+
+// BrainBloom 마크다운 → 트리. 실패하면 null 반환(호출측에서 기본 파서로 폴백).
+function parseBrainBloomMarkdown(text) {
+  const rawLines = text.split('\n');
+  let idCounter = 0;
+  const newId = () => `m${++idCounter}`;
+
+  let root = null;
+  // 스택: 각 원소 { depth, node } — depth는 0(루트)/1(##)/2+(불릿 들여쓰기 기준)
+  const stack = [];
+
+  for (const raw of rawLines) {
+    const line = raw.replace(/\s+$/,''); // 우측 공백만 제거(들여쓰기 보존)
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    // '---' 이후(통계/생성)는 복원 대상 아님 → 만나면 종료
+    if (trimmed === '---') break;
+    // 통계/생성 줄 방어
+    if (trimmed.startsWith('📊') || trimmed.startsWith('생성:')) continue;
+
+    let depth, rawLabel;
+    if (trimmed.startsWith('# ')) {
+      depth = 0;
+      rawLabel = trimmed.slice(2);
+    } else if (trimmed.startsWith('## ')) {
+      depth = 1;
+      rawLabel = trimmed.slice(3);
+    } else {
+      // 불릿: "- 라벨", 앞 들여쓰기 2칸당 깊이 1 증가 (treeToMarkdown 기준 2뎁스부터 들여쓰기 0)
+      const m = line.match(/^(\s*)-\s+(.*)$/);
+      if (!m) continue; // 인식 불가한 줄은 건너뜀
+      const indent = m[1].length;
+      depth = 2 + Math.floor(indent / 2); // 들여쓰기 0 → depth 2
+      rawLabel = m[2];
+    }
+
+    const { label, meta, icons } = splitLabelMeta(rawLabel);
+    const node = { id: newId(), label, children: [], meta, color: null };
+    if (icons.length) node.icons = icons;
+
+    if (depth === 0) {
+      // 루트. 이미 있으면 새 루트는 무시(첫 # 만 루트)
+      if (!root) { root = node; node.color = 'navy'; stack.length = 0; stack.push({ depth: 0, node }); }
+      continue;
+    }
+    if (!root) {
+      // # 없이 ##/불릿이 먼저 나온 비정상 케이스 → 가상 루트 생성
+      root = { id: newId(), label: '', children: [], meta: {}, color: 'navy' };
+      stack.length = 0; stack.push({ depth: 0, node: root });
+    }
+    // 현재 depth보다 같거나 깊은 스택을 정리
+    while (stack.length && stack[stack.length - 1].depth >= depth) stack.pop();
+    const parent = stack.length ? stack[stack.length - 1].node : root;
+    parent.children.push(node);
+    stack.push({ depth, node });
+  }
+
+  return root;
+}
+
+/* ============================================================
+   ★ 개발자 모듈: 트리 → 텍스트 직렬화 (양방향 동기화)
+   - 들여쓰기로 계층을 표현 (2 스페이스 = 한 단계)
+   ============================================================ */
+function treeToText(root) {
+  if (!root) return '';
+  const lines = [];
+  function visit(node, depth) {
+    // 빈 라벨은 공백-만 있는 줄이 되어 parseInput의 빈 줄 필터에서 사라진다(노드 소실+자식 승격).
+    // treeToMarkdown과 같은 자리표시자를 써서 왕복을 보존한다(parseInput이 되돌림).
+    const lbl = (node.label || '').trim() ? node.label : '(이름 없음)';
+    lines.push('  '.repeat(depth) + lbl);
+    if (node.children) node.children.forEach(c => visit(c, depth + 1));
+  }
+  visit(root, 0);
+  return lines.join('\n');
+}
+
+/* ============================================================
+   ★ 디자이너 모듈: 색상 팔레트
+   ============================================================ */
+const COLORS = {
+  navy:   { bg: '#3a6ea5', name: 'Navy' },     // 차분한 소프트블루
+  orange: { bg: '#d9743f', name: 'Orange' },   // 테라코타
+  amber:  { bg: '#c08a2d', name: 'Amber' },     // 머스터드 앰버
+  teal:   { bg: '#2a8c7d', name: 'Teal' },      // 차분한 틸
+  blue:   { bg: '#4a7bc4', name: 'Blue' },      // 소프트 블루
+  rose:   { bg: '#cc5e80', name: 'Rose' },      // 다스티 로즈
+  moss:   { bg: '#6f8f3e', name: 'Moss' },      // 세이지 모스
+  slate:  { bg: '#647396', name: 'Slate' },     // 슬레이트
+  plum:   { bg: '#8268ac', name: 'Plum' },      // 다스티 바이올렛
+  rust:   { bg: '#c0613f', name: 'Rust' },      // 러스트
+  forest: { bg: '#3d8a72', name: 'Forest' },    // 포레스트
+  charcoal:{bg: '#4e5a6e', name: 'Charcoal' },  // 차콜블루
+  gold:   { bg: '#b3893a', name: 'Gold' },      // 골드
+  coral:  { bg: '#d96b54', name: 'Coral' },     // 다스티 코랄
+};
+const COLOR_KEYS = Object.keys(COLORS);
+const PALETTE_ORDER = ['orange', 'amber', 'teal', 'blue', 'rose', 'moss', 'plum'];
+
+/* ============================================================
+   ★ 노드 라벨 폰트 옵션 — 설정에서 선택
+   - value: 실제 CSS font-family 문자열 (시스템 폰트는 폴백 체인 포함)
+   - id: 설정 저장용 키 (value가 길어 별도 id로 관리)
+   - 시스템 폰트 스택은 OS별 기본 한글/영문 폰트를 자동으로 따라감 (Claude 화면 느낌)
+   ============================================================ */
+const SYSTEM_FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', Roboto, sans-serif";
+const NODE_FONT_OPTIONS = [
+  { id: 'system',  label: '시스템 기본',   sample: '가나다 AaBb', value: SYSTEM_FONT_STACK },
+  { id: 'fraunces', label: '기본 스타일',  sample: '가나다 AaBb', value: "'Fraunces', serif" },
+  { id: 'malgun',  label: '맑은 고딕',     sample: '가나다 AaBb', value: "'Malgun Gothic', '맑은 고딕', sans-serif" },
+  { id: 'nanum',   label: '나눔고딕',      sample: '가나다 AaBb', value: "'NanumGothic', '나눔고딕', sans-serif" },
+  { id: 'gulim',   label: '굴림',          sample: '가나다 AaBb', value: "'Gulim', '굴림', sans-serif" },
+  { id: 'batang',  label: '바탕',          sample: '가나다 AaBb', value: "'Batang', '바탕', serif" },
+];
+// id로 폰트 value 찾기 (custom이면 사용자 입력값 사용)
+function resolveNodeFont(fontId, customFont) {
+  if (fontId === 'custom') {
+    const f = (typeof customFont === 'string' && customFont.trim()) ? customFont.trim() : '';
+    return f ? `'${f.replace(/['"]/g, '')}', sans-serif` : SYSTEM_FONT_STACK;
+  }
+  const opt = NODE_FONT_OPTIONS.find(o => o.id === fontId);
+  return opt ? opt.value : SYSTEM_FONT_STACK;
+}
+
+/* ============================================================
+   ★ 아이콘 팔레트 (이모지) — 카테고리별 정리
+   ============================================================ */
+const ICON_CATEGORIES = [
+  {
+    name: '우선순위',
+    icons: ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'],
+  },
+  {
+    name: '상태',
+    icons: ['✅', '☑️', '⬜', '🔲', '⏳', '🚧', '✔️', '❌'],
+  },
+  {
+    name: '중요도',
+    icons: ['⭐', '🔥', '❗', '‼️', '🔝', '⏫', '🔺'],
+  },
+  {
+    name: '감정/반응',
+    icons: ['👍', '👎', '💡', '🎯', '❤️', '🤔', '🎉', '👀'],
+  },
+  {
+    name: '분류',
+    icons: ['📌', '🏷️', '📁', '📝', '📊', '💰', '📅', '🔗'],
+  },
+  {
+    name: '기호',
+    icons: ['🟢', '🟡', '🔴', '🔵', '🟣', '🟠', '⚫', '⚪'],
+  },
+  {
+    name: '활동',
+    icons: ['🚀', '⚙️', '🛠️', '🔍', '📞', '✉️', '🏠', '🍽️'],
+  },
+];
+
+// 아이콘 → 카테고리 인덱스 매핑 (카테고리당 1개 제한 / 정렬에 사용)
+const ICON_CAT_INDEX = (() => {
+  const map = new Map();
+  ICON_CATEGORIES.forEach((cat, ci) => {
+    cat.icons.forEach(ic => map.set(ic, ci));
+  });
+  return map;
+})();
+function iconCategoryOf(icon) {
+  return ICON_CAT_INDEX.has(icon) ? ICON_CAT_INDEX.get(icon) : -1;
+}
+// 아이콘 배열을 카테고리 순서 + 카테고리 내 순서대로 정렬
+function sortIconsByCategory(icons) {
+  const order = (ic) => {
+    const ci = iconCategoryOf(ic);
+    if (ci < 0) return [999, 999];
+    const idx = ICON_CATEGORIES[ci].icons.indexOf(ic);
+    return [ci, idx];
+  };
+  return [...icons].sort((a, b) => {
+    const [ca, ia] = order(a);
+    const [cb, ib] = order(b);
+    return ca - cb || ia - ib;
+  });
+}
+
+function assignDefaultColors(node, depth = 0, branchIdx = 0) {
+  if (depth === 0 && !node.color) node.color = 'navy';
+  if (node.children) {
+    node.children.forEach((c, i) => {
+      if (!c.color) {
+        if (depth === 0) c.color = PALETTE_ORDER[i % PALETTE_ORDER.length];
+        else c.color = node.color;
+      }
+      assignDefaultColors(c, depth + 1, i);
+    });
+  }
+}
+
+/* ============================================================
+   ★ 레이아웃
+   ============================================================ */
+const BASE_H_SPACING = 80;   // 기준 가로 간격(부모-자식). 레이아웃 간격 설정에서 곱해짐
+const BASE_V_SPACING = 22;   // 기준 세로 간격(형제 사이)
+const NODE_H = 44;          // 노드 기본(최소) 높이 (패딩 축소 반영)
+const NODE_W = 200;         // 노드 기본 너비 (하위 호환용 상수)
+const NODE_MIN_W = 120;     // 최소 너비 (좌우 패딩 축소 반영)
+const NODE_MAX_W = 320;     // 최대 너비 (자동 계산 시 이보다 길면 줄바꿈)
+const NODE_RESIZE_MAX = 720; // 사용자가 드래그로 넓힐 수 있는 최대 폭
+const NODE_PAD_X = 22;      // 좌우 패딩 합 (11 * 2)
+const LABEL_FONT = 15;      // 라벨 폰트 크기(px) — 루트는 더 큼
+const ROOT_LABEL_FONT = 19;
+const LINE_HEIGHT = 22;     // 라벨 줄 높이
+
+// 글자 폭 대략 추정 (한글/전각은 넓고, 영문/숫자/공백은 좁음)
+function estimateTextWidth(text, fontSize) {
+  let units = 0;
+  for (const ch of String(text)) {
+    const code = ch.codePointAt(0);
+    // 한글/한자/전각 등 CJK 범위는 폭 ~1.0em, 그 외는 ~0.55em
+    if (
+      (code >= 0xAC00 && code <= 0xD7A3) || // 한글
+      (code >= 0x3000 && code <= 0x9FFF) || // CJK 기호/한자
+      (code >= 0xF900 && code <= 0xFAFF) || // CJK 호환
+      (code >= 0xFF00 && code <= 0xFFEF)    // 전각
+    ) {
+      units += 1.0;
+    } else {
+      units += 0.55;
+    }
+  }
+  return units * fontSize;
+}
+
+// 라벨을 노드 폭에 맞게 여러 줄로 나눔 (단어/글자 단위)
+// 반환: 줄 배열
+function wrapLabel(text, maxTextWidth, fontSize) {
+  const words = String(text || '').split(/(\s+)/); // 공백도 토큰으로 보존
+  const lines = [];
+  let line = '';
+  const widthOf = (s) => estimateTextWidth(s, fontSize);
+
+  for (const token of words) {
+    const candidate = line + token;
+    if (widthOf(candidate) <= maxTextWidth || line === '') {
+      // 한 단어가 너무 길면 글자 단위로 쪼갬
+      if (line === '' && widthOf(token) > maxTextWidth) {
+        let chunk = '';
+        for (const ch of token) {
+          if (widthOf(chunk + ch) > maxTextWidth && chunk !== '') {
+            lines.push(chunk);
+            chunk = ch;
+          } else {
+            chunk += ch;
+          }
+        }
+        line = chunk;
+      } else {
+        line = candidate;
+      }
+    } else {
+      lines.push(line.trimEnd());
+      line = token.trimStart();
+    }
+  }
+  if (line.trim() !== '' || lines.length === 0) lines.push(line.trimEnd());
+  return lines.filter((l, i) => !(l === '' && i > 0));
+}
+
+// 노드의 라벨 폰트 크기 (루트면 큼)
+function labelFontOf(node, isRoot) {
+  return isRoot ? ROOT_LABEL_FONT : LABEL_FONT;
+}
+
+// 노드 너비 계산 (라벨 길이에 따라 가변)
+function nodeWidth(node, isRoot = false) {
+  // 사용자가 드래그로 지정한 폭(node.w)이 있으면 우선 (NODE_MIN_W~NODE_RESIZE_MAX로 제한)
+  if (typeof node.w === 'number' && node.w > 0) {
+    return Math.max(NODE_MIN_W, Math.min(NODE_RESIZE_MAX, Math.round(node.w)));
+  }
+  const font = labelFontOf(node, isRoot);
+  const textW = estimateTextWidth(node.label || '', font);
+  const desired = textW + NODE_PAD_X;
+  return Math.max(NODE_MIN_W, Math.min(NODE_MAX_W, Math.ceil(desired)));
+}
+
+// 노드 라벨이 차지하는 줄 수
+function labelLineCount(node, isRoot = false) {
+  const font = labelFontOf(node, isRoot);
+  const w = nodeWidth(node, isRoot);
+  const maxTextW = w - NODE_PAD_X;
+  return wrapLabel(node.label || '', maxTextW, font).length;
+}
+
+// ── 관계선 곡선(3핸들 스플라인) 헬퍼 ──
+// 통과점(pts: [{x,y}...])을 부드럽게 잇는 Catmull-Rom → cubic 베지어 path
+function catmullRomPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || pts[i + 1];
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
+  }
+  return d;
+}
+// 곡선 기본 3 웨이포인트(두 노드 중심 중점 기준 오프셋). midOff = 중간점 오프셋(자동회피/기본곡률 결과).
+function linkDefaultPoints(acx, acy, bcx, bcy, midOff) {
+  const dx = bcx - acx, dy = bcy - acy, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  const spread = len * 0.24;
+  return [
+    { dx: midOff.dx - ux * spread, dy: midOff.dy - uy * spread },
+    { dx: midOff.dx, dy: midOff.dy },
+    { dx: midOff.dx + ux * spread, dy: midOff.dy + uy * spread },
+  ];
+}
+
+function nodeHeight(node, isRoot = false) {
+  // 라벨 줄 수에 따라 높이 가변
+  const lines = labelLineCount(node, isRoot);
+  let h = Math.max(NODE_H, 9 + lines * LINE_HEIGHT + 9); // 상하 패딩(9+9) 포함
+  const metaLines = countMetaLines(node);
+  if (metaLines) h += 6 + metaLines * 16;
+  // 태그 칩 줄 높이도 반영 — 안 하면 노드가 슬롯보다 커져 아래 노드와 겹쳐(중앙에 뭉친 것처럼) 보임
+  if (node.tags && node.tags.length > 0) {
+    const w = Math.max(40, nodeWidth(node, isRoot) - NODE_PAD_X);
+    let rowW = 0, rows = 1;
+    for (const t of node.tags) {
+      const cw = ('#' + String(t)).length * 7 + 14; // 칩 대략 너비
+      if (rowW > 0 && rowW + 3 + cw > w) { rows++; rowW = cw; }
+      else { rowW += (rowW ? 3 : 0) + cw; }
+    }
+    h += 5 + rows * 15;
+  }
+  // 아이콘 줄 높이도 반영
+  if (node.icons && node.icons.length > 0) h += 4 + 18;
+  return h;
+}
+function countMetaLines(node) {
+  const m = node.meta || {};
+  let n = 0;
+  if (m.date) n++;
+  if (m.effort) n++;
+  if (m.cost) n++;
+  return n;
+}
+
+// 루트의 자식 노드를 양방향으로 분배하는 기준 — 오른쪽 누적 높이가 이 값을 넘으면 그다음은 왼쪽
+// (화면 한 페이지를 넘지 않도록 하는 직관적 기준. 줌 100% 기준 약 800px)
+const SIDE_SPLIT_HEIGHT = 800;
+
+function layoutTree(root, spaceMul = 1) {
+  // 간격 설정(촘촘/보통/넓게)을 기준값에 곱해 지역 적용 — 배치 로직은 동일, 간격만 스케일된다.
+  const H_SPACING = BASE_H_SPACING * spaceMul;
+  const V_SPACING = BASE_V_SPACING * spaceMul;
+  // ── 1단계: 크기 측정 (부모 방향 의존 안 함)
+  function measure(node, isRoot) {
+    node._w = nodeWidth(node, isRoot);
+    node._h = nodeHeight(node, isRoot);
+    // 접힌 노드는 자식을 안 그리므로 자식 측정에서 제외 (단, _subH는 자기 높이만)
+    const isCollapsed = node.collapsed === true && !isRoot;
+    const childrenForLayout = isCollapsed ? [] : (node.children || []);
+    if (childrenForLayout.length === 0) {
+      node._subH = node._h;
+      // 가지 전체의 최대 너비 (X 방향 누적용)
+      node._subW = node._w;
+      return node._subH;
+    }
+    let total = 0;
+    let maxChildSubW = 0;
+    childrenForLayout.forEach((c, i) => {
+      total += measure(c, false);
+      if (i > 0) total += V_SPACING;
+      if (c._subW > maxChildSubW) maxChildSubW = c._subW;
+    });
+    node._subH = Math.max(node._h, total);
+    // 자식들이 차지하는 가로 폭 = 부모폭 + 간격 + 자식들 가지 최대폭
+    node._subW = node._w + H_SPACING + maxChildSubW;
+    return node._subH;
+  }
+  measure(root, true);
+
+  // ── 2단계: 루트의 직계 자식을 좌/우로 분배
+  // 앞에서부터 오른쪽에 쌓다가, 누적 높이가 임계치를 넘는 순간부터 왼쪽으로 보냄
+  // 왼쪽도 임계치를 넘어가면 그대로 왼쪽에 계속 쌓음 (요구사항)
+  //
+  // ★ 우선순위:
+  //   1) pinnedSide (사용자 수동 지정) — 항상 존중
+  //   2) autoSide (이전에 자동 분배로 결정된 위치) — 트리 변경에도 유지 (점프 방지)
+  //   3) 미지정 — 남은 오른쪽 공간을 자동으로 채우다가 넘치면 왼쪽 (입력 순서 보존)
+  //   ↑ 결정된 위치는 autoSide에 기록되어 다음 레이아웃에서도 안정 유지
+  const rightChildren = [];
+  const leftChildren = [];
+  if (root.children) {
+    // 1) 먼저 이미 위치가 정해진(pinnedSide 또는 autoSide) 자식들의 오른쪽 누적 높이 측정
+    let rightAccH = 0;
+    root.children.forEach(child => {
+      const fixed = child.pinnedSide || child.autoSide;
+      if (fixed === 'right') {
+        rightAccH += (rightAccH > 0 ? V_SPACING : 0) + child._subH;
+      }
+    });
+
+    // 2) 입력 순서대로 순회하며 분류
+    let rightFull = false;
+    root.children.forEach(child => {
+      // 우선순위: pinnedSide > autoSide > 자동 분배
+      const fixedSide = child.pinnedSide || child.autoSide;
+      if (fixedSide === 'right') {
+        rightChildren.push(child);
+        child._side = 'right';
+      } else if (fixedSide === 'left') {
+        leftChildren.push(child);
+        child._side = 'left';
+      } else {
+        // 처음 분배되는 노드 — 남은 오른쪽 공간을 채우다 넘치면 왼쪽
+        const need = (rightChildren.length > 0 ? V_SPACING : 0) + child._subH;
+        if (!rightFull && rightAccH + need <= SIDE_SPLIT_HEIGHT) {
+          rightChildren.push(child);
+          rightAccH += need;
+          child._side = 'right';
+          child.autoSide = 'right';   // 다음 번에도 안정적으로 오른쪽 유지
+        } else {
+          rightFull = true;
+          leftChildren.push(child);
+          child._side = 'left';
+          child.autoSide = 'left';
+        }
+      }
+    });
+  }
+  // _side는 모든 후손에게 상속 (손자 이하는 부모 가지 방향을 따름)
+  function inheritSide(node, side) {
+    node._side = side;
+    (node.children || []).forEach(c => inheritSide(c, side));
+  }
+  rightChildren.forEach(c => inheritSide(c, 'right'));
+  leftChildren.forEach(c => inheritSide(c, 'left'));
+  root._side = 'center'; // 루트는 중앙
+
+  // ── 3단계: 배치
+  // place(node, x, yCenter, side): node의 좌상단 x = x. 자식은 side 방향으로 뻗음
+  //  - side='right' → 자식의 x = node._x + node._w + H_SPACING
+  //  - side='left'  → 자식의 x = node._x - H_SPACING - child._w (자식 오른쪽 끝이 부모 왼쪽 끝과 정렬)
+  function place(node, x, yCenter, side) {
+    node._x = x;
+    node._y = yCenter - node._h / 2;
+    // 접힌 노드는 자식을 안 그림 (루트는 항상 펼침)
+    if (node !== root && node.collapsed === true) return;
+    if (!node.children || node.children.length === 0) return;
+
+    // 루트가 아닌 경우 모든 자식이 같은 side로 뻗음
+    // 루트인 경우 자식들이 이미 _side를 가지고 있음 — rightChildren / leftChildren 분리해서 배치
+    if (node === root) {
+      // 오른쪽 가지 배치
+      if (rightChildren.length > 0) {
+        const totalH = rightChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * (rightChildren.length - 1);
+        let cursor = yCenter - totalH / 2;
+        rightChildren.forEach(c => {
+          const cc = cursor + c._subH / 2;
+          place(c, node._x + node._w + H_SPACING, cc, 'right');
+          cursor += c._subH + V_SPACING;
+        });
+      }
+      // 왼쪽 가지 배치
+      if (leftChildren.length > 0) {
+        const totalH = leftChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * (leftChildren.length - 1);
+        let cursor = yCenter - totalH / 2;
+        leftChildren.forEach(c => {
+          const cc = cursor + c._subH / 2;
+          place(c, node._x - H_SPACING - c._w, cc, 'left');
+          cursor += c._subH + V_SPACING;
+        });
+      }
+      return;
+    }
+
+    // 일반 노드: 모든 자식이 자신과 같은 side로 뻗음
+    const children = node.children;
+    const totalH = children.reduce((s, c) => s + c._subH, 0) + V_SPACING * (children.length - 1);
+    let cursor = yCenter - totalH / 2;
+    children.forEach(c => {
+      const cc = cursor + c._subH / 2;
+      const childX = (side === 'left')
+        ? node._x - H_SPACING - c._w
+        : node._x + node._w + H_SPACING;
+      place(c, childX, cc, side);
+      cursor += c._subH + V_SPACING;
+    });
+  }
+
+  // 루트 전체 높이는 양쪽 중 더 큰 쪽
+  const rightH = rightChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * Math.max(0, rightChildren.length - 1);
+  const leftH = leftChildren.reduce((s, c) => s + c._subH, 0) + V_SPACING * Math.max(0, leftChildren.length - 1);
+  const overallH = Math.max(root._h, rightH, leftH);
+  place(root, 0, overallH / 2, 'center');
+
+  // ── 4단계: 좌표 정규화 (음수 X 방지)
+  // 모든 노드의 좌표를 양수로 만들기 위해 가장 왼쪽 노드를 기준으로 시프트.
+  // 점프 방지는 addChild/addSibling에서 새 노드에 autoSide를 미리 부여해서 해결.
+  // ★ 접힌 노드의 자식은 measure/place에서 제외돼 _x/_y가 없다(undefined).
+  //   walk(전체 순회)로 이들까지 포함하면 Math.min(Infinity, undefined)=NaN 이 전파돼
+  //   모든 노드의 _x 가 NaN → 전부 원점에 겹쳐 보인다(접힘 상태 새로고침 시 겹침의 진짜 원인).
+  //   보이는 노드만 도는 walkVisible 로 경계·시프트를 계산한다.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  walkVisible(root, n => {
+    minX = Math.min(minX, n._x);
+    minY = Math.min(minY, n._y);
+    maxX = Math.max(maxX, n._x + n._w);
+    maxY = Math.max(maxY, n._y + n._h);
+  });
+  walkVisible(root, n => { n._x -= minX; n._y -= minY; });
+  return { width: maxX - minX, height: maxY - minY };
+}
+
+function walk(node, fn) {
+  fn(node);
+  if (node.children) node.children.forEach(c => walk(c, fn));
+}
+
+// 렌더 전용: 접힌 노드의 자식은 건너뜀 (root는 항상 펼침으로 취급)
+// 저장/검색/순회 일반 용도엔 walk를 그대로 쓰고, "화면에 보이는 노드만" 필요할 때 이것 사용
+// 노드별 하위 작업(체크박스) 진행률 — bottom-up O(n). map.get(id) = {done,total} (자기 task 포함 + 모든 하위 task 합산)
+function computeTaskProgress(root) {
+  const map = new Map();
+  (function rec(n) {
+    let done = 0, total = 0;
+    if (n.task === true) { total += 1; if (n.done === true) done += 1; }
+    (n.children || []).forEach(c => { const r = rec(c); done += r.done; total += r.total; });
+    map.set(n.id, { done, total });
+    return { done, total };
+  })(root);
+  return map;
+}
+
+function walkVisible(root, fn) {
+  function go(node, isRoot) {
+    fn(node);
+    if (node.children && (isRoot || node.collapsed !== true)) {
+      node.children.forEach(c => go(c, false));
+    }
+  }
+  go(root, true);
+}
+
+/* ============================================================
+   트리 조작
+   ============================================================ */
+function cloneTree(node) {
+  // 깊은 복제: 네이티브 structuredClone(빠름) 우선, 예외·미지원 시 JSON 폴백(평면 데이터라 결과 동일)
+  try { return structuredClone(node); }
+  catch (e) { return JSON.parse(JSON.stringify(node)); }
+}
+
+/* ── 트리 비교·병합 (다중 기기 충돌 안내용) ──
+   비교(diffTrees)는 id 기준 통계라, 순차 id 특성상 양쪽에서 각자 만든 노드가 "내용이 다른 노드"로
+   집계될 수 있다(표시용 참고 정보). 병합은 id 매칭을 아예 쓰지 않고("복원" 방식) 새 id를 발급하므로 안전. */
+function diffTrees(localRoot, remoteRoot) {
+  const lMap = {}, rMap = {};
+  walk(localRoot, n => { lMap[n.id] = n; });
+  walk(remoteRoot, n => { rMap[n.id] = n; });
+  const added = [], removed = [], changed = [];
+  for (const id in rMap) {
+    if (!lMap[id]) added.push(rMap[id].label || '(빈 노드)');
+    else if ((lMap[id].label || '') !== (rMap[id].label || '')) {
+      changed.push({ from: lMap[id].label || '(빈)', to: rMap[id].label || '(빈)' });
+    }
+  }
+  for (const id in lMap) { if (!rMap[id]) removed.push(lMap[id].label || '(빈 노드)'); }
+  return {
+    localCount: Object.keys(lMap).length,
+    remoteCount: Object.keys(rMap).length,
+    added, removed, changed,
+    sameRoot: localRoot.id === remoteRoot.id,
+  };
+}
+
+// 좌우 비교 아웃라인 색칠용 — 노드 id별 상태 맵 { local:{id→status}, remote:{id→status} }
+//  local:  removed(원격에 없음=이쪽에만) | changed(이름 다름) | same
+//  remote: added(로컬에 없음=새로 생김) | changed | same
+// (순차 id 특성상 양쪽에서 각자 만든 노드가 changed로 잡힐 수 있음 — 표시용 참고)
+function nodeDiffStatus(localRoot, remoteRoot) {
+  const lMap = {}, rMap = {};
+  if (localRoot) walk(localRoot, n => { lMap[n.id] = n; });
+  if (remoteRoot) walk(remoteRoot, n => { rMap[n.id] = n; });
+  const local = {}, remote = {};
+  for (const id in lMap) {
+    local[id] = !rMap[id] ? 'removed' : ((lMap[id].label || '') !== (rMap[id].label || '') ? 'changed' : 'same');
+  }
+  for (const id in rMap) {
+    remote[id] = !lMap[id] ? 'added' : ((lMap[id].label || '') !== (rMap[id].label || '') ? 'changed' : 'same');
+  }
+  return { local, remote };
+}
+
+// "복원" 병합: 지금 화면은 그대로 두고, 중심(루트) 바로 아래에 "복원" 노드를 만들어
+// 그 아래에 최신본 전체를 통째로 붙인다. 어디에 붙는지 추측이 없어 결과가 항상 예측 가능.
+// 붙이는 모든 노드에는 새 id(접두어 r)를 발급해 기존 id와 절대 겹치지 않게 한다(중복 id는 선택·편집을 깨뜨림).
+function mergeRemoteIntoLocal(localRoot, remoteRoot, remoteDate) {
+  if (!localRoot || !remoteRoot) return null;
+  const merged = cloneTree(localRoot);
+  let seq = 0;
+  const stamp = Date.now().toString(36);
+  const freshId = () => `r${stamp}_${++seq}`;
+  const remoteCopy = cloneTree(remoteRoot);
+  walk(remoteCopy, n => {
+    n.id = freshId();
+    delete n._x; delete n._y; delete n._subH; delete n._w; delete n._h;
+    if (!n.meta) n.meta = {};
+  });
+  const restoreNode = {
+    id: freshId(),
+    label: '복원',
+    children: [remoteCopy],
+    meta: remoteDate ? { date: remoteDate } : {},
+    color: null,
+  };
+  if (!merged.children) merged.children = [];
+  merged.children.push(restoreNode);
+  let addedCount = 0;
+  walk(restoreNode, () => { addedCount++; });
+  return { merged, addedCount };
+}
+
+/* ============================================================
+   ★ URL 감지 — 노드 라벨 어디에 있든 첫 http(s) URL 추출
+   - 라벨 내부 어디에 있어도 감지 (라벨 전체일 필요 없음)
+   - 한국어/공백/마침표 등 비-URL 문자에서 자연스럽게 끊김
+   - 검증: 실제 클릭 시 href에 들어가도 안전한 절대 URL만 반환
+   ============================================================ */
+const URL_RE = /https?:\/\/[^\s<>"'`]+/i;
+function extractFirstUrl(text) {
+  if (typeof text !== 'string') return null;
+  const m = text.match(URL_RE);
+  if (!m) return null;
+  let url = m[0];
+  // 끝에 붙은 문장부호(닫는 괄호·따옴표·마침표 등)는 보통 URL 일부가 아님 → 제거
+  url = url.replace(/[)\].,;:!?"'`]+$/, '');
+  return url;
+}
+// 링크 href 안전 검증(심층 방어) — http/https/mailto만 허용, javascript:·data:·vbscript: 등은 차단.
+// 현재 URL_RE/MD_LINK_RE가 http(s)만 추출하지만, '출력 시점'에도 막아 정규식 변경·다른 입력 경로(불러온 데이터 등)에 대비한다.
+function safeLinkUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const cleaned = url.trim().replace(/[\x00-\x1f\x7f-\x9f]/g, '');   // 제어문자 제거(개행 삽입으로 스킴 우회 차단)
+  if (/^[a-z][a-z0-9+.\-]*:/i.test(cleaned)) {                              // 스킴이 있으면 화이트리스트만
+    return /^(https?|mailto):/i.test(cleaned) ? cleaned : null;
+  }
+  return cleaned;                                                           // 스킴 없으면(상대/도메인) 안전
+}
+
+/* ============================================================
+   ★ 노드 라벨의 표시 텍스트 + 링크 URL 분리
+   - 마크다운 링크 문법 [이름](https://...) 지원: 라벨엔 "이름"만 보이고 링크는 url로
+   - 그 외엔 기존 동작: 라벨 그대로 표시 + 라벨 속 첫 URL을 링크로
+   - 반환: { display: 화면에 보일 텍스트, url: 링크(없으면 null) }
+   ============================================================ */
+const MD_LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/;
+function resolveLabelLink(label) {
+  if (typeof label !== 'string') return { display: '', url: null };
+  const md = label.match(MD_LINK_RE);
+  if (md) {
+    // [이름](url) → 이름 표시, url 링크. 라벨에 다른 텍스트가 섞여 있으면 링크 부분만 이름으로 치환
+    const display = label.replace(MD_LINK_RE, md[1]).trim();
+    return { display: display || md[1], url: safeLinkUrl(md[2]) };
+  }
+  return { display: label, url: safeLinkUrl(extractFirstUrl(label)) };
+}
+
+/* ============================================================
+   ★ 트리 검증/복구 — 저장된(또는 불러온) 데이터 무결성 보호
+   - IndexedDB/파일에서 불러온 트리가 손상됐을 때 앱이 조용히 깨지는 것 방지
+   - sanitizeTree: 가능한 한 복구해서 유효한 트리를 반환, 복구 불가하면 null
+   - 노드 최소 요건: 객체이며 children이 배열(없으면 빈 배열로 보정), label은 문자열
+   ============================================================ */
+let _sanitizeIdCounter = 0;
+function makeFallbackId() {
+  // 복구 중 id가 없을 때 부여하는 임시 고유 id
+  return 'recovered-' + Date.now().toString(36) + '-' + (_sanitizeIdCounter++).toString(36);
+}
+// 안전 한도 (불특정 다수 공개 대비): 악의적/거대 입력으로 인한 멈춤·메모리 고갈 방지
+const SANITIZE_MAX_DEPTH = 100;      // 트리 최대 깊이 (이보다 깊으면 잘라냄)
+const SANITIZE_MAX_NODES = 20000;    // 트리 전체 최대 노드 수
+const SANITIZE_MAX_LABEL = 5000;     // 노드 라벨 최대 글자 수
+let _sanitizeNodeCount = 0;          // sanitizeTree 1회 동안 처리한 노드 수
+
+function sanitizeNode(node, seenIds, depth) {
+  // 노드가 객체가 아니면 복구 불가 → null (호출측에서 걸러냄)
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return null;
+  // 깊이/개수 한도 초과 시 더 내려가지 않음 (스택 오버플로우·메모리 고갈 방어)
+  if (depth > SANITIZE_MAX_DEPTH) return null;
+  if (_sanitizeNodeCount >= SANITIZE_MAX_NODES) return null;
+  _sanitizeNodeCount++;
+
+  // id: 문자열이 아니거나 중복이면 새로 부여 (id 충돌은 렌더/선택 로직을 깨뜨림)
+  let id = node.id;
+  if (typeof id !== 'string' || id.length === 0 || seenIds.has(id)) {
+    id = makeFallbackId();
+  }
+  seenIds.add(id);
+
+  // label: 문자열이 아니면 빈 문자열로 보정 + 과도하게 길면 잘라냄
+  let label = (typeof node.label === 'string') ? node.label : '';
+  if (label.length > SANITIZE_MAX_LABEL) label = label.slice(0, SANITIZE_MAX_LABEL);
+
+  // children: 배열이 아니면 빈 배열. 각 자식도 재귀적으로 검증, null인 자식은 제거
+  let children = [];
+  if (Array.isArray(node.children)) {
+    children = node.children
+      .map(c => sanitizeNode(c, seenIds, depth + 1))
+      .filter(c => c !== null);
+  }
+
+  // 나머지 알려진 필드는 타입이 맞을 때만 보존 (모르는 필드는 버려 안전성 확보)
+  const clean = { id, label, children };
+  // 자동 채움(샘플) 라벨 표시 플래그 — 보존해야 새로고침/재오픈 후에도 ★샘플★로 구분됨
+  if (node._autoLabel === true) clean._autoLabel = true;
+  if (node.meta && typeof node.meta === 'object' && !Array.isArray(node.meta)) {
+    clean.meta = {};
+    if (typeof node.meta.date === 'string') clean.meta.date = node.meta.date;
+    if (typeof node.meta.effort === 'number') clean.meta.effort = node.meta.effort;
+    if (typeof node.meta.cost === 'number') clean.meta.cost = node.meta.cost;
+    // 일정(간트/타임라인) — ISO 날짜 문자열 + 마일스톤 플래그
+    if (typeof node.meta.start === 'string') clean.meta.start = node.meta.start;
+    if (typeof node.meta.end === 'string') clean.meta.end = node.meta.end;
+    if (node.meta.milestone === true) clean.meta.milestone = true;
+  }
+  if (typeof node.color === 'string') clean.color = node.color;
+  if (typeof node.note === 'string' && node.note.trim()) clean.note = node.note.slice(0, 4000);
+  if (Array.isArray(node.icons)) {
+    const ic = node.icons.filter(x => typeof x === 'string').slice(0, 10);
+    if (ic.length) clean.icons = ic;
+  }
+  if (Array.isArray(node.tags)) {
+    const seenTag = new Set();
+    clean.tags = node.tags
+      .filter(x => typeof x === 'string' && x.trim())
+      .map(x => x.trim().slice(0, 24))
+      .filter(x => { if (seenTag.has(x)) return false; seenTag.add(x); return true; })
+      .slice(0, 30);
+    if (clean.tags.length === 0) delete clean.tags;
+  }
+  // 관계선(cross-link): 루트 노드에만 존재. {from,to[,label]} 형태만 보존.
+  if (Array.isArray(node.links)) {
+    const seenLink = new Set();
+    clean.links = node.links
+      .filter(l => l && typeof l.from === 'string' && typeof l.to === 'string' && l.from !== l.to)
+      .map(l => {
+        const o = { from: l.from, to: l.to };
+        if (typeof l.label === 'string' && l.label.trim()) o.label = l.label.trim().slice(0, 60);
+        // 관계선 종류(직선/직각) 보존 — 곡선(기본)은 굳이 저장 안 함
+        if (l.type === 'straight' || l.type === 'elbow') o.type = l.type;
+        // 선 스타일(실선/두께) 보존 — 점선·두께2가 기본
+        if (l.dash === 'solid') o.dash = 'solid';
+        if (typeof l.width === 'number' && l.width > 0 && l.width <= 8) o.width = l.width;
+        // 곡선 제어점 — 레거시 단일(curve) / 3 웨이포인트(points) 보존
+        if (l.curve && Number.isFinite(l.curve.dx) && Number.isFinite(l.curve.dy)) {
+          o.curve = { dx: Math.round(l.curve.dx), dy: Math.round(l.curve.dy) };
+        }
+        if (Array.isArray(l.points)) {
+          const pts = l.points.filter(p => p && Number.isFinite(p.dx) && Number.isFinite(p.dy)).map(p => ({ dx: Math.round(p.dx), dy: Math.round(p.dy) }));
+          if (pts.length === 3) o.points = pts;
+        }
+        return o;
+      })
+      .filter(l => { const k = l.from + '~' + l.to; if (seenLink.has(k)) return false; seenLink.add(k); return true; })
+      .slice(0, 300);
+    if (clean.links.length === 0) delete clean.links;
+  }
+  // 경계/그룹: 루트 노드에만. {nodeId} = 그 노드의 하위 묶음을 박스로 감쌈.
+  if (Array.isArray(node.boundaries)) {
+    const seenB = new Set();
+    clean.boundaries = node.boundaries
+      .filter(b => b && typeof b.nodeId === 'string')
+      .map(b => ({ nodeId: b.nodeId }))
+      .filter(b => { if (seenB.has(b.nodeId)) return false; seenB.add(b.nodeId); return true; })
+      .slice(0, 100);
+    if (clean.boundaries.length === 0) delete clean.boundaries;
+  }
+  // 자유 그룹: 루트 노드에만. {id, nodeIds[], label, color} = 임의 노드 묶음을 박스로.
+  if (Array.isArray(node.groups)) {
+    clean.groups = node.groups
+      .filter(g => g && typeof g.id === 'string' && Array.isArray(g.nodeIds))
+      .map(g => ({
+        id: g.id,
+        nodeIds: Array.from(new Set(g.nodeIds.filter(x => typeof x === 'string'))).slice(0, 200),
+        label: (typeof g.label === 'string' && g.label.trim()) ? g.label.trim().slice(0, 40) : '그룹',
+        color: (typeof g.color === 'string') ? g.color : '#8f7fd6',
+      }))
+      .filter(g => g.nodeIds.length >= 2)
+      .slice(0, 50);
+    if (clean.groups.length === 0) delete clean.groups;
+  }
+  if (node.pinnedSide === 'left' || node.pinnedSide === 'right') clean.pinnedSide = node.pinnedSide;
+  if (node.autoSide === 'left' || node.autoSide === 'right') clean.autoSide = node.autoSide;
+  if (node.collapsed === true) clean.collapsed = true;
+  // 생성·수정 시각(시스템 기록, 사용자 편집 불가) — 로드 시에도 보존
+  if (typeof node.createdAt === 'string') clean.createdAt = node.createdAt;
+  if (typeof node.updatedAt === 'string') clean.updatedAt = node.updatedAt;
+  if (node.task === true) clean.task = true;       // 할 일 표시
+  if (node.done === true) clean.done = true;       // 완료 상태
+  if (node.shape === 'rect' || node.shape === 'pill' || node.shape === 'ellipse') clean.shape = node.shape;   // 노드 모양
+  if (typeof node.w === 'number' && node.w > 0) clean.w = Math.max(NODE_MIN_W, Math.min(NODE_RESIZE_MAX, Math.round(node.w)));   // 사용자 지정 노드 폭
+  return clean;
+}
+// 루트 트리 전체 검증. 복구 가능하면 정상 트리 반환, 루트 자체가 깨졌으면 null.
+function sanitizeTree(root) {
+  _sanitizeIdCounter = 0;
+  _sanitizeNodeCount = 0;
+  const seenIds = new Set();
+  const result = sanitizeNode(root, seenIds, 0);
+  // 루트는 반드시 존재해야 함. children도 배열 보장됨.
+  return result;
+}
+function findNode(root, id) {
+  let r = null;
+  walk(root, n => { if (n.id === id) r = n; });
+  return r;
+}
+function findParent(root, id) {
+  let r = null;
+  function visit(n) {
+    if (n.children) for (const c of n.children) {
+      if (c.id === id) { r = n; return; }
+      visit(c);
+    }
+  }
+  visit(root);
+  return r;
+}
+// 포커스 모드용: 편집/추가 중인 노드를 기준으로 "컬러를 유지할 노드 id 집합"을 만든다.
+// 구성 = 루트→targetId까지의 경로(조상 전부) + target 자신 + target의 직속 자식.
+// 그 외 노드는 호출부에서 흐리게(dim) 처리한다. target을 못 찾으면 빈 Set.
+function computeFocusIds(root, targetId) {
+  const set = new Set();
+  if (!root || !targetId) return set;
+  let foundPath = null;
+  function dfs(node, path) {
+    const nextPath = path.concat(node.id);
+    if (node.id === targetId) { foundPath = nextPath; return true; }
+    if (node.children) {
+      for (const c of node.children) {
+        if (dfs(c, nextPath)) return true;
+      }
+    }
+    return false;
+  }
+  dfs(root, []);
+  if (!foundPath) return set;            // target이 트리에 없음
+  for (const id of foundPath) set.add(id); // 경로(조상 + 자신)
+  const target = findNode(root, targetId);
+  if (target && target.children) {
+    for (const c of target.children) set.add(c.id); // 직속 자식
+  }
+  return set;
+}
+
+function removeNode(root, id) {
+  const p = findParent(root, id);
+  if (!p) return false;
+  p.children = p.children.filter(c => c.id !== id);
+  return true;
+}
+function isDescendant(node, candidateId) {
+  if (node.id === candidateId) return true;
+  if (!node.children) return false;
+  return node.children.some(c => isDescendant(c, candidateId));
+}
+
+let idSeed = 1000;
+function genId() { return `n${++idSeed}`; }
+
+/* ============================================================
+   ★ 설정 / 자동저장 / IndexedDB 유틸
+   ============================================================ */
+
+/* ============================================================
+   ★ 오늘의 격언 — 200개 샘플 (공공영역/위인 명언 큐레이션)
+   ============================================================ */
+// 영감 격언 — 노드 미선택(우측 패널 빈 상태)에서 랜덤 표시. 창작 격려문 중심(저작권 안전).
+const INSPIRATION_QUOTES = [
+  "머릿속 생각 하나를 꺼내는 순간, 길이 보이기 시작합니다.",
+  "완벽한 시작은 없어요. 그냥 첫 줄을 적으세요.",
+  "작은 아이디어도 적어 두면 언젠가 큰 문이 됩니다.",
+  "떠오르는 대로 적으세요. 정리는 나중에 해도 됩니다.",
+  "생각은 흘려보내면 사라지고, 적어 두면 자랍니다.",
+  "오늘의 메모가 내일의 기회가 됩니다.",
+  "막막할 땐, 단어 하나부터 시작해 보세요.",
+  "좋은 질문 하나가 백 개의 답보다 낫습니다.",
+  "엉뚱한 생각이 가장 멀리 데려다줍니다.",
+  "머뭇거림보다 서툰 시작이 낫습니다.",
+  "모든 큰 그림은 한 점에서 출발합니다.",
+  "생각을 펼치면, 마음도 넓어집니다.",
+  "정답이 아니어도 괜찮아요. 일단 펼쳐 보세요.",
+  "아이디어는 연결될 때 힘이 생깁니다.",
+  "지금 떠오른 그 생각, 그게 신호예요.",
+  "어제보다 한 줄 더, 그거면 충분합니다.",
+  "복잡할수록 잘게 쪼개 보세요.",
+  "끝이 보이지 않을 땐, 다음 한 걸음만 정하세요.",
+  "머릿속이 시끄러울 땐, 손으로 적어 비우세요.",
+  "작은 정리가 큰 평온을 만듭니다.",
+  "창의는 재능이 아니라 습관입니다.",
+  "매일의 작은 기록이 당신을 만듭니다.",
+  "생각의 가지를 뻗을수록 열매가 많아집니다.",
+  "두려움은 시작을 미루지만, 호기심은 시작하게 합니다.",
+  "흩어진 생각도 모으면 이야기가 됩니다.",
+  "좋은 아이디어는 조용한 순간에 찾아옵니다.",
+  "막힌 곳에서 새로운 길이 열립니다.",
+  "적어 두지 않은 영감은 꿈처럼 사라집니다.",
+  "오늘 심은 생각이 내일의 숲이 됩니다.",
+  "멈추지 말고, 천천히라도 나아가세요.",
+  "모든 답은 더 나은 질문에서 나옵니다.",
+  "생각을 눈에 보이게 하면, 길이 분명해집니다.",
+  "작게 시작해서 크게 키우세요.",
+  "실수는 더 나은 아이디어의 재료입니다.",
+  "머릿속 안개는 한 줄의 메모로 걷힙니다.",
+  "가능성은 늘 당신 생각 가까이에 있습니다.",
+  "한 번에 다 풀려 하지 말고, 한 조각씩.",
+  "떠오른 생각에 이름을 붙이면 현실이 됩니다.",
+  "비교하지 마세요. 어제의 당신과만 겨루세요.",
+  "막연한 걱정보다 구체적인 한 줄이 낫습니다.",
+  "영감은 기다리는 사람이 아니라 적는 사람에게 옵니다.",
+  "생각의 점들을 이으면 길이 됩니다.",
+  "시작이 어설퍼도, 방향만 맞으면 됩니다.",
+  "오늘의 브레인스토밍이 내일을 바꿉니다.",
+  "좋은 생각은 나누고 펼칠수록 커집니다.",
+  "머리가 복잡할 땐, 가장 작은 것부터 적으세요.",
+  "한 줄의 용기가 백 줄을 부릅니다.",
+  "흐릿한 생각도 적으면 또렷해집니다.",
+  "당신의 평범한 생각이 누군가에겐 특별합니다.",
+  "끝까지 가보기 전엔, 무엇이 될지 아무도 몰라요.",
+  "생각을 가두지 말고, 자유롭게 펼치세요.",
+  "매듭은 풀려고 들여다볼 때 비로소 풀립니다.",
+  "아이디어에 좋고 나쁨은 없어요, 일단 다 적으세요.",
+  "작은 호기심이 큰 발견으로 이어집니다.",
+  "멈춰 선 자리에서도 생각은 자랄 수 있습니다.",
+  "머릿속 지도를 그리면, 길을 잃지 않습니다.",
+  "오늘 적은 한 줄이 미래의 나를 돕습니다.",
+  "막막함은 백지의 다른 이름일 뿐입니다.",
+  "생각을 쪼개면 두려움도 작아집니다.",
+  "한 걸음의 방향이 백 걸음의 거리를 정합니다.",
+  "떠오르는 모든 것을 환영하세요.",
+  "정리되지 않은 생각도 소중한 출발점입니다.",
+  "가장 단순한 아이디어가 가장 강합니다.",
+  "생각에 형태를 주면, 행동이 따라옵니다.",
+  "오늘의 작은 발견을 흘려보내지 마세요.",
+  "길이 없으면, 생각으로 길을 내세요.",
+  "머릿속에만 있으면 꿈, 적으면 계획입니다.",
+  "멀리 가려면, 먼저 한 줄을 적으세요.",
+  "창의는 연결하는 용기에서 나옵니다.",
+  "막힐 땐 잠시 멈추고, 다른 가지를 뻗어 보세요.",
+  "생각을 정리하는 일은 마음을 돌보는 일입니다.",
+  "작은 메모가 큰 결정을 도와줍니다.",
+  "영감은 행동하는 사람의 편입니다.",
+  "오늘 떠오른 질문을 내일까지 품어 보세요.",
+  "흐트러진 생각 속에 보석이 숨어 있습니다.",
+  "한 가지에 집중하면, 길이 또렷해집니다.",
+  "시작하는 용기가 재능을 이깁니다.",
+  "생각의 씨앗을 매일 한 알씩 심으세요.",
+  "멈추지 않는 한, 늦은 시작은 없습니다.",
+  "복잡한 마음은 한 줄로 정리될 수 있습니다.",
+  "당신의 생각은 펼쳐질 자격이 있습니다.",
+  "작은 진전도 진전입니다.",
+  "막연한 큰 꿈보다 또렷한 한 걸음.",
+  "생각을 적는 순간, 가능성이 깨어납니다.",
+  "좋은 아이디어는 조급함이 아니라 여유에서 옵니다.",
+  "무엇이든 일단 펼쳐 놓고 보세요.",
+  "머릿속 생각에 가지를 달아 주세요.",
+  "길을 잃었다면, 지도를 그릴 때입니다.",
+  "오늘의 한 줄이 쌓여 당신의 길이 됩니다.",
+  "떠오른 생각을 의심하지 말고 적으세요.",
+  "정리된 생각은 가벼운 마음을 만듭니다.",
+  "가장 멀리 가는 사람은 가장 먼저 적는 사람입니다.",
+  "생각의 가지마다 다른 미래가 달려 있습니다.",
+  "막힌 길 끝에 새로운 문이 있습니다.",
+  "영감을 붙잡는 가장 좋은 방법은 적는 것입니다.",
+  "작게 나누면 못 풀 문제는 없습니다.",
+  "오늘의 낙서가 내일의 작품이 됩니다.",
+  "생각을 펼치는 데 늦은 때란 없습니다.",
+  "한 줄을 적는 순간, 이미 시작된 겁니다.",
+  "당신의 다음 좋은 아이디어는 바로 지금입니다.",
+];
+
+const SAMPLE_QUOTES = [
+  "시작이 반이다. — 아리스토텔레스",
+  "천 리 길도 한 걸음부터. — 노자",
+  "아는 것이 힘이다. — 프랜시스 베이컨",
+  "시간은 금이다. — 벤자민 프랭클린",
+  "펜은 칼보다 강하다. — 에드워드 불워리턴",
+  "나는 생각한다, 고로 존재한다. — 데카르트",
+  "너 자신을 알라. — 소크라테스",
+  "비워야 채울 수 있다. — 노자",
+  "고생 끝에 낙이 온다. — 한국 속담",
+  "오늘 할 일을 내일로 미루지 마라. — 벤자민 프랭클린",
+  "실패는 성공의 어머니다. — 토머스 에디슨",
+  "천재는 1%의 영감과 99%의 노력이다. — 토머스 에디슨",
+  "배움에는 끝이 없다. — 공자",
+  "아는 것을 안다고 하고 모르는 것을 모른다고 하는 것이 곧 아는 것이다. — 공자",
+  "세 사람이 길을 가면 반드시 나의 스승이 있다. — 공자",
+  "지혜로운 자는 물을 좋아하고 어진 자는 산을 좋아한다. — 공자",
+  "학이시습지면 불역열호아. 배우고 때때로 익히면 또한 기쁘지 아니한가. — 공자",
+  "인내는 쓰지만 그 열매는 달다. — 장 자크 루소",
+  "위대한 일은 갑자기 이루어지지 않는다. — 에픽테토스",
+  "행복은 습관이다. 그것을 몸에 지녀라. — 허버드",
+  "가장 큰 영광은 한 번도 실패하지 않음이 아니라 실패할 때마다 다시 일어서는 데 있다. — 공자",
+  "네 운명을 사랑하라. — 니체",
+  "나를 죽이지 못하는 것은 나를 더 강하게 만든다. — 니체",
+  "습관은 제2의 천성이다. — 키케로",
+  "용기란 두려움이 없는 것이 아니라 두려움을 이겨내는 것이다. — 마크 트웨인",
+  "가장 어두운 밤도 끝나고 태양은 떠오른다. — 빅토르 위고",
+  "인생은 자신을 발견하는 것이 아니라 자신을 창조하는 것이다. — 조지 버나드 쇼",
+  "희망은 모든 어둠 속에서도 빛이 있다는 것을 보는 것이다. — 데스몬드 투투",
+  "항상 햇빛을 향해 얼굴을 돌려라. 그러면 그림자는 뒤로 떨어질 것이다. — 월트 휘트먼",
+  "한 번 희망을 선택하면 모든 것이 가능해진다. — 크리스토퍼 리브",
+  "사랑이 있는 곳에 삶이 있다. — 마하트마 간디",
+  "네가 보고 싶은 세상의 변화가 되어라. — 마하트마 간디",
+  "약한 자는 결코 용서할 수 없다. 용서는 강한 자의 특권이다. — 마하트마 간디",
+  "내일 죽을 것처럼 살고 영원히 살 것처럼 배워라. — 마하트마 간디",
+  "행동의 가장 큰 적은 두려움이다. — 에머슨",
+  "자신감은 위대한 일의 첫걸음이다. — 에머슨",
+  "오늘 걷지 않으면 내일은 뛰어야 한다. — 서양 속담",
+  "위대함의 대가는 책임이다. — 윈스턴 처칠",
+  "성공은 영원하지 않고 실패는 치명적이지 않다. 중요한 것은 계속하는 용기다. — 윈스턴 처칠",
+  "절대 포기하지 마라. — 윈스턴 처칠",
+  "비관론자는 모든 기회에서 어려움을 보고 낙관론자는 모든 어려움에서 기회를 본다. — 윈스턴 처칠",
+  "지옥을 지나는 중이라면 멈추지 말고 계속 가라. — 윈스턴 처칠",
+  "위험은 자신이 무엇을 하는지 모르는 데서 온다. — 워런 버핏",
+  "오늘 누군가 그늘에 앉아 쉴 수 있는 것은 오래전 누군가 나무를 심었기 때문이다. — 워런 버핏",
+  "가격은 당신이 지불하는 것이고 가치는 당신이 얻는 것이다. — 워런 버핏",
+  "평판을 쌓는 데는 20년이 걸리고 무너뜨리는 데는 5분이면 충분하다. — 워런 버핏",
+  "스스로 할 수 있다고 믿으면 이미 절반은 이룬 것이다. — 시어도어 루스벨트",
+  "할 수 있는 것을, 가진 것으로, 있는 자리에서 하라. — 시어도어 루스벨트",
+  "결정을 내릴 때 최선은 옳은 일이고 차선은 틀린 일이며 최악은 아무것도 하지 않는 것이다. — 시어도어 루스벨트",
+  "미래는 꿈의 아름다움을 믿는 사람들의 것이다. — 엘리너 루스벨트",
+  "누구도 당신의 동의 없이 당신을 열등하게 만들 수 없다. — 엘리너 루스벨트",
+  "위대한 정신은 항상 평범한 정신의 격렬한 반대에 부딪혀 왔다. — 아인슈타인",
+  "상상력은 지식보다 중요하다. — 아인슈타인",
+  "어제로부터 배우고 오늘을 살며 내일을 꿈꿔라. — 아인슈타인",
+  "같은 일을 반복하면서 다른 결과를 기대하는 것은 어리석은 일이다. — 아인슈타인",
+  "인생은 자전거를 타는 것과 같다. 균형을 잡으려면 계속 움직여야 한다. — 아인슈타인",
+  "실수를 한 번도 해보지 않은 사람은 새로운 것을 시도해본 적이 없는 사람이다. — 아인슈타인",
+  "교육은 학교에서 배운 것을 잊어버린 후에 남는 것이다. — 아인슈타인",
+  "중요한 것은 질문을 멈추지 않는 것이다. — 아인슈타인",
+  "문제를 만든 사고방식으로는 그 문제를 풀 수 없다. — 아인슈타인",
+  "성공한 사람보다 가치 있는 사람이 되려고 노력하라. — 아인슈타인",
+  "진정으로 가치 있는 유일한 것은 직관이다. — 아인슈타인",
+  "배는 항구에 있을 때 가장 안전하지만 그것이 배의 존재 이유는 아니다. — 존 셰드",
+  "위대한 일을 하는 유일한 방법은 자신이 하는 일을 사랑하는 것이다. — 스티브 잡스",
+  "항상 갈망하라, 항상 우직하게. — 스티브 잡스",
+  "여정 자체가 보상이다. — 스티브 잡스",
+  "혁신이 리더와 추종자를 가른다. — 스티브 잡스",
+  "죽음은 삶의 가장 훌륭한 발명품이다. — 스티브 잡스",
+  "단순함이 궁극의 정교함이다. — 레오나르도 다빈치",
+  "보는 법을 아는 것이 곧 아는 것이다. — 레오나르도 다빈치",
+  "한번 비행을 경험하면 영원히 하늘을 보며 걷게 된다. — 레오나르도 다빈치",
+  "쇠는 쓰지 않으면 녹슬고 물은 고이면 썩는다. — 레오나르도 다빈치",
+  "평범한 노력은 노력이 아니다. — 이소룡",
+  "목표를 향한 길에 지름길은 없다. — 베토벤",
+  "고난을 뚫고 환희로. — 베토벤",
+  "음악은 모든 지혜와 철학보다 높은 계시다. — 베토벤",
+  "천재성은 1%의 영감만으로는 부족하다. — 미켈란젤로",
+  "내가 거장이 되기까지 얼마나 열심히 일했는지 안다면 결코 대단하게 느껴지지 않을 것이다. — 미켈란젤로",
+  "대부분의 사람들은 목표가 너무 높아 못 이루는 게 아니라 너무 낮아 쉽게 이루는 것이 문제다. — 미켈란젤로",
+  "노력 없이 얻을 수 있는 것은 없다. — 소포클레스",
+  "인생은 짧고 예술은 길다. — 히포크라테스",
+  "가장 좋은 약은 휴식과 절제다. — 벤자민 프랭클린",
+  "잃어버린 시간은 결코 되찾을 수 없다. — 벤자민 프랭클린",
+  "준비에 실패하는 것은 실패를 준비하는 것이다. — 벤자민 프랭클린",
+  "부지런함은 행운의 어머니다. — 벤자민 프랭클린",
+  "빈 자루는 똑바로 서기 어렵다. — 벤자민 프랭클린",
+  "작은 구멍이 큰 배를 가라앉힌다. — 벤자민 프랭클린",
+  "지식에 투자하는 것이 가장 좋은 이자를 낳는다. — 벤자민 프랭클린",
+  "오늘 하나를 아는 것이 내일 둘을 아는 것보다 낫다. — 벤자민 프랭클린",
+  "정직이 최선의 방책이다. — 벤자민 프랭클린",
+  "네 시간을 사랑하라. 그것이 인생의 재료다. — 벤자민 프랭클린",
+  "길이 없으면 길을 만들어라. — 한니발",
+  "운명은 용기 있는 자를 돕는다. — 베르길리우스",
+  "사랑은 모든 것을 이긴다. — 베르길리우스",
+  "행운은 용감한 자의 편이다. — 테렌티우스",
+  "인간은 노력하는 한 방황한다. — 괴테",
+  "유능한 사람은 언제나 배우는 사람이다. — 괴테",
+  "꿈을 계속 간직하면 언젠가 실현된다. — 괴테",
+  "행동하지 않는 지식은 쓸모가 없다. — 괴테",
+  "오늘 할 수 있는 일에 전력을 다하라. — 뉴턴",
+  "내가 멀리 보았다면 거인의 어깨 위에 서 있었기 때문이다. — 뉴턴",
+  "진리는 단순함 속에 있다. — 뉴턴",
+  "의심은 발견의 시작이다. — 데카르트",
+  "가장 위대한 정신은 가장 큰 악과 가장 큰 선을 행할 수 있다. — 데카르트",
+  "독서는 다양한 시대의 가장 훌륭한 사람들과 나누는 대화다. — 데카르트",
+  "행복한 삶은 마음의 평화에서 온다. — 키케로",
+  "살아 있는 한 희망은 있다. — 키케로",
+  "우정은 기쁨을 두 배로 슬픔을 반으로 만든다. — 키케로",
+  "역사는 삶의 스승이다. — 키케로",
+  "어디에도 마음을 두지 않으면 어디에나 마음이 있다. — 장자",
+  "큰 지혜는 한가롭고 작은 지혜는 따진다. — 장자",
+  "우물 안 개구리에게 바다를 말할 수 없다. — 장자",
+  "부드러운 것이 단단한 것을 이긴다. — 노자",
+  "만족할 줄 아는 사람이 부자다. — 노자",
+  "남을 아는 자는 지혜롭고 자신을 아는 자는 현명하다. — 노자",
+  "가장 좋은 것은 물과 같다. — 노자",
+  "발끝으로 서는 자는 오래 서지 못한다. — 노자",
+  "말이 많으면 자주 막힌다. — 노자",
+  "강한 것은 죽음의 무리요 부드러운 것은 삶의 무리다. — 노자",
+  "덕으로 원한을 갚으라. — 노자",
+  "하늘의 그물은 넓어서 성긴 듯하나 놓치는 것이 없다. — 노자",
+  "백성을 다스림은 작은 생선을 굽듯 하라. — 노자",
+  "군자는 자기에게서 구하고 소인은 남에게서 구한다. — 공자",
+  "잘못을 고치지 않는 것이 진짜 잘못이다. — 공자",
+  "날이 추워진 뒤에야 소나무와 잣나무가 늦게 시듦을 안다. — 공자",
+  "아침에 도를 들으면 저녁에 죽어도 좋다. — 공자",
+  "덕이 있는 사람은 외롭지 않으니 반드시 이웃이 있다. — 공자",
+  "배우기만 하고 생각하지 않으면 얻는 것이 없다. — 공자",
+  "말은 어눌하되 행동은 민첩하라. — 공자",
+  "멀리 내다보지 않으면 가까운 곳에 근심이 생긴다. — 공자",
+  "지나친 것은 미치지 못한 것과 같다. — 공자",
+  "덕은 외롭지 않다. — 공자",
+  "하늘은 스스로 돕는 자를 돕는다. — 서양 속담",
+  "로마는 하루아침에 이루어지지 않았다. — 서양 속담",
+  "구르는 돌에는 이끼가 끼지 않는다. — 서양 속담",
+  "필요는 발명의 어머니다. — 플라톤",
+  "시작은 일의 가장 중요한 부분이다. — 플라톤",
+  "자신을 정복하는 것이 가장 위대한 승리다. — 플라톤",
+  "현명한 자는 할 말이 있어 말하고 어리석은 자는 말하고 싶어 말한다. — 플라톤",
+  "무지를 아는 것이 앎의 시작이다. — 소크라테스",
+  "반성하지 않는 삶은 살 가치가 없다. — 소크라테스",
+  "가장 부유한 사람은 적은 것에 만족하는 사람이다. — 소크라테스",
+  "강한 자가 살아남는 것이 아니라 살아남는 자가 강한 것이다. — 다윈",
+  "변화에 가장 잘 적응하는 종이 살아남는다. — 다윈",
+  "용기는 두려움에 대한 저항이다. — 마크 트웨인",
+  "20년 후 당신은 한 일보다 하지 않은 일로 더 후회할 것이다. — 마크 트웨인",
+  "친절은 귀머거리도 듣고 장님도 볼 수 있는 언어다. — 마크 트웨인",
+  "진실을 말하면 아무것도 기억할 필요가 없다. — 마크 트웨인",
+  "좋은 친구와 좋은 책과 잠든 양심, 이것이 이상적인 삶이다. — 마크 트웨인",
+  "나이는 마음먹기에 달렸다. — 마크 트웨인",
+  "훌륭한 일을 하려면 먼저 시작해야 한다. — 마크 트웨인",
+  "인격은 나무와 같고 평판은 그림자와 같다. — 에이브러햄 링컨",
+  "준비하겠다, 그러면 기회가 올 것이다. — 에이브러햄 링컨",
+  "나무를 베는 데 여섯 시간을 준다면 도끼를 가는 데 네 시간을 쓰겠다. — 에이브러햄 링컨",
+  "거의 모든 사람은 역경을 견딜 수 있지만 진짜 시험은 권력을 줬을 때다. — 에이브러햄 링컨",
+  "오늘 할 수 있는 일을 회피하면 내일도 피하게 된다. — 에이브러햄 링컨",
+  "국민의, 국민에 의한, 국민을 위한 정치. — 에이브러햄 링컨",
+  "가장 좋은 미래 예측 방법은 미래를 만드는 것이다. — 피터 드러커",
+  "측정할 수 없으면 관리할 수 없다. — 피터 드러커",
+  "효율은 일을 올바르게 하는 것이고 효과는 올바른 일을 하는 것이다. — 피터 드러커",
+  "오늘의 성공이 내일의 도전을 만든다. — 피터 드러커",
+  "계획은 미래에 대한 현재의 결정이다. — 피터 드러커",
+  "위대한 희망이 위대한 사람을 만든다. — 토머스 풀러",
+  "가장 어두운 시간은 해뜨기 직전이다. — 토머스 풀러",
+  "건강은 노동에서 오고 만족은 건강에서 온다. — 윌리엄 페티",
+  "고통 없이는 얻는 것도 없다. — 서양 속담",
+  "두드려라 그러면 열릴 것이다. — 성경",
+  "구하라 그러면 얻을 것이다. — 성경",
+  "심은 대로 거둔다. — 성경",
+  "시간을 지배하는 자가 인생을 지배한다. — 에센바흐",
+  "가장 큰 위험은 위험 없는 삶이다. — 스티븐 코비",
+  "소중한 것을 먼저 하라. — 스티븐 코비",
+  "끝을 생각하며 시작하라. — 스티븐 코비",
+  "승-승을 생각하라. — 스티븐 코비",
+  "먼저 이해하고 다음에 이해받으라. — 스티븐 코비",
+  "행복은 우리 자신에게 달려 있다. — 아리스토텔레스",
+  "탁월함은 행위가 아니라 습관이다. — 아리스토텔레스",
+  "교육의 뿌리는 쓰지만 그 열매는 달다. — 아리스토텔레스",
+  "희망은 깨어 있는 자의 꿈이다. — 아리스토텔레스",
+  "전체는 부분의 합보다 크다. — 아리스토텔레스",
+  "인간은 사회적 동물이다. — 아리스토텔레스",
+  "분노하기는 쉽다. 그러나 올바른 대상에게 올바른 정도로 분노하기는 어렵다. — 아리스토텔레스",
+  "자연은 결코 헛된 일을 하지 않는다. — 아리스토텔레스",
+  "용기는 인간 자질의 첫째다. 그것이 다른 자질을 보장하기 때문이다. — 아리스토텔레스",
+  "친구란 두 몸에 깃든 하나의 영혼이다. — 아리스토텔레스",
+  "지혜로운 자는 적게 말한다. — 영국 속담",
+  "천 마디 말보다 한 번의 행동이 낫다. — 동양 속담",
+  "백문이 불여일견이다. — 한서",
+  "호랑이 굴에 들어가야 호랑이를 잡는다. — 한국 속담",
+  "가는 말이 고와야 오는 말이 곱다. — 한국 속담",
+  "티끌 모아 태산이다. — 한국 속담",
+  "낮말은 새가 듣고 밤말은 쥐가 듣는다. — 한국 속담",
+  "하룻강아지 범 무서운 줄 모른다. — 한국 속담",
+  "등잔 밑이 어둡다. — 한국 속담",
+  "열 번 찍어 안 넘어가는 나무 없다. — 한국 속담",
+  "백지장도 맞들면 낫다. — 한국 속담",
+  "우물을 파도 한 우물을 파라. — 한국 속담",
+  "바늘 도둑이 소 도둑 된다. — 한국 속담",
+  "공든 탑이 무너지랴. — 한국 속담",
+  "세 살 버릇 여든까지 간다. — 한국 속담",
+];
+
+/* ============================================================
+   ★ 트렌디 단어 — 새 노드의 placeholder 라벨용 200개
+   ────────────────────────────────────────────────────────────
+   기준: 한국어 위주, 너무 진부하지 않고 너무 유행 안 타는 영감 단어.
+   짧게(2~10자 정도). 노드 안에 들어갈 거니까 한 줄에 깔끔히 들어가야 함.
+   카테고리: 영감/창의 / 액션/실행 / 감성/관계 / 트렌디 / 일상/관찰
+   ============================================================ */
+const SAMPLE_IDEA_WORDS = [
+  // 영감 / 창의 (40개)
+  "번뜩이는 발상", "엉뚱한 시도", "기발한 한 수", "딴짓의 가능성",
+  "어떤 가능성", "오늘의 발견", "새로운 시선", "다른 각도",
+  "한 줄 영감", "스쳐간 생각", "이상한 직감", "꿈틀대는 아이디어",
+  "조용한 영감", "오늘의 한 수", "느낌 있는 무언가", "다음 챕터",
+  "작은 불꽃", "신선한 발견", "별난 발상", "오늘의 키워드",
+  "한 끗 다름", "특이한 시도", "마음에 든 것", "주머니 속 아이디어",
+  "갑자기 떠오른", "이게 뭐지", "오늘만 보이는", "내일의 씨앗",
+  "잡힐 듯 잡힐 듯", "한 줄로 정리", "괜찮은 흐름", "재미있는 발견",
+  "예감이 좋은", "묘하게 끌리는", "왠지 모르게", "처음 본 단어",
+  "메모해둘 것", "다음에 시도", "오늘의 가설", "또 다른 길",
+
+  // 액션 / 실행 (40개)
+  "지금 시작", "한 걸음만 더", "오늘 끝낼 일", "오늘 시작할 일",
+  "당장 해볼까", "지금 해볼까", "오늘의 도전", "한 번 해보자",
+  "바로 실행", "미루지 말기", "내일이 아니라 지금", "딱 5분만",
+  "작은 실험", "오늘의 미션", "당장 메모", "체크할 것",
+  "정리할 것", "끝낼 것", "마무리할 것", "시작할 것",
+  "한 번에 끝내기", "오늘 안에", "이번 주에", "다음 단계",
+  "한 단계 더", "또 한 번", "다시 시도", "이번엔 다르게",
+  "방법 바꾸기", "관점 바꾸기", "순서 바꾸기", "속도 조절",
+  "쉬어가는 시점", "체크포인트", "중간 점검", "다음 행동",
+  "오늘의 결심", "지금 결정", "더 미루지 말 것", "행동으로",
+
+  // 감성 / 관계 (40개)
+  "마음의 결", "조용한 시간", "느슨한 연결", "오늘의 기분",
+  "그리운 무언가", "왠지 좋은 날", "한가한 마음", "마음 둘 곳",
+  "오랜만에", "보고 싶은 사람", "전하고 싶은 말", "고마운 사람",
+  "미안한 마음", "기쁜 일", "위로의 한 마디", "함께할 사람",
+  "응원할 사람", "도와줄 사람", "기다리는 사람", "곁에 둘 사람",
+  "마음 가는 곳", "마음이 머무는", "오늘의 감정", "잔잔한 행복",
+  "작은 다정함", "은은한 기쁨", "마음에 남은 것", "오늘의 위로",
+  "조심스러운 말", "솔직한 마음", "표현하고 싶은", "전해야 할 말",
+  "묻고 싶은 것", "들어보고 싶은", "나누고 싶은", "공감되는 순간",
+  "이해받고 싶은", "혼자 두기 싫은", "함께 보내는", "마음 한 켠",
+
+  // 트렌디 / 라이프스타일 (40개)
+  "바이브 체크", "마이크로 챌린지", "디지털 디톡스", "주말 프로젝트",
+  "사이드 프로젝트", "미니멀하게", "정리의 미학", "비우는 연습",
+  "취향 발견", "내 취향", "오늘의 무드", "분위기 전환",
+  "리프레시", "리셋 버튼", "다시 시작", "프리워크아웃",
+  "워크 라이프", "느린 아침", "조용한 저녁", "주말의 여유",
+  "퇴근 후 할 일", "출근 전 할 일", "점심시간에", "쉬는 시간에",
+  "이번 주 목표", "이번 달 목표", "올해의 키워드", "올해의 결심",
+  "버킷리스트", "위시리스트", "장바구니", "관심 목록",
+  "다음 여행지", "가보고 싶은 곳", "먹어보고 싶은", "배워보고 싶은",
+  "도전하고 싶은", "만들어보고 싶은", "써보고 싶은", "해보고 싶은",
+
+  // 일상 / 관찰 (40개)
+  "오늘의 한 컷", "오늘 본 것", "오늘 들은 것", "오늘 먹은 것",
+  "오늘 한 일", "오늘의 메모", "오늘 산 것", "오늘 만난 사람",
+  "오늘의 풍경", "오늘의 한 마디", "오늘의 책", "오늘의 음악",
+  "오늘의 영화", "오늘의 운동", "오늘의 식단", "오늘의 컨디션",
+  "어제와 다른 점", "내일 할 것", "이번 주 정리", "이번 달 정리",
+  "오늘의 습관", "고치고 싶은", "이어가고 싶은", "그만두고 싶은",
+  "처음 해본 것", "익숙해진 것", "지겨워진 것", "여전히 좋은",
+  "다시 보고 싶은", "한 번 더", "잊고 싶은", "기억하고 싶은",
+  "사진으로 남길", "글로 남길", "기록할 가치", "오늘의 한 줄",
+  "사소한 행복", "별것 아닌 일", "특별한 순간", "평범한 하루",
+];
+
+// 큐레이션 + 사용자 단어를 합치되, 설정에 따라 출처 선택
+// settings.ideaWordSource: 'sample' (기본만) / 'custom' (내 것만) / 'both' (둘 다)
+// 사용자가 'custom'으로 했는데 단어가 없으면 기본으로 안전 폴백
+function getIdeaWordPool(settings) {
+  const src = settings?.ideaWordSource || 'sample';
+  const custom = Array.isArray(settings?.customIdeaWords) ? settings.customIdeaWords : [];
+  if (src === 'custom' && custom.length > 0) return custom;
+  if (src === 'both') return [...SAMPLE_IDEA_WORDS, ...custom];
+  return SAMPLE_IDEA_WORDS;
+}
+
+// 랜덤 단어 선택 — recentWords 안에 있는 단어는 회피(연속 중복 방지)
+function pickRandomIdeaWord(settings, recentWords) {
+  const pool = getIdeaWordPool(settings);
+  if (pool.length === 0) return '새로운 아이디어';
+  // 풀이 너무 작으면 회피 불가 — 그냥 랜덤
+  const recent = Array.isArray(recentWords) ? recentWords : [];
+  const avoidSet = new Set(recent);
+  const candidates = pool.filter(w => !avoidSet.has(w));
+  // 모든 단어가 최근에 나왔으면 전체에서 다시 뽑음
+  const finalPool = candidates.length > 0 ? candidates : pool;
+  return finalPool[Math.floor(Math.random() * finalPool.length)];
+}
+
+// 날짜 기반으로 "오늘의" 항목을 고름 (같은 날엔 같은 격언, 매일 바뀜)
+function dayIndex() {
+  const now = new Date();
+  // 연초부터 며칠째인지 (대략) — 날짜가 바뀌면 인덱스도 바뀜
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now - start;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+// 격언 목록에서 오늘의 격언 하나 선택
+function pickTodayQuote(list) {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  return list[dayIndex() % list.length];
+}
+
+// 밀리초 → "MM:SS" 또는 "M:SS" 형태로 포맷
+// 타임스탬프(ISO) → "YYYY.MM.DD HH:mm" (생성·수정 시각 표시용)
+function fmtTimestamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function formatTimer(ms) {
+  if (ms == null || ms < 0) ms = 0;
+  const totalSec = Math.ceil(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// 헤더 타이머 칩 — 카운트다운 표시(초당 4회 갱신)를 App에서 분리한 독립 컴포넌트.
+// 자체 250ms 인터벌로 '자기 자신만' 리렌더 → App(=layoutTree·SVG 재생성)은 틱마다 다시 그리지 않는다.
+function TimerChip({ timerState, timerEndAt, timerRemainingMs, defaultMs, timerFlash, timerMinutes, onMainClick, onReset }) {
+  const [displayMs, setDisplayMs] = React.useState(defaultMs);
+  React.useEffect(() => {
+    if (timerState === 'running' && timerEndAt) {
+      const upd = () => setDisplayMs(Math.max(0, timerEndAt - Date.now()));
+      upd();
+      const id = setInterval(upd, 250);
+      return () => clearInterval(id);
+    }
+    if (timerState === 'paused') setDisplayMs(timerRemainingMs != null ? timerRemainingMs : defaultMs);
+    else if (timerState === 'done') setDisplayMs(0);
+    else setDisplayMs(defaultMs); // idle — 설정 분 변경 시 defaultMs 갱신으로 따라옴
+  }, [timerState, timerEndAt, timerRemainingMs, defaultMs]);
+  const urgent = timerState === 'running' && displayMs > 0 && displayMs <= 60000;
+  return (
+    <div className="timer-zone">
+      <div className={`timer-chip ${timerState}` + (timerFlash ? ' flash' : '') + (urgent ? ' urgent' : '')}>
+        <button
+          className="timer-btn timer-main"
+          onClick={onMainClick}
+          title={
+            timerState === 'running' ? '일시정지 (현재 카운트다운 중)' :
+            timerState === 'paused' ? '재개' :
+            timerState === 'done' ? '다시 시작' :
+            `${timerMinutes}분 타이머 시작`
+          }
+        >
+          <span className="timer-icon">
+            {timerState === 'running' ? '⏸' : timerState === 'done' ? '⏰' : '▶'}
+          </span>
+          <span className="timer-time">{formatTimer(displayMs)}</span>
+        </button>
+        {(timerState === 'running' || timerState === 'paused' || timerState === 'done') && (
+          <button className="timer-btn timer-reset" onClick={onReset} title="리셋">↺</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 하루를 힘차게 시작할 수 있는 명언 (10자 내외) - 명언 배너용
+const MORNING_QUOTES = [
+  "오늘은 새 챕터",
+  "한 걸음씩, 꾸준히",
+  "시작이 반이다",
+  "오늘도 화이팅",
+  "할 수 있다, 분명히",
+  "작은 진보가 큰 변화",
+  "오늘 최선이면 충분해",
+  "생각보다 행동",
+  "꿈은 행동의 시작",
+  "지금 이 순간이 최고",
+  "어제보다 나은 오늘",
+  "천천히, 그러나 멈추지 않게",
+  "용기 한 스푼 더하기",
+  "오늘도 한 뼘 자란다",
+  "시작하면 끝이 보인다",
+];
+function pickQuote() {
+  return MORNING_QUOTES[Math.floor(Math.random() * MORNING_QUOTES.length)];
+}
+
+// 루트 노드 라벨용 슬로건 - 행동 가능한 짧은 문구
+// (명언 배너와 별개. 다이어그램의 첫 노드에 들어가는 문구)
+const ROOT_SLOGANS = [
+  "소중한 것 먼저 하기",
+  "오늘 꼭 할 일 정하기",
+  "한 가지에 집중하기",
+  "작은 일부터 시작하기",
+  "마음 가는 일 하기",
+  "오늘의 우선순위",
+  "하루의 핵심 챙기기",
+  "급한 일 vs 중요한 일",
+  "기분 좋게 시작하기",
+  "오늘 만들 변화",
+  "지금 가장 중요한 것",
+  "비우고 채우기",
+  "할 일과 하고 싶은 일",
+  "오늘 마음에 담을 일",
+  "한 발짝 더 나아가기",
+];
+function pickRootSlogan() {
+  return ROOT_SLOGANS[Math.floor(Math.random() * ROOT_SLOGANS.length)];
+}
+
+// 오늘 날짜를 "2026년 5월 28일" 형태로
+function formatTodayKR() {
+  const d = new Date();
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
+
+// 루트 노드 라벨 생성: "2026년 5월 28일 — 소중한 것 먼저 하기"
+function generateRootLabel() {
+  return `${formatTodayKR()} ${pickRootSlogan()}`;
+}
+
+// IndexedDB 래퍼: 폴더 핸들과 마지막 작업 상태를 저장
+const DB_NAME = 'brainbloom';
+const DB_VERSION = 1;
+const STORE = 'kv';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbGet(key) {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('idbGet failed', e);
+    return undefined;
+  }
+}
+async function idbSet(key, value) {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('idbSet failed', e);
+    return false;
+  }
+}
+async function idbDel(key) {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('idbDel failed', e);
+    return false;
+  }
+}
+
+/* ============================================================
+   ★ 구글 드라이브 연동 (drive.file 범위, 클라이언트 측 토큰 방식)
+   - GIS(Google Identity Services)로 액세스 토큰을 발급받아 Drive REST API 호출
+   - 토큰은 메모리에만 보관(약 1시간 유효). 새로고침하면 다시 로그인 필요
+   - drive.file: 이 앱이 만든 파일만 접근 → 사용자의 다른 드라이브 파일은 못 봄(안전)
+   ============================================================ */
+let _driveToken = null;          // 현재 액세스 토큰 (메모리)
+let _driveTokenExpiry = 0;       // 토큰 만료 예상 시각 (epoch ms)
+let _driveTokenClient = null;    // GIS 토큰 클라이언트 (1회 초기화)
+
+// GIS 스크립트가 로드됐는지 확인
+function isGisReady() {
+  return typeof google !== 'undefined' && google.accounts && google.accounts.oauth2;
+}
+
+// 토큰 클라이언트 초기화 (최초 1회). 콜백은 requestDriveToken에서 매번 교체.
+function initDriveTokenClient() {
+  if (_driveTokenClient || !isGisReady()) return _driveTokenClient;
+  _driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_SCOPE,
+    callback: () => {}, // requestDriveToken에서 매 호출 시 실제 콜백 지정
+  });
+  return _driveTokenClient;
+}
+
+// 액세스 토큰 요청. Promise로 토큰 반환.
+// forcePrompt=false면 이미 동의한 경우 팝업 없이 조용히 발급/갱신됨.
+function requestDriveToken(forcePrompt) {
+  return new Promise((resolve, reject) => {
+    if (!isGisReady()) { reject(new Error('구글 로그인 모듈이 아직 로드되지 않았습니다. 잠시 후 다시 시도하세요.')); return; }
+    const client = initDriveTokenClient();
+    if (!client) { reject(new Error('구글 로그인 초기화 실패')); return; }
+    client.callback = (resp) => {
+      if (resp && resp.access_token) {
+        _driveToken = resp.access_token;
+        // expires_in(초) 기준으로 만료 시각 기록. 없으면 안전하게 50분으로 가정.
+        const lifetimeMs = (resp.expires_in ? resp.expires_in : 3000) * 1000;
+        _driveTokenExpiry = Date.now() + lifetimeMs;
+        saveDriveTokenToSession();   // 같은 탭 새로고침 시 팝업 없이 재사용 (탭 닫으면 삭제)
+        resolve(_driveToken);
+      } else {
+        reject(new Error('토큰을 받지 못했습니다.'));
+      }
+    };
+    try {
+      client.requestAccessToken({ prompt: forcePrompt ? 'consent' : '' });
+    } catch (e) { reject(e); }
+  });
+}
+
+// 토큰이 유효한지(만료 2분 전까지 여유) 확인하고, 곧 만료면 조용히 재발급.
+// 자동저장이 1시간 토큰 만료로 끊기지 않도록 하는 핵심.
+async function ensureDriveToken() {
+  if (!_driveToken) throw new Error('로그인이 필요합니다.');
+  const TWO_MIN = 2 * 60 * 1000;
+  if (Date.now() > _driveTokenExpiry - TWO_MIN) {
+    // 만료 임박 → 조용히 갱신(이미 동의했으므로 팝업 없음)
+    await requestDriveToken(false);
+  }
+  return _driveToken;
+}
+
+// 토큰 해제 (로그아웃)
+function revokeDriveToken() {
+  if (_driveToken && isGisReady()) {
+    try { google.accounts.oauth2.revoke(_driveToken, () => {}); } catch (e) {}
+  }
+  _driveToken = null;
+  _driveTokenExpiry = 0;
+  clearDriveTokenSession();
+}
+
+// ── 새로고침 후 자동 재연결용 "연결 이력" 플래그 ──
+// 토큰 같은 민감 정보는 저장하지 않음. "이전에 연결한 적 있다"는 사실(boolean)만 저장.
+// 이 플래그가 있으면 앱 로드 시 팝업 없이 조용히 토큰 재발급을 시도한다.
+const DRIVE_LINKED_KEY = 'bb_drive_linked';
+// 드라이브에 저장하는 설정 백업 파일의 고정 이름 (마인드맵 파일들과 같은 폴더, 항상 1개만 유지)
+// 날짜 패턴이 아니므로 parseDriveFileName이 null을 반환 → 버전 정리 로직이 절대 건드리지 않음
+const SETTINGS_FILE_NAME = 'BrainBloom_settings.json';
+function setDriveLinkedFlag(v) {
+  try {
+    if (v) localStorage.setItem(DRIVE_LINKED_KEY, '1');
+    else localStorage.removeItem(DRIVE_LINKED_KEY);
+  } catch (e) {}
+}
+function getDriveLinkedFlag() {
+  try { return localStorage.getItem(DRIVE_LINKED_KEY) === '1'; } catch (e) { return false; }
+}
+
+// ── 액세스 토큰 탭-세션 보관 (같은 탭 새로고침 시 구글 로그인 팝업 회피) ──
+// 사용자 동의 하에, 토큰을 sessionStorage에 잠깐 보관한다. drive.file 권한·약 1시간 한정이며
+// localStorage가 아니라 sessionStorage라 '탭을 닫으면 자동 삭제'된다(새 탭·새 방문은 재요청 → 팝업).
+const DRIVE_TOKEN_KEY = 'bb_drive_tok';
+function saveDriveTokenToSession() {
+  try { sessionStorage.setItem(DRIVE_TOKEN_KEY, JSON.stringify({ t: _driveToken, e: _driveTokenExpiry })); } catch (e) {}
+}
+function clearDriveTokenSession() {
+  try { sessionStorage.removeItem(DRIVE_TOKEN_KEY); } catch (e) {}
+}
+// 세션에 유효한(만료 2분 전까지 여유) 토큰이 있으면 메모리로 복원하고 true. 없거나 만료면 false(+정리).
+function restoreDriveTokenFromSession() {
+  try {
+    const raw = sessionStorage.getItem(DRIVE_TOKEN_KEY);
+    if (!raw) return false;
+    const o = JSON.parse(raw);
+    if (o && o.t && typeof o.e === 'number' && Date.now() < o.e - 2 * 60 * 1000) {
+      _driveToken = o.t;
+      _driveTokenExpiry = o.e;
+      return true;
+    }
+    sessionStorage.removeItem(DRIVE_TOKEN_KEY);
+  } catch (e) {}
+  return false;
+}
+
+// 앱 전용 폴더 찾기 → folderId. 없으면 생성해서 반환.
+async function driveGetOrCreateFolder() {
+  await ensureDriveToken();
+  // 1) 기존 폴더 찾기
+  const q = encodeURIComponent(`name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, {
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`폴더 조회 실패 (${res.status})`);
+  const data = await res.json();
+  if (data.files && data.files.length > 0) return data.files[0].id;
+  // 2) 없으면 생성
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${_driveToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: DRIVE_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
+  });
+  if (!createRes.ok) throw new Error(`폴더 생성 실패 (${createRes.status})`);
+  const folder = await createRes.json();
+  return folder.id;
+}
+
+// 앱 폴더 안에 새 파일로 저장 (날짜별로 쌓임). fileName 확장자 없으면 .json 자동 추가.
+async function driveSaveNewFile(fileName, jsonText) {
+  await ensureDriveToken();
+  const folderId = await driveGetOrCreateFolder();
+  let name = (fileName || '').trim() || new Date().toISOString().slice(0, 10);
+  if (!/\.json$/i.test(name)) name += '.json';
+  const metadata = { name, mimeType: 'application/json', parents: [folderId] };
+  const boundary = 'bb_boundary_' + Math.random().toString(36).slice(2);
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+    JSON.stringify(metadata) +
+    `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n` +
+    jsonText +
+    `\r\n--${boundary}--`;
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${_driveToken}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`,
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`드라이브 저장 실패 (${res.status})`);
+  return await res.json();
+}
+
+// 앱 폴더 안 파일 목록 (최신순) → [{id, name, modifiedTime}]
+async function driveListFiles() {
+  await ensureDriveToken();
+  const folderId = await driveGetOrCreateFolder();
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false and mimeType='application/json'`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime,size)`, {
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`목록 조회 실패 (${res.status})`);
+  const data = await res.json();
+  return data.files || [];
+}
+
+// 특정 파일 id로 내용 불러오기 → 문자열
+async function driveLoadFileById(fileId) {
+  await ensureDriveToken();
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`드라이브 불러오기 실패 (${res.status})`);
+  return await res.text();
+}
+
+// 파일 삭제
+async function driveDeleteFile(fileId) {
+  await ensureDriveToken();
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  // 204(성공) 또는 404(이미 없음)는 정상 취급
+  if (!res.ok && res.status !== 404) throw new Error(`파일 삭제 실패 (${res.status})`);
+  return true;
+}
+
+// 파일 이름 변경 (newBase에 .json 자동 추가)
+async function driveRenameFile(fileId, newBase) {
+  await ensureDriveToken();
+  let name = newBase;
+  if (!/\.json$/i.test(name)) name += '.json';
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${_driveToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error(`파일 이름 변경 실패 (${res.status})`);
+  return await res.json();
+}
+
+// ── Backup 하위 폴더 (앱 폴더 안. drive.file 범위 — 앱이 만든 폴더/파일만 다룸) ──
+const DRIVE_BACKUP_NAME = 'Backup';
+// Backup 폴더 찾기(없으면 null, 생성하지 않음 — 불러오기 시 빈 폴더 양산 방지)
+async function driveFindBackupFolder(parentId) {
+  await ensureDriveToken();
+  const parent = parentId || await driveGetOrCreateFolder();
+  const q = encodeURIComponent(`name='${DRIVE_BACKUP_NAME}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, {
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`Backup 폴더 조회 실패 (${res.status})`);
+  const data = await res.json();
+  return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+// Backup 폴더 get/create (저장 시 사용)
+async function driveGetOrCreateBackupFolder(parentId) {
+  const parent = parentId || await driveGetOrCreateFolder();
+  const existing = await driveFindBackupFolder(parent);
+  if (existing) return existing;
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${_driveToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: DRIVE_BACKUP_NAME, mimeType: 'application/vnd.google-apps.folder', parents: [parent] }),
+  });
+  if (!createRes.ok) throw new Error(`Backup 폴더 생성 실패 (${createRes.status})`);
+  return (await createRes.json()).id;
+}
+// Backup 폴더 안 json 파일 목록 (최신순). 폴더 없으면 []
+async function driveListBackupFiles() {
+  await ensureDriveToken();
+  const parent = await driveGetOrCreateFolder();
+  const backupId = await driveFindBackupFolder(parent);
+  if (!backupId) return [];
+  const q = encodeURIComponent(`'${backupId}' in parents and trashed=false and mimeType='application/json'`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime,size)`, {
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`Backup 목록 조회 실패 (${res.status})`);
+  return (await res.json()).files || [];
+}
+// 메인 + Backup 목록을 합쳐 같은 이름은 최신(modifiedTime)만 남기고 최신순 정렬.
+// 항목에 _backup 표시(설정 백업 파일은 제외) — 관리자 드라이브 뷰·설정 불러오기 목록이 공유하는 단일 규칙.
+async function fetchMergedDriveList() {
+  const [main, backup] = await Promise.all([driveListFiles(), driveListBackupFiles()]);
+  const tagged = [
+    ...main.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: false })),
+    ...backup.filter(f => f.name !== SETTINGS_FILE_NAME).map(f => ({ ...f, _backup: true })),
+  ];
+  const byName = new Map();
+  for (const f of tagged) {
+    const ex = byName.get(f.name);
+    if (!ex || (Date.parse(f.modifiedTime) || 0) > (Date.parse(ex.modifiedTime) || 0)) byName.set(f.name, f);
+  }
+  return [...byName.values()].sort((a, b) => (Date.parse(b.modifiedTime) || 0) - (Date.parse(a.modifiedTime) || 0));
+}
+
+// 파일을 다른 폴더로 이동 (addParents/removeParents)
+async function driveMoveFile(fileId, addParent, removeParent) {
+  await ensureDriveToken();
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${encodeURIComponent(addParent)}&removeParents=${encodeURIComponent(removeParent)}&fields=id,parents`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`파일 이동 실패 (${res.status})`);
+  return await res.json();
+}
+
+// 가벼운 연결 검사: 토큰을 보장한 뒤 about 엔드포인트로 최소 요청.
+// 성공하면 연결 정상, 실패(특히 401/403)하면 throw → 호출부에서 위험상태 처리.
+async function drivePing() {
+  await ensureDriveToken(); // 만료 임박이면 여기서 먼저 갱신 시도(방식 A와 동일)
+  const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(displayName)', {
+    headers: { Authorization: `Bearer ${_driveToken}` },
+  });
+  if (!res.ok) throw new Error(`연결 확인 실패 (${res.status})`);
+  return true;
+}
+
+// ── 버전관리 해석 B: 파일명 파싱 + 정리 계산 (순수 함수, 단위 테스트 완료) ──
+// prefix에서 휴양지 이름 추출(끝 '_' 제거). 예: '발리_' → '발리'
+function resortFromPrefix(prefix) { return (prefix || '').replace(/_+$/, '').trim(); }
+
+// 버전 번호를 두 자리로 0-패딩 (0→00, 1→01 … 10→10, 100→100). 첫 저장은 00.
+function pad2(n) { return String(n).padStart(2, '0'); }
+// 파일명(.json 제외) 조립 → 날짜_휴양지[_버전(2자리)]. version=null이면 최종(번호 없음). 휴양지 없으면 날짜[.버전](구형 폴백).
+function buildDriveBase(prefix, date, version) {
+  const resort = resortFromPrefix(prefix);
+  if (resort) return `${date}_${resort}${version != null ? `_${pad2(version)}` : ''}`;
+  return `${date}${version != null ? `.${pad2(version)}` : ''}`;
+}
+
+// 파일명(.json 제외) → {prefix, date, version}. 신형(날짜_휴양지[_버전])·구형({prefix}날짜[.버전]) 모두 인식. 안 맞으면 null.
+function parseDriveFileName(base, prefix) {
+  const resort = resortFromPrefix(prefix);
+  // 신형: 날짜_휴양지[_버전]
+  if (resort) {
+    const esc = resort.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const mn = base.match(new RegExp(`^(\\d{4}-\\d{2}-\\d{2})_${esc}(?:_(\\d+))?$`));
+    if (mn) return { prefix: prefix || '', date: mn[1], version: mn[2] ? parseInt(mn[2], 10) : null };
+  }
+  // 구형(하위 호환): {prefix}날짜[.버전]
+  let rest = base;
+  if (prefix) {
+    if (!rest.startsWith(prefix)) return null;
+    rest = rest.slice(prefix.length);
+  }
+  const m = rest.match(/^(\d{4}-\d{2}-\d{2})(?:\.(\d+))?$/);
+  if (!m) return null;
+  return { prefix: prefix || '', date: m[1], version: m[2] ? parseInt(m[2], 10) : null };
+}
+// 해당 날짜의 다음 저장 번호. 파일이 없으면 0(첫 저장 _00), 있으면 최댓값+1.
+function nextVersionForDate(files, prefix, date) {
+  let max = -1;
+  for (const f of files) {
+    const p = parseDriveFileName(f.name.replace(/\.json$/i, ''), prefix);
+    if (p && p.date === date && p.version != null && p.version > max) max = p.version;
+  }
+  return max + 1;
+}
+
+// 다운로드로 파일 저장
+function downloadFile(filename, content, mimeType) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 통합 저장 함수: 항상 다운로드 방식
+async function saveToTarget(filename, content, mimeType) {
+  downloadFile(filename, content, mimeType);
+  return { ok: true, method: 'download' };
+}
+
+// "어제 이전인지" 판정 (자정 기준)
+function isBeforeToday(timestamp) {
+  if (!timestamp) return false;
+  const t = new Date(timestamp);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return t.getTime() < today.getTime();
+}
+
+// 트리에서 임시 레이아웃 필드 제거 후 JSON 직렬화
+function serializeTree(root) {
+  const clean = cloneTree(root);
+  // 레이아웃 계산용 임시 필드 모두 제거 (저장 시 깔끔하게)
+  // autoSide와 pinnedSide는 사용자/시스템 결정이므로 보존 (다음 세션 복원에도 필요)
+  walk(clean, n => {
+    delete n._x; delete n._y; delete n._w; delete n._h;
+    delete n._subH; delete n._subW; delete n._side;
+    // _autoLabel(자동 채움 표시)은 보존 — 새로고침/다음 세션에도 ★샘플★ 구분 표시 유지
+  });
+  return clean;
+}
+
+// 파일 이름에 쓸 수 없는 문자 제거(Windows·맥 공통) + 공백 정리 + 길이 제한.
+// 내보내기 파일명에 문서 이름을 넣을 때 사용. 결과가 비면 ''(호출 측에서 접두사로 대체).
+function sanitizeFilePart(s, maxLen = 40) {
+  return String(s || '')
+    .replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ') // 금지 문자·제어 문자 → 공백
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen)
+    .replace(/[. ]+$/, ''); // Windows는 끝의 점·공백 불가
+}
+
+// XML/SVG에 안전한 문자열로 이스케이프
+function escapeXml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+// 다이어그램을 SVG 문자열로 직렬화 (한글 텍스트 포함)
+// PNG 변환 후 PDF에 삽입할 용도
+function buildDiagramSVG(root) {
+  layoutTree(root);
+  // layoutTree는 '보이는' 노드만 좌표를 계산한다(접힌 하위는 _x/_w 없음/구버전 값).
+  // 화면 렌더러와 동일하게 walkVisible + 폴백으로 순회해야 NaN 크기·숨은 노드 유출이 없다.
+  let maxX = 0, maxY = 0;
+  walkVisible(root, n => {
+    maxX = Math.max(maxX, (n._x || 0) + (n._w || NODE_W));
+    maxY = Math.max(maxY, (n._y || 0) + (n._h || nodeHeight(n, n === root)));
+  });
+  const PADDING = 40;
+  const HEADER_H = 50;
+  const W = maxX + PADDING * 2;
+  const H = maxY + PADDING * 2 + HEADER_H;
+
+  // 한글 글꼴 후보 — 브라우저가 시스템에서 사용 가능한 것을 자동 선택
+  // 외부 폰트(Fraunces)는 SVG → Image 변환 시 안 들어오므로 시스템 글꼴로 fallback
+  const fontFamily = "'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic','맑은 고딕','Helvetica Neue',Helvetica,Arial,sans-serif";
+  const monoFamily = "'JetBrains Mono','D2Coding','SF Mono','Consolas','Apple SD Gothic Neo','Malgun Gothic',monospace";
+
+  const parts = [];
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
+
+  // 배경
+  parts.push(`<rect width="${W}" height="${H}" fill="#f4f6f9"/>`);
+
+  // 도트 그리드 패턴
+  parts.push(`<defs>
+    <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1" fill="rgba(0,0,0,0.06)"/>
+    </pattern>
+  </defs>`);
+  parts.push(`<rect width="${W}" height="${H}" fill="url(#dots)"/>`);
+
+  // 헤더
+  const title = escapeXml('BrainBloom — ' + (root.label || 'Mindmap'));
+  const subtitle = escapeXml(new Date().toLocaleString('ko-KR'));
+  parts.push(`<text x="${PADDING}" y="28" font-family="${fontFamily}" font-weight="700" font-size="16" fill="#1a1d24">${title}</text>`);
+  parts.push(`<text x="${PADDING}" y="44" font-family="${monoFamily}" font-size="10" fill="#4a4f5c">${subtitle}</text>`);
+
+  // 연결선 (베지어) — 자식의 _side에 따라 좌/우 방향 결정 (접힌 노드의 숨은 자식은 제외)
+  walkVisible(root, n => {
+    if (!n.children || (n !== root && n.collapsed === true)) return;
+    n.children.forEach(c => {
+      const isLeft = c._side === 'left';
+      const nw = n._w || NODE_W, nh = n._h || nodeHeight(n, n === root);
+      const cw = c._w || NODE_W, ch = c._h || nodeHeight(c);
+      const fromX = isLeft
+        ? (n._x || 0) + PADDING
+        : (n._x || 0) + nw + PADDING;
+      const fromY = (n._y || 0) + nh / 2 + PADDING + HEADER_H;
+      const toX = isLeft
+        ? (c._x || 0) + cw + PADDING
+        : (c._x || 0) + PADDING;
+      const toY = (c._y || 0) + ch / 2 + PADDING + HEADER_H;
+      const cx1 = fromX + (toX - fromX) * 0.5;
+      const cx2 = fromX + (toX - fromX) * 0.5;
+      const color = COLORS[c.color || 'slate']?.bg || '#647396';
+      parts.push(`<path d="M ${fromX} ${fromY} C ${cx1} ${fromY}, ${cx2} ${toY}, ${toX} ${toY}" stroke="${color}" stroke-width="2" fill="none" opacity="0.7"/>`);
+    });
+  });
+
+  // 노드들 (보이는 노드만)
+  walkVisible(root, n => {
+    const color = COLORS[n.color || 'navy']?.bg || '#3a6ea5';
+    const isRoot = (n === root);
+    const x = (n._x || 0) + PADDING;
+    const y = (n._y || 0) + PADDING + HEADER_H;
+    const nw = n._w || NODE_W;
+    const nh = n._h || nodeHeight(n, isRoot);
+    // 그림자
+    parts.push(`<rect x="${x}" y="${y + 2}" width="${nw}" height="${nh}" rx="14" ry="14" fill="rgba(0,0,0,0.08)"/>`);
+    // 본체
+    parts.push(`<rect x="${x}" y="${y}" width="${nw}" height="${nh}" rx="14" ry="14" fill="${color}"/>`);
+
+    // 아이콘 줄 (있으면 맨 위)
+    const icons = n.icons || [];
+    let iconOffset = 0;
+    if (icons.length > 0) {
+      const iconY = y + 18;
+      icons.forEach((ic, i) => {
+        parts.push(`<text x="${x + 11 + i * 22}" y="${iconY}" font-size="16" font-family="${fontFamily}">${escapeXml(ic)}</text>`);
+      });
+      iconOffset = 22; // 라벨을 아이콘 줄 아래로
+    }
+
+    // 라벨 (여러 줄 줄바꿈)
+    const font = labelFontOf(n, isRoot);
+    const maxTextW = nw - NODE_PAD_X;
+    const lines = wrapLabel(n.label || '', maxTextW, font);
+    const totalLabelH = lines.length * LINE_HEIGHT;
+    const metaCount = countMetaLines(n);
+    // 메타/아이콘 유무에 따라 라벨 세로 위치 결정
+    let labelTop;
+    if (metaCount > 0 || icons.length > 0) {
+      labelTop = y + 9 + iconOffset + font; // 위에서부터 (아이콘 아래)
+    } else {
+      labelTop = y + (nh - totalLabelH) / 2 + font; // 세로 중앙
+    }
+    const tspans = lines.map((line, i) =>
+      `<tspan x="${x + 11}" dy="${i === 0 ? 0 : LINE_HEIGHT}">${escapeXml(line)}</tspan>`
+    ).join('');
+    parts.push(`<text x="${x + 11}" y="${labelTop}" font-family="${fontFamily}" font-weight="700" font-size="${font}" fill="white">${tspans}</text>`);
+
+    // 메타데이터
+    const meta = n.meta || {};
+    const metaLines = [];
+    if (meta.date) metaLines.push(`📅 ${meta.date}`);
+    if (meta.effort) metaLines.push(`⚡ ${meta.effort}`);
+    if (meta.cost) metaLines.push(`💰 ${meta.cost}`);
+    if (metaLines.length > 0) {
+      const dividerY = y + 9 + iconOffset + totalLabelH + 6;
+      let metaY = dividerY + 16;
+      parts.push(`<line x1="${x + 11}" y1="${dividerY}" x2="${x + nw - 11}" y2="${dividerY}" stroke="rgba(255,255,255,0.2)"/>`);
+      metaLines.forEach((line, i) => {
+        parts.push(`<text x="${x + 11}" y="${metaY + i * 16}" font-family="${monoFamily}" font-size="10" fill="rgba(255,255,255,0.9)">${escapeXml(line)}</text>`);
+      });
+    }
+  });
+
+  parts.push('</svg>');
+  return { svg: parts.join(''), width: W, height: H };
+}
+
+// SVG 문자열을 PNG dataURL로 변환 (Canvas 거쳐서)
+// 해상도 배수(scale)를 높이면 더 선명한 PDF가 됨
+// SVG 문자열을 래스터 이미지(dataURL)로 변환
+// mimeType: 'image/png' 또는 'image/jpeg'
+function svgToRaster(svgString, width, height, scale = 2, mimeType = 'image/png', quality = 0.92) {
+  return new Promise((resolve, reject) => {
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(width * scale);
+        canvas.height = Math.ceil(height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        // JPG는 투명도를 지원하지 않으므로 흰/베이지 배경을 반드시 깔아줌
+        ctx.fillStyle = '#f4f6f9';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        const dataURL = canvas.toDataURL(mimeType, quality);
+        resolve({ dataURL, width: canvas.width, height: canvas.height });
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('SVG → 이미지 변환 실패'));
+    };
+    img.src = url;
+  });
+}
+
+// 기존 이름 호환 (PNG)
+function svgToPng(svgString, width, height, scale = 2) {
+  return svgToRaster(svgString, width, height, scale, 'image/png');
+}
+
+// SVG 문자열 그대로 반환 (벡터 저장용)
+function buildSVGString(root) {
+  const { svg } = buildDiagramSVG(root);
+  return svg;
+}
+
+// dataURL을 Blob으로 직접 변환 (fetch 의존 제거 — CSP 환경에서도 안전)
+function dataURLtoBlob(dataURL) {
+  const [header, base64] = dataURL.split(',');
+  const mimeMatch = header.match(/data:([^;]+)/);
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+// JPG Blob 생성 (SVG → JPEG)
+async function buildJPGBlob(root) {
+  const { svg, width, height } = buildDiagramSVG(root);
+  const { dataURL } = await svgToRaster(svg, width, height, 2, 'image/jpeg', 0.92);
+  return dataURLtoBlob(dataURL);
+}
+
+// PDF Blob 생성 - SVG → PNG → PDF 방식 (한글 지원)
+// 비동기로 변경됨
+// jsPDF 지연 로드: PDF 내보낼 때 처음 1회만 스크립트를 주입(SRI 유지). 이미 로드돼 있으면 즉시 resolve.
+let _jspdfLoad = null;
+function loadJsPDF() {
+  if (window.jspdf) return Promise.resolve();
+  if (_jspdfLoad) return _jspdfLoad;
+  _jspdfLoad = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js';
+    s.integrity = 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve();
+    s.onerror = () => { _jspdfLoad = null; reject(new Error('PDF 모듈을 불러오지 못했어요. 네트워크를 확인해 주세요.')); };
+    document.head.appendChild(s);
+  });
+  return _jspdfLoad;
+}
+
+async function buildPDFBlob(root) {
+  await loadJsPDF();
+  const { jsPDF } = window.jspdf;
+  const { svg, width, height } = buildDiagramSVG(root);
+  const { dataURL } = await svgToPng(svg, width, height, 2);
+
+  const pdf = new jsPDF({
+    orientation: width > height ? 'landscape' : 'portrait',
+    unit: 'pt',
+    format: [width, height],
+  });
+  pdf.addImage(dataURL, 'PNG', 0, 0, width, height, undefined, 'FAST');
+  return pdf.output('blob');
+}
+
+// CSV 문자열 생성
+function buildCSVString(root) {
+  const rows = [['Level', 'Path', 'Label', 'Color', 'Date', 'Effort', 'Cost']];
+  function visit(node, level, path) {
+    const currentPath = path ? path + ' > ' + node.label : node.label;
+    rows.push([
+      level, currentPath, node.label || '',
+      COLORS[node.color]?.name || node.color || '',
+      node.meta?.date || '', node.meta?.effort || '', node.meta?.cost || '',
+    ]);
+    if (node.children) node.children.forEach(c => visit(c, level + 1, currentPath));
+  }
+  visit(root, 0, '');
+  const csv = rows.map(row =>
+    row.map(cell => {
+      let s = String(cell ?? '');
+      // \uC218\uC2DD \uC8FC\uC785 \uBC29\uC9C0: =,+,-,@,\uD0ED,CR\uB85C \uC2DC\uC791\uD558\uB294 \uC140\uC740 Excel/Sheets\uAC00 \uC218\uC2DD\uC73C\uB85C \uD574\uC11D\uD558\uC9C0 \uC54A\uB3C4\uB85D ' \uC811\uB450
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }).join(',')
+  ).join('\n');
+  return '\uFEFF' + csv; // BOM
+}
+
+/* ============================================================
+   ★ 구글 캘린더 연동 — 마인드맵을 종일 일정으로 등록
+   ============================================================ */
+
+// 트리를 마크다운 텍스트로 변환
+// 루트=h1, 1뎁스=h2, 2뎁스 이하=들여쓰기 불릿
+// 아이콘은 라벨 앞에, 메타데이터는 라벨 뒤에 " — 📅 ..." 형태로
+function treeToMarkdown(root) {
+  if (!root) return '';
+  const lines = [];
+
+  // 메타데이터를 한 줄짜리 꼬리표로
+  function metaSuffix(node) {
+    const m = node.meta || {};
+    const parts = [];
+    if (m.date) parts.push('📅 ' + m.date);
+    if (m.effort) parts.push('⚡ ' + m.effort);
+    if (m.cost) parts.push('💰 ' + m.cost);
+    return parts.length ? '  —  ' + parts.join(' · ') : '';
+  }
+
+  // 아이콘 접두사
+  function iconPrefix(node) {
+    const icons = node.icons || [];
+    return icons.length ? icons.join(' ') + ' ' : '';
+  }
+
+  // 라벨 한 줄 (아이콘 + 라벨 + 메타)
+  function labelLine(node) {
+    return iconPrefix(node) + (node.label || '(이름 없음)') + metaSuffix(node);
+  }
+
+  // 루트
+  lines.push('# ' + labelLine(root));
+  lines.push('');
+
+  // 1뎁스 자식들 (h2)
+  (root.children || []).forEach(child => {
+    lines.push('## ' + labelLine(child));
+    // 1뎁스 아래는 불릿 들여쓰기로
+    function visit(node, depth) {
+      const indent = '  '.repeat(depth - 1); // 2뎁스부터 인덴트 0
+      lines.push(indent + '- ' + labelLine(node));
+      (node.children || []).forEach(c => visit(c, depth + 1));
+    }
+    (child.children || []).forEach(grand => visit(grand, 2));
+    lines.push('');
+  });
+
+  // 통계
+  let nodeCount = 0;
+  let maxDepth = 0;
+  function walk(n, d) {
+    nodeCount++;
+    if (d > maxDepth) maxDepth = d;
+    (n.children || []).forEach(c => walk(c, d + 1));
+  }
+  walk(root, 0);
+  lines.push('---');
+  lines.push(`📊 노드 ${nodeCount}개 · 최대 깊이 ${maxDepth}`);
+
+  const now = new Date();
+  const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ` +
+             `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  lines.push(`생성: ${ts} / BrainBloom`);
+
+  return lines.join('\n');
+}
+
+// 오늘 날짜를 YYYYMMDD 형식으로 (구글 캘린더 종일 일정용)
+function todayYYYYMMDD(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// 구글 캘린더 일정 만들기 URL 생성 (오늘, 종일 일정)
+// title: 일정 제목. 비어있으면 기본값 "브레인스토밍"
+// 캘린더 URL 생성
+// mode: 'allday' = 종일 일정 + 제목 뒤에 시각 ("브레인스토밍 10:55")
+//       'timed'  = 시간 일정 (제목은 그대로, 지금~타이머시간 뒤로 시간 블록)
+// timerMinutes: 'timed' 모드일 때 일정 길이 (분)
+function buildGoogleCalendarUrl(root, title, mode, timerMinutes) {
+  const baseTitle = (title && String(title).trim()) || '브레인스토밍';
+  const now = new Date();
+  const details = treeToMarkdown(root);
+  const calMode = (mode === 'timed') ? 'timed' : 'allday';
+
+  const params = new URLSearchParams();
+  params.set('action', 'TEMPLATE');
+  params.set('details', details);
+
+  let eventTitle;
+  if (calMode === 'timed') {
+    // 시간 일정: 제목 그대로, dates = 지금 ~ (지금 + timerMinutes분)
+    eventTitle = baseTitle;
+    const durationMin = (typeof timerMinutes === 'number' && timerMinutes > 0) ? timerMinutes : 3;
+    const start = now;
+    const end = new Date(now.getTime() + durationMin * 60 * 1000);
+    // 로컬 시각 기준 YYYYMMDDTHHmmSS (구글은 ctz로 타임존 해석)
+    const fmt = (d) =>
+      `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}` +
+      `T${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}${String(d.getSeconds()).padStart(2, '0')}`;
+    params.set('text', eventTitle);
+    params.set('dates', `${fmt(start)}/${fmt(end)}`);
+    // 타임존을 명시해 로컬 시각이 정확히 해석되도록 (브라우저 타임존 사용)
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) params.set('ctz', tz);
+    } catch (e) { /* 타임존 못 얻으면 생략 — 구글이 사용자 기본 타임존 사용 */ }
+  } else {
+    // 종일 일정: 제목 뒤에 시각, dates = 오늘 (YYYYMMDD/내일)
+    const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    eventTitle = `${baseTitle} ${hhmm}`;
+    const startDate = todayYYYYMMDD(0);
+    const endDate = todayYYYYMMDD(1); // 종일: end = start + 1일 (exclusive)
+    params.set('text', eventTitle);
+    params.set('dates', `${startDate}/${endDate}`);
+  }
+
+  return {
+    url: `https://calendar.google.com/calendar/render?${params.toString()}`,
+    detailsLength: details.length,
+    markdown: details,
+    title: eventTitle,
+  };
+}
+
+/* ============================================================
+   ★ AI 요약 — 마인드맵을 외부 AI 채팅에 보내기
+   ============================================================ */
+
+// 지원 AI 서비스 — 각각의 새 채팅 URL
+const AI_SERVICES = {
+  chatgpt: {
+    name: 'ChatGPT',
+    url: 'https://chat.openai.com/',
+    icon: '💬',
+  },
+  claude: {
+    name: 'Claude',
+    url: 'https://claude.ai/new',
+    icon: '🟠',
+  },
+  gemini: {
+    name: 'Gemini',
+    url: 'https://gemini.google.com/app',
+    icon: '✨',
+  },
+};
+
+// 기본 프롬프트 — 사용자가 설정에서 자유롭게 수정 가능
+// {tree} 위치에 마인드맵 마크다운이 들어감
+const DEFAULT_AI_PROMPT = `다음은 제가 오늘 브레인스토밍한 내용을 마인드맵으로 정리한 것입니다.
+이 내용을 다음 형식으로 정리해 주세요:
+
+1. 핵심 주제 한 줄 요약
+2. 주요 카테고리별 정리 (3~5개)
+3. 우선순위 정리 (가장 먼저 해야 할 일 3가지)
+4. 실행 가능한 다음 단계 제안
+
+---
+
+{tree}`;
+
+// 파일명 접두어용 — 세계 유명 휴양지 20곳 (설정의 🎲 버튼이 랜덤으로 하나 골라 넣음)
+const RESORT_PREFIXES = ['발리', '몰디브', '칸쿤', '하와이', '산토리니', '푸켓', '니스', '세부', '보라카이', '두바이', '마우이', '타히티', '카프리', '아말피', '푸꾸옥', '제주', '오키나와', '칸느', '마이애미', '모나코'];
+
+// 브라우저별 고정 파일명 접두어 — localStorage에 1회 배정 후 보존(변경 불가).
+// seed(기존 지정값)가 있으면 그걸 고정, 없으면 랜덤 휴양지 1개를 배정한다. 브라우저마다 달라 다른 기기/브라우저 저장본과 안 섞임.
+function getBrowserPrefix(seed) {
+  const pick = () => (typeof seed === 'string' && seed.trim()) ? seed.trim() : (RESORT_PREFIXES[Math.floor(Math.random() * RESORT_PREFIXES.length)] + '_');
+  try {
+    let p = localStorage.getItem('bb_drive_prefix');
+    if (!p) { p = pick(); localStorage.setItem('bb_drive_prefix', p); }
+    return p;
+  } catch (e) {
+    return pick();
+  }
+}
+
+// 프롬프트 텍스트 만들기 — {tree}를 마인드맵 마크다운으로 치환
+function buildAIPromptText(promptTemplate, root) {
+  const template = (promptTemplate && promptTemplate.trim()) || DEFAULT_AI_PROMPT;
+  const markdown = treeToMarkdown(root);
+  // {tree}가 없으면 마크다운을 끝에 자동 부착 (사용자 실수 방어)
+  if (template.includes('{tree}')) {
+    return template.replace('{tree}', markdown);
+  }
+  return template + '\n\n---\n\n' + markdown;
+}
+
+// 클립보드 복사 — modern API + fallback
+async function copyToClipboard(text) {
+  // 우선 navigator.clipboard 시도 (HTTPS/localhost 환경)
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // 권한 거부 등 — fallback으로 시도
+    }
+  }
+  // Fallback: 임시 textarea + execCommand('copy')
+  // file:// 프로토콜이나 권한 거부 시
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+
+// 아웃라인 깊이(뎁스)별 색 — 중첩 블록의 테두리/배경에 사용 (6색 순환)
+const DEPTH_TINTS = ['58,134,255', '16,185,129', '245,158,11', '236,72,153', '139,92,246', '6,182,212'];
+function depthRGB(depth) {
+  const n = DEPTH_TINTS.length;
+  return DEPTH_TINTS[(((depth - 1) % n) + n) % n];
+}
+
+// 노드가 속한 "그룹"(최상위 가지 = 루트의 깊이1 자식) id를 찾는다. 루트/없음이면 null.
+function groupIdOf(root, nodeId) {
+  if (!root || !nodeId || nodeId === root.id) return null;
+  for (const child of (root.children || [])) {
+    let found = false;
+    (function rec(n) { if (found) return; if (n.id === nodeId) { found = true; return; } (n.children || []).forEach(rec); })(child);
+    if (found) return child.id;
+  }
+  return null;
+}
+
+/* ============================================================
+   ★ 아웃라인 뷰 — 트리를 들여쓰기 목록으로 (맵의 대체 화면)
+   - 행 클릭=선택 · 더블클릭/F2=편집 · ▸/▾=접기 · 체크박스=완료 토글
+   - 편집/추가/삭제/이동은 전역 단축키(Enter·Tab·Space·Del·Alt+화살표)와 동일하게 동작
+   - ↑/↓ 화살표는 보이는 목록을 차례로 이동, 그룹 경계에선 빠르게 두 번 눌러야 다음/이전 그룹으로
+   ============================================================ */
+function OutlineEdit({ node, onTab, onCommit, onCancelEmpty, onStop }) {
+  const [val, setVal] = useState(node.label || '');
+  const ref = useRef(null);
+  const doneRef = useRef(false);
+  useEffect(() => { const el = ref.current; if (el) { el.focus(); el.select(); } }, []);
+
+  // 의미 있는 입력인지 — 빈칸이거나 손대지 않은 자동라벨이면 false
+  const isMeaningful = (v) => {
+    const trimmed = v.trim();
+    const orig = (node.label || '').trim();
+    const unchangedAuto = node._autoLabel === true && trimmed === orig;
+    const bothEmpty = trimmed === '' && orig === '';
+    return !(bothEmpty || unchangedAuto);
+  };
+
+  const onKey = (e) => {
+    e.stopPropagation();
+    // 한글 IME 조합 중 Enter/Tab은 조합 종료에 양보 (두 번 눌러야 하는 문제 방지)
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === 'Enter') {
+      // 엔터 = 입력 끝: 현재 항목을 확정하고 편집 종료(새 항목 안 만듦).
+      // 새 항목은 + 버튼, Tab(자식 추가), 또는 편집이 아닐 때 Enter로 추가.
+      e.preventDefault();
+      if (doneRef.current) return; doneRef.current = true;
+      if (isMeaningful(val)) onCommit(val); else onCancelEmpty();
+    } else if (e.key === 'Tab') {
+      // 내용이 있으면: 라벨 확정 + 자식 추가(편집). 빈칸이면 취소.
+      e.preventDefault();
+      if (doneRef.current) return; doneRef.current = true;
+      if (isMeaningful(val)) onTab(val); else onCancelEmpty();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (doneRef.current) return; doneRef.current = true;
+      const orig = (node.label || '').trim();
+      if (node._autoLabel === true || orig === '') onCancelEmpty(); else onStop();
+    }
+  };
+
+  // 포커스를 잃으면: 라벨만 확정(형제 추가 없음). 빈칸/미변경 자동라벨이면 취소.
+  const onBlur = () => {
+    if (doneRef.current) return; doneRef.current = true;
+    if (isMeaningful(val)) onCommit(val); else onCancelEmpty();
+  };
+
+  return (
+    <input
+      ref={ref}
+      className="outline-edit"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onKeyDown={onKey}
+      onBlur={onBlur}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
+function OutlineRow({ node, depth, ctx }) {
+  const { selectedId, editingId, taskMap, actions } = ctx;
+  const kids = node.children || [];
+  const hasKids = kids.length > 0;
+  const collapsed = node.collapsed === true;
+  const isSel = selectedId === node.id;
+  const isEditing = editingId === node.id;
+  const tp = taskMap.get(node.id) || { done: 0, total: 0 };
+  const icons = node.icons || [];
+  const tags = node.tags || [];
+
+  const rowEl = (
+    <div
+      className={`outline-row${isSel ? ' selected' : ''}${node.done ? ' done' : ''}`}
+      onClick={(e) => { e.stopPropagation(); actions.select(node.id); }}
+      onDoubleClick={(e) => { e.stopPropagation(); actions.startEdit(node.id); }}
+    >
+      <span
+        className={`outline-twist${hasKids ? '' : ' leaf'}`}
+        onClick={(e) => { e.stopPropagation(); if (hasKids) actions.toggleCollapse(node.id); }}
+        title={hasKids ? (collapsed ? '펼치기' : '접기') : ''}
+      >{hasKids ? (collapsed ? '▶' : '▼') : '·'}</span>
+
+      {node.task === true && (
+        <span
+          className={`outline-check${node.done ? ' done' : ''}`}
+          role="checkbox" aria-checked={node.done === true}
+          title={node.done ? '완료됨 — 클릭하면 해제' : '할 일 — 클릭하면 완료'}
+          onClick={(e) => { e.stopPropagation(); actions.toggleDone(node.id); }}
+        >{node.done ? '☑' : '☐'}</span>
+      )}
+
+      <span className="outline-dot" style={{ background: node.color || 'var(--line)' }} />
+
+      {isEditing ? (
+        <OutlineEdit
+          node={node}
+          onTab={(v) => actions.tabAddChild(node.id, v)}
+          onCommit={(v) => actions.commitLabel(node.id, v)}
+          onCancelEmpty={() => actions.cancelEmpty(node.id)}
+          onStop={() => actions.stopEdit()}
+        />
+      ) : (
+        <span className="outline-label" title="더블클릭하면 편집">
+          {icons.length > 0 && <span className="outline-ricons">{icons.join(' ')}</span>}
+          {node._autoLabel
+            ? <span className="auto-sample" style={{ opacity: 0.7 }}>★ <i>{node.label}</i> ★</span>
+            : (node.label || '(이름 없음)')}
+        </span>
+      )}
+
+      {!isEditing && tags.length > 0 && (
+        <span className="outline-tags">{tags.map(t => '#' + t).join(' ')}</span>
+      )}
+      {!isEditing && tp.total > 0 && hasKids && (
+        <span className="outline-progress" title={`하위 할 일 ${tp.done}/${tp.total} 완료`}>{tp.done}/{tp.total}</span>
+      )}
+      {!isEditing && node.note && (
+        <span className="outline-note" title={node.note.length > 140 ? node.note.slice(0, 140) + '…' : node.note}>📝</span>
+      )}
+
+      {!isEditing && (
+        <span className="outline-actions">
+          <button className="outline-act" title="자식 추가 (Tab)"
+            onClick={(e) => { e.stopPropagation(); actions.addChild(node.id); }}>＋</button>
+          {!actions.isRoot(node.id) && (
+            <button className="outline-act del" title="삭제 (Del)"
+              onClick={(e) => { e.stopPropagation(); actions.del(node.id); }}>🗑</button>
+          )}
+        </span>
+      )}
+    </div>
+  );
+
+  // 자식이 안 보이면(잎/접힘) 그냥 행만
+  if (!hasKids || collapsed) return rowEl;
+
+  const childrenEl = (
+    <div className="outline-children">
+      {kids.map(ch => <OutlineRow key={ch.id} node={ch} depth={depth + 1} ctx={ctx} />)}
+    </div>
+  );
+
+  // 루트(깊이0)는 박스로 감싸지 않음 — 바깥 테두리 하나로 전체를 가두지 않게
+  if (depth === 0) return <>{rowEl}{childrenEl}</>;
+
+  // 깊이>=1: 행 + 자식을 뎁스 색 박스로 감싼다 (중첩 → 계층이 색 블록으로 보임)
+  const rgb = depthRGB(depth);
+  const blockStyle = { '--block-border': `rgba(${rgb},0.4)`, '--block-bg': `rgba(${rgb},0.05)` };
+  const isActiveGroup = depth === 1 && node.id === ctx.selectedGroupId;
+  return (
+    <div className={`outline-block${isActiveGroup ? ' group-active' : ''}`} style={blockStyle}>
+      {rowEl}
+      {childrenEl}
+    </div>
+  );
+}
+
+// 저장본 비교용 읽기전용 아웃라인 — 트리 전체를 들여쓰기로 펼치고 노드별 diff 색으로 표시
+function CompareOutline({ root, statusMap }) {
+  if (!root) return <div className="cmp-empty">(비어 있음)</div>;
+  const rows = [];
+  (function go(n, depth) { rows.push({ node: n, depth }); (n.children || []).forEach(c => go(c, depth + 1)); })(root, 0);
+  return (
+    <div className="cmp-outline">
+      {rows.map(({ node, depth }) => {
+        const st = (statusMap && statusMap[node.id]) || 'same';
+        return (
+          <div key={node.id} className={`cmp-row ${st}`} style={{ paddingLeft: 8 + depth * 18 }}>
+            <span className="cmp-dot" style={{ background: node.color || 'var(--line)' }} />
+            <span className="cmp-label">{node.label || '(빈 노드)'}</span>
+            {st === 'added' && <span className="cmp-tag add">새로 생김</span>}
+            {st === 'removed' && <span className="cmp-tag del">이쪽에만</span>}
+            {st === 'changed' && <span className="cmp-tag chg">변경됨</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// 헤더 "아웃라인" 아이콘 — 색색의 글머리 점 + 들여쓰기 줄(실제 아웃라인 모양). 캘린더(📅)·AI(🤖)처럼 컬러풀하게.
+function OutlineGlyph() {
+  return (
+    <svg className="vt-glyph" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4">
+        <line x1="9" y1="4" x2="20.5" y2="4" />
+        <line x1="13" y1="9.3" x2="20.5" y2="9.3" />
+        <line x1="13" y1="14.7" x2="20.5" y2="14.7" />
+        <line x1="9" y1="20" x2="20.5" y2="20" />
+      </g>
+      <circle cx="4.8" cy="4" r="2.1" fill="#3a86ff" />
+      <circle cx="8.8" cy="9.3" r="2.1" fill="#ff5d8f" />
+      <circle cx="8.8" cy="14.7" r="2.1" fill="#06d6a0" />
+      <circle cx="4.8" cy="20" r="2.1" fill="#ffb703" />
+    </svg>
+  );
+}
+
+// 헤더 "지도" 아이콘 — 중심 노드에서 색색의 가지가 뻗는 미니 마인드맵
+function MapGlyph() {
+  return (
+    <svg className="vt-glyph" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.4">
+        <path d="M6.5 11 L 15.5 5.5" />
+        <path d="M7 12 L 16.5 12" />
+        <path d="M6.5 13 L 15.5 18.5" />
+      </g>
+      <circle cx="4.6" cy="12" r="2.9" fill="#3a86ff" />
+      <circle cx="17.8" cy="5" r="2.3" fill="#ff5d8f" />
+      <circle cx="18.8" cy="12" r="2.3" fill="#06d6a0" />
+      <circle cx="17.8" cy="19" r="2.3" fill="#ffb703" />
+    </svg>
+  );
+}
+
+/* ============================================================
+   간트 / 타임라인 뷰 — 일정 필드: meta.start · meta.end · meta.milestone (YYYY-MM-DD)
+   기존 자유 텍스트(meta.date/effort/cost)는 표시용으로 그대로 두고, 일정은 구조화 필드를 쓴다.
+   ============================================================ */
+const GANTT_ROW_H = 34;
+const GANTT_LEFT_W = 248;
+
+function bbParseISO(s){ if(typeof s!=='string') return null; const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim()); if(!m) return null; const d=new Date(+m[1], +m[2]-1, +m[3], 12,0,0,0); return isNaN(d.getTime())?null:d; }
+function bbToISO(d){ const y=d.getFullYear(); const mo=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0'); return `${y}-${mo}-${da}`; }
+function bbAddDays(iso,n){ const d=bbParseISO(iso); if(!d) return iso; d.setDate(d.getDate()+n); return bbToISO(d); }
+function bbDayDiff(a,b){ const da=bbParseISO(a), db=bbParseISO(b); if(!da||!db) return 0; return Math.round((db.getTime()-da.getTime())/86400000); }
+function bbTodayISO(){ return bbToISO(new Date()); }
+function bbFmtMD(iso){ const d=bbParseISO(iso); return d ? `${d.getMonth()+1}/${d.getDate()}` : ''; }
+function bbHex(node){ return (node && COLORS[node.color] && COLORS[node.color].bg) || '#3a6ea5'; }
+function bbDarken(hex,f){ const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex||''); if(!m) return hex; const r=Math.round(parseInt(m[1],16)*f), g=Math.round(parseInt(m[2],16)*f), b=Math.round(parseInt(m[3],16)*f); return `rgb(${r},${g},${b})`; }
+
+// 노드별 일정 계산: 자기 meta.start/end + 하위 롤업(부모는 자식 범위를 합친 요약 막대)
+function computeSchedule(root){
+  if(!root) return { sched:new Map(), min:null, max:null };
+  const taskMap = computeTaskProgress(root);
+  const sched = new Map();
+  (function rec(n){
+    const sd = n.meta && bbParseISO(n.meta.start);
+    let s = sd ? bbToISO(sd) : null;
+    const ed = n.meta && bbParseISO(n.meta.end);
+    let e = ed ? bbToISO(ed) : (s || null);
+    if (s && e && bbDayDiff(s,e) < 0) e = s;
+    const isMs = !!(n.meta && n.meta.milestone);
+    if (isMs && s) e = s;
+    const hasOwn = !!s;
+    let childScheduled = false;
+    (n.children||[]).forEach(c=>{
+      const cs = rec(c);
+      if (cs){ childScheduled = true;
+        if (!s || bbDayDiff(cs.start, s) > 0) s = cs.start;
+        if (!e || bbDayDiff(e, cs.end) > 0) e = cs.end;
+      }
+    });
+    if (!s) return null;
+    const tp = taskMap.get(n.id) || { done:0, total:0 };
+    const pct = tp.total>0 ? Math.round(tp.done/tp.total*100) : (n.task===true ? (n.done?100:0) : null);
+    const out = { start:s, end:e||s, summary: childScheduled, milestone: isMs && !childScheduled, hasOwn, pct };
+    sched.set(n.id, out);
+    return out;
+  })(root);
+  let min=null, max=null;
+  sched.forEach(v=>{ if(!min || bbDayDiff(v.start,min)>0) min=v.start; if(!max || bbDayDiff(max,v.end)>0) max=v.end; });
+  return { sched, min, max };
+}
+
+// 차트 상단 전환 바 (간트 ↔ 타임라인 ↔ 지도)
+function ChartTopBar({ which, actions }){
+  return (
+    <div className="chart-topbar" onClick={e=>e.stopPropagation()}>
+      <div className="chart-switch">
+        <button className={`chart-tab${which==='gantt'?' on':''}`} onClick={()=>actions.setView('gantt')}>📊 간트</button>
+        <button className={`chart-tab${which==='timeline'?' on':''}`} onClick={()=>actions.setView('timeline')}>🕒 타임라인</button>
+      </div>
+      <button className="chart-back" onClick={()=>actions.setView('map')}>🗺 지도로 돌아가기</button>
+    </div>
+  );
+}
+
+function GanttView({ tree, schedule, selectedId, actions }){
+  const trackRef = useRef(null);
+  const [drag, setDrag] = useState(null);
+  const { sched, min, max } = schedule;
+  const editable = !!actions.setDates;
+
+  if (!min){
+    return (
+      <div className="chart-view" onClick={()=>actions.deselect()}>
+        <ChartTopBar which="gantt" actions={actions} />
+        <div className="chart-empty">
+          <div className="chart-empty-title">아직 일정이 없어요</div>
+          <div className="chart-empty-sub">노드를 선택하고 우측 패널 “일정”에서 <b>시작일</b>을 넣으면 여기에 막대로 나타나요.<br/>종료일을 비우면 하루로, 마일스톤을 켜면 ◆ 점으로 표시됩니다.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const axisStart = bbAddDays(min,-3), axisEnd = bbAddDays(max,3);
+  const totalDays = Math.max(1, bbDayDiff(axisStart, axisEnd));
+  const X = iso => bbDayDiff(axisStart, iso)/totalDays*100;
+  const todayISO = bbTodayISO();
+  const todayIn = bbDayDiff(axisStart, todayISO) >= 0 && bbDayDiff(todayISO, axisEnd) >= 0;
+  const ticks=[]; for(let dd=0; dd<=totalDays; dd+=7){ ticks.push({ x: dd/totalDays*100, label: bbFmtMD(bbAddDays(axisStart,dd)) }); }
+
+  const flat=[]; (function go(n,depth,isRoot){ if(!isRoot) flat.push({node:n,depth}); if(n.children && (isRoot || n.collapsed!==true)) n.children.forEach(c=>go(c,depth+1,false)); })(tree,0,true);
+  const rowIndex=new Map(); flat.forEach((r,i)=>rowIndex.set(r.node.id,i));
+
+  function viewRange(id){
+    const s=sched.get(id); if(!s) return null;
+    if (drag && drag.id===id && drag.deltaDays){
+      const dd=drag.deltaDays;
+      if(drag.mode==='move') return {...s, start:bbAddDays(s.start,dd), end:bbAddDays(s.end,dd)};
+      if(drag.mode==='end'){ let ne=bbAddDays(s.end,dd); if(bbDayDiff(s.start,ne)<0) ne=s.start; return {...s,end:ne}; }
+      if(drag.mode==='start'){ let ns=bbAddDays(s.start,dd); if(bbDayDiff(ns,s.end)<0) ns=s.end; return {...s,start:ns}; }
+    }
+    return s;
+  }
+  function down(e,id,mode){
+    actions.select(id);
+    if(!editable) return;
+    e.stopPropagation();
+    const w = trackRef.current ? trackRef.current.getBoundingClientRect().width : 600;
+    setDrag({ id, mode, startX:e.clientX, pxPerDay: Math.max(1,w/totalDays), deltaDays:0 });
+    try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
+  }
+  function move(e){ if(!drag) return; const dd=Math.round((e.clientX-drag.startX)/drag.pxPerDay); if(dd!==drag.deltaDays) setDrag(d=>({...d,deltaDays:dd})); }
+  function up(){ if(!drag) return; const vr=viewRange(drag.id), s=sched.get(drag.id); if(vr&&s&&(vr.start!==s.start||vr.end!==s.end)) actions.setDates(drag.id, vr.start, vr.end); setDrag(null); }
+
+  const bodyH = flat.length*GANTT_ROW_H;
+  const links = (tree.links||[]).filter(l=> rowIndex.has(l.from) && rowIndex.has(l.to) && sched.get(l.from) && sched.get(l.to));
+
+  return (
+    <div className="chart-view" onClick={()=>actions.deselect()} onPointerMove={move} onPointerUp={up}>
+      <ChartTopBar which="gantt" actions={actions} />
+      <div className="gantt-card" onClick={e=>e.stopPropagation()}>
+        <div className="gantt-proj">
+          <span className="gproj-dot"/><b>{tree.label||'프로젝트'}</b>
+          <span className="gproj-range">{bbFmtMD(min)} ~ {bbFmtMD(max)} · {bbDayDiff(min,max)+1}일</span>
+          {editable && <span className="gproj-hint">막대를 끌어 이동 · 우측 끝을 끌어 기간 조절</span>}
+        </div>
+        <div className="gantt-axis">
+          <div className="gantt-left-h" style={{width:GANTT_LEFT_W}}>작업</div>
+          <div className="gantt-right-h">{ticks.map((t,i)=><span className="gtick-lab" style={{left:t.x+'%'}} key={i}>{t.label}</span>)}</div>
+        </div>
+        <div className="gantt-body">
+          <div className="gantt-left" style={{width:GANTT_LEFT_W}}>
+            {flat.map(({node,depth},i)=>{
+              const kids=node.children||[]; const hasKids=kids.length>0; const collapsed=node.collapsed===true;
+              const vr=sched.get(node.id);
+              const dur = vr ? (vr.milestone ? bbFmtMD(vr.start) : (bbDayDiff(vr.start,vr.end)+1)+'일') : '';
+              return (
+                <div key={node.id} className={`gantt-lrow${selectedId===node.id?' sel':''}${i%2?' alt':''}`} style={{height:GANTT_ROW_H, paddingLeft:8+depth*14}}
+                     onClick={e=>{e.stopPropagation(); actions.select(node.id);}}>
+                  <span className={`gtwist${hasKids?'':' leaf'}`} onClick={e=>{e.stopPropagation(); if(hasKids) actions.toggleCollapse(node.id);}}>{hasKids?(collapsed?'▶':'▼'):''}</span>
+                  {node.task===true && <span className={`gcheck${node.done?' done':''}`} onClick={e=>{e.stopPropagation(); actions.toggleDone(node.id);}}>{node.done?'☑':'☐'}</span>}
+                  <span className="gdot" style={{background:bbHex(node)}}/>
+                  <span className="gname">{node.label||'(이름 없음)'}</span>
+                  <span className="gdur">{dur}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="gantt-right" ref={trackRef}>
+            <div className="gantt-grid">
+              {ticks.slice(1).map((t,i)=><div className="ggl" style={{left:t.x+'%'}} key={i}/>)}
+              {todayIn && <div className="gantt-today" style={{left:X(todayISO)+'%'}}><span>오늘</span></div>}
+              <svg className="gantt-dep" width="100%" height={bodyH}>
+                <defs><marker id="bb-gantt-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3a6ea5"/></marker></defs>
+                {links.map((l,i)=>{
+                  const a=sched.get(l.from), b=sched.get(l.to);
+                  const ay=rowIndex.get(l.from)*GANTT_ROW_H+GANTT_ROW_H/2, by=rowIndex.get(l.to)*GANTT_ROW_H+GANTT_ROW_H/2;
+                  return <line key={i} x1={X(a.end)+'%'} y1={ay} x2={X(b.start)+'%'} y2={by} stroke="#3a6ea5" strokeWidth="1.5" strokeDasharray="4 3" markerEnd="url(#bb-gantt-arrow)" opacity="0.7"/>;
+                })}
+              </svg>
+            </div>
+            {flat.map(({node},i)=>{
+              const vr=viewRange(node.id);
+              const hex=bbHex(node);
+              return (
+                <div key={node.id} className={`gantt-trow${i%2?' alt':''}`} style={{height:GANTT_ROW_H}}>
+                  {vr && vr.milestone && (
+                    <div className="gms" style={{left:X(vr.start)+'%', background:hex}} onPointerDown={e=>down(e,node.id,'move')} title={bbFmtMD(vr.start)}/>
+                  )}
+                  {vr && !vr.milestone && vr.summary && (
+                    <div className="gsum" style={{left:X(vr.start)+'%', width:Math.max(0.4,X(vr.end)-X(vr.start))+'%'}}/>
+                  )}
+                  {vr && !vr.milestone && !vr.summary && (
+                    <div className={`gbar${editable?' editable':''}`} style={{left:X(vr.start)+'%', width:Math.max(0.6,X(vr.end)-X(vr.start))+'%', background:hex}}
+                         onPointerDown={e=>down(e,node.id,'move')} title={`${bbFmtMD(vr.start)} ~ ${bbFmtMD(vr.end)}`}>
+                      {vr.pct>0 && <div className="gfill" style={{width:Math.min(100,vr.pct)+'%', background:bbDarken(hex,0.55)}}/>}
+                      {vr.pct>0 && <span className="gpct">{vr.pct}%</span>}
+                      {editable && <span className="ghandle" onPointerDown={e=>{e.stopPropagation(); down(e,node.id,'end');}} title="기간 조절"/>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimelineView({ tree, schedule, selectedId, actions }){
+  const { sched, min, max } = schedule;
+  if(!min){
+    return (
+      <div className="chart-view" onClick={()=>actions.deselect()}>
+        <ChartTopBar which="timeline" actions={actions} />
+        <div className="chart-empty"><div className="chart-empty-title">아직 일정이 없어요</div><div className="chart-empty-sub">노드를 선택하고 우측 패널 “일정”에서 시작일을 넣어보세요.</div></div>
+      </div>
+    );
+  }
+  const axisStart=bbAddDays(min,-3), axisEnd=bbAddDays(max,3);
+  const totalDays=Math.max(1,bbDayDiff(axisStart,axisEnd));
+  const X=iso=>bbDayDiff(axisStart,iso)/totalDays*100;
+  const todayISO=bbTodayISO();
+  const todayIn=bbDayDiff(axisStart,todayISO)>=0 && bbDayDiff(todayISO,axisEnd)>=0;
+  const ticks=[]; for(let dd=0; dd<=totalDays; dd+=7){ ticks.push({x:dd/totalDays*100,label:bbFmtMD(bbAddDays(axisStart,dd))}); }
+  const lanes=(tree.children||[]).map(br=>{
+    const items=[]; (function go(n){ const s=sched.get(n.id); if(s && s.hasOwn) items.push({node:n, s}); (n.children||[]).forEach(go); })(br);
+    return { br, items };
+  }).filter(l=>l.items.length>0);
+
+  return (
+    <div className="chart-view" onClick={()=>actions.deselect()}>
+      <ChartTopBar which="timeline" actions={actions} />
+      <div className="gantt-card" onClick={e=>e.stopPropagation()}>
+        <div className="gantt-proj"><span className="gproj-dot"/><b>{tree.label||'프로젝트'}</b><span className="gproj-range">{bbFmtMD(min)} ~ {bbFmtMD(max)}</span><span className="gproj-hint">상위 가지별 스윔레인 · 날짜 점</span></div>
+        <div className="tl-axis"><div className="tl-lname-h"/><div className="tl-track-h">{ticks.map((t,i)=><span className="gtick-lab" style={{left:t.x+'%'}} key={i}>{t.label}</span>)}</div></div>
+        {lanes.length===0 && <div className="chart-empty-sub" style={{padding:'18px'}}>상위 가지에 일정이 있는 노드가 없어요.</div>}
+        {lanes.map(({br,items})=>(
+          <div className="tl-lane" key={br.id}>
+            <div className="tl-lname"><span className="gdot" style={{background:bbHex(br)}}/><span className="tl-lname-t">{br.label||'(이름 없음)'}</span></div>
+            <div className="tl-track">
+              {todayIn && <div className="tl-today" style={{left:X(todayISO)+'%'}}/>}
+              {items.map(({node,s},k)=>(
+                s.milestone
+                ? <div key={node.id} className="tl-ms" style={{left:X(s.start)+'%', top:8+(k%2)*24}} onClick={e=>{e.stopPropagation();actions.select(node.id);}}><span className="tl-ms-d" style={{background:bbHex(node)}}/>{node.label} <i>{bbFmtMD(s.start)}</i></div>
+                : <div key={node.id} className={`tl-pill${selectedId===node.id?' sel':''}`} style={{left:X(s.start)+'%', top:8+(k%2)*24, background:bbHex(node)}} onClick={e=>{e.stopPropagation();actions.select(node.id);}}>{node.label} <i>{bbFmtMD(s.start)}</i></div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ★ 메인 컴포넌트
+   ============================================================ */
+function App() {
+  // 초기 텍스트: 오늘 날짜 + 슬로건이 루트로 들어감
+  // useState의 함수형 초기화로 첫 마운트 시 한 번만 계산
+  const [inputText, setInputText] = useState(() =>
+`${generateRootLabel()}
+  오늘의 할일
+  개인적으로 할일
+  회사에서 할일`
+  );
+  const [tree, setTree] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [editingId, setEditingId] = useState(null); // 인라인 편집 중인 노드
+  const [zoom, setZoom] = useState(1);
+  const [zoomBarVisible, setZoomBarVisible] = useState(false); // 줌 툴바 표시 여부 (조작 직후 잠깐)
+  const zoomBarHoverRef = useRef(false); // 툴바에 마우스 올려둔 동안엔 숨김 보류
+  const zoomBarTimerRef = useRef(null);  // 자동 숨김 타이머
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null); // 토스트 자동 닫힘 타이머 — 새 토스트가 이전 타이머에 지워지지 않게 정리용
+  const [dragInfo, setDragInfo] = useState(null);
+  const [dropTargetId, setDropTargetId] = useState(null);
+  const [isPanning, setIsPanning] = useState(false); // 패닝(빈 공간 드래그) 중인지
+
+  // 패닝 시작 위치 저장
+  const panStartRef = useRef(null); // { x, y, scrollLeft, scrollTop, moved }
+
+  // ─────────── 설정 ───────────
+  // settings: 디스크에 저장되는 사용자 설정
+  //   filenameBase: 파일명 접두사
+  //   startupBehavior: 'ask' | 'new' | 'restore'  (어제 작업이 있을 때 동작)
+  //   visibleSaveButtons: 헤더에 표시할 저장 버튼 목록
+  //   quoteSource: 'sample' | 'custom' | 'both'  (오늘의 격언 출처)
+  //   customQuotes: 사용자가 직접 입력한 격언 목록
+  //   calendarEventTitle: 구글 캘린더에 등록할 일정 제목 (기본: "브레인스토밍")
+  //   aiService: 'chatgpt' | 'claude' | 'gemini'  (AI 요약 서비스 선택)
+  //   aiPrompt: AI에게 보낼 프롬프트 템플릿 ({tree} 위치에 마인드맵 들어감)
+  //   ideaWordSource: 'sample' | 'custom' | 'both'  (새 노드 트렌디 단어 출처)
+  //   customIdeaWords: 사용자가 직접 추가한 단어 목록
+  //   timerMinutes: 타이머 기본 시간 (분 단위, 1~120)
+  const [settings, setSettings] = useState({
+    filenameBase: 'brainbloom',
+    startupBehavior: 'ask',
+    // 우측 패널 표시 항목
+    showMetaPanel: true,                              // 메타데이터(날짜·작업량·비용) 편집 섹션 표시
+    iconChoices: ['✅', '⭐', '❗', '💡', '🎯', '📌'], // (레거시) 평면 아이콘 목록 — iconRows로 승격됨, 마이그레이션 소스로만 사용
+    // 아이콘 줄(행) 구성: 사용자가 줄 수와 각 줄에 넣을 아이콘을 직접 정함.
+    // 우측 패널 아이콘 피커와 화면 하단 '아이콘 모아보기'가 이 구성을 따른다.
+    iconRows: [['✅', '⭐', '❗'], ['💡', '🎯', '📌']],
+    // 처음 사용자는 저장 버튼을 숨김 (헤더 간결). 설정 → 저장 옵션에서 켤 수 있음
+    visibleSaveButtons: [],
+    quoteSource: 'sample',
+    customQuotes: [],
+    calendarEventTitle: '브레인스토밍',
+    calendarMode: 'allday',
+    aiService: 'chatgpt',
+    aiPrompt: DEFAULT_AI_PROMPT,
+    ideaWordSource: 'sample',
+    customIdeaWords: [],
+    timerMinutes: 3,
+    timerNotifyMinutes: 10,      // 타이머 경과 알림 간격(분). 0=경과 알림 끄기(3·2·1분 전 알림은 유지)
+    showLeftPanel: true,
+    showRightPanel: true,
+    showCanvasHint: true,
+    hideOutlineGroupHint: false, // 아웃라인 그룹 경계 안내 팝업 숨김 여부 (팝업의 "다음부터 보지 않기"로 켜짐)
+    showToolbarButtons: true,
+    showUndoRedo: false,     // 처음엔 Undo·Redo 버튼 숨김 (단축키는 항상 동작). 설정에서 켤 수 있음
+    focusModeOnEdit: false,  // 편집/추가 중일 때 관련 노드(경로+직속자식)만 컬러, 나머지 흐리게
+    focusDimLevel: 'medium', // 흐림 정도: 'soft' | 'medium' | 'strong'
+    duplicateTabAlert: true, // 같은 브라우저에서 중복 탭 열렸을 때 알림 (기본 켬)
+    bgTheme: 'default',      // 배경 테마: default|ivory|mint|gray|charcoal|navy|softdark
+    bgDots: true,            // 배경 점 패턴 표시 여부
+    minimalHeader: false,
+    // 노드 라벨 표시 줄 수 — 넘치면 ... 처리
+    urlLabelLines: 1,        // URL 포함 노드: 1 또는 2
+    plainLabelLines: 'all',  // 일반 텍스트 노드: 1, 2, 또는 'all' (모두 보여주기)
+    nodeFont: 'system',      // 노드 라벨 폰트 (NODE_FONT_OPTIONS의 id, 또는 'custom')
+    nodeFontCustom: '',      // nodeFont가 'custom'일 때 사용자가 입력한 폰트명
+    // ── 구글 드라이브 자동저장 ──
+    driveAutoSave: false,        // 자동저장 켜기/끄기 (기본 꺼짐)
+    driveAutoSaveMinutes: 1,     // 자동저장 간격(분), 기본 1분
+    drivePrefix: '',             // 로드 시 getBrowserPrefix로 브라우저 고정 접두어 배정됨
+    driveKeepCount: 5,           // 드라이브에 보관할 '오늘 날짜' 버전 개수 (1~100)
+    driveAlertEnabled: true,     // 연결 끊김 알림(설정 글자 색 변화) 사용 여부
+    autoFitMap: true,            // 지도가 화면보다 커지면 자동 축소해 전부 보이게
+    layoutSpacing: 'normal',     // 노드 간격: 'compact'(촘촘) | 'normal' | 'wide'(넓게)
+    updateNotify: true,          // 새 버전으로 올라오면 접속 시 "업데이트 소개" 팝업 표시 (기본 켬)
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);   // 마지막 저장 시각
+
+  // 시작 다이얼로그: 어제 작업이 있을 때 띄움
+  const [startupDialog, setStartupDialog] = useState(null);
+  // { lastSavedAt, lastTree, lastInputText, lastFolderName }
+  const [morningQuote, setMorningQuote] = useState('');   // 새 파일 시작 시 표시
+  const [welcomeQuote, setWelcomeQuote] = useState('');    // 첫 실행 환영 격언 팝업
+  const [showUpdate, setShowUpdate] = useState(false);     // 새 버전 업데이트 소개 팝업
+  const [settingsToChangelog, setSettingsToChangelog] = useState(false); // 설정을 '변경 이력' 화면으로 바로 열기(업데이트 팝업 링크용)
+  // 노드 미선택(우측 패널 빈 상태)에서 보여줄 영감 격언 인덱스 — 선택 해제 때마다 새로 뽑음
+  const [emptyQuoteIdx, setEmptyQuoteIdx] = useState(() => Math.floor(Math.random() * INSPIRATION_QUOTES.length));
+
+  // ─────────── 이스터에그 (숨은 연출) ───────────
+  // easterEgg: null | 'bloom'(↑↑↓↓←→←→ B A 코나미 코드) | 'love'(타이머 11연속 클릭)
+  const [easterEgg, setEasterEgg] = useState(null);
+  const [eggKey, setEggKey] = useState(0);            // 트리거마다 +1 → 파티클 새로 생성
+  const eggHideRef = useRef(null);                    // 자동 숨김 타이머
+  const eggSeqRef = useRef(0);                         // 코나미 코드 진행 인덱스
+  const eggClickRef = useRef({ count: 0, last: 0 });  // 타이머 연속 클릭 카운트
+  // 이스터에그 발동 — 5.6초 뒤 자동 소멸 (pointer-events:none 이라 작업은 막지 않음)
+  const triggerEgg = useCallback((kind) => {
+    setEasterEgg(kind);
+    setEggKey((k) => k + 1);
+    if (eggHideRef.current) clearTimeout(eggHideRef.current);
+    eggHideRef.current = setTimeout(() => setEasterEgg(null), 5600);
+  }, []);
+  // 코나미 코드(↑↑↓↓←→←→ B A) 감지 → 'bloom'
+  useEffect(() => {
+    const seq = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
+    const onKey = (e) => {
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const key = (e.key || '').toLowerCase();
+      if (key === seq[eggSeqRef.current]) {
+        eggSeqRef.current += 1;
+        if (eggSeqRef.current >= seq.length) {
+          eggSeqRef.current = 0;
+          triggerEgg('bloom');
+        }
+      } else {
+        eggSeqRef.current = (key === seq[0]) ? 1 : 0;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [triggerEgg]);
+  // 떨어지는 꽃잎 / 떠오르는 하트 파티클 — eggKey 바뀔 때마다 새로 생성
+  const eggParticles = useMemo(() => {
+    if (!easterEgg) return [];
+    const love = easterEgg === 'love';
+    const pool = love
+      ? ['❤️', '🧡', '💛', '💚', '💙', '💜', '🩷', '✨', '⭐', '🌟']
+      : ['🌸', '🌱', '✨', '🌷', '💡', '🌟', '🍃', '🌼'];
+    const n = love ? 28 : 24;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    return Array.from({ length: n }, (_, i) => ({
+      id: i,
+      emoji: pool[Math.floor(Math.random() * pool.length)],
+      left: rnd(1, 97).toFixed(1) + '%',
+      delay: rnd(0, 1.4).toFixed(2) + 's',
+      dur: rnd(2.6, 3.8).toFixed(2) + 's',
+      size: Math.round(rnd(16, 40)) + 'px',
+      drift: Math.round(rnd(-40, 40)) + 'px',
+    }));
+  }, [easterEgg, eggKey]);
+
+  // 새로 시작 확인 다이얼로그
+  const [confirmNewFile, setConfirmNewFile] = useState(false);
+  // 색상 변경 시 하위 노드도 함께 바꿀지 묻는 다이얼로그 ({ nodeId, colorKey, count } | null)
+  const [colorCascade, setColorCascade] = useState(null);
+
+  // ─────────── 다중 문서 ───────────
+  // 여러 문서를 따로 보관하고 전환할 수 있다. 활성 문서의 내용(tree·inputText)은
+  // 기존과 동일하게 lastWork에 미러링되고, 동시에 doc:<id> 슬롯에도 저장된다.
+  //   docList: [{ id, name, savedAt, auto }] — 가벼운 목록(내용은 doc:<id>에 별도 보관)
+  //   auto: true면 이름을 루트 라벨에서 자동 추출(사용자가 이름을 바꾸면 false로 고정)
+  const [docList, setDocList] = useState([]);
+  const [currentDocId, setCurrentDocId] = useState(null);
+  const [showDocs, setShowDocs] = useState(false);          // 문서 관리 패널 열림
+  const [renamingDocId, setRenamingDocId] = useState(null); // 이름 변경 중인 문서 id
+  const [renameDraft, setRenameDraft] = useState('');
+  // 자동저장 effect 클로저가 항상 최신 문서 컨텍스트를 보도록 ref에 동기화
+  const currentDocIdRef = useRef(null);
+  const docListRef = useRef([]);
+  useEffect(() => { currentDocIdRef.current = currentDocId; }, [currentDocId]);
+  useEffect(() => { docListRef.current = docList; }, [docList]);
+  // 파일 관리자: 폴더·검색·정렬·뷰
+  const [docFolders, setDocFolders] = useState([]);            // [{ id, name }]
+  const docFoldersRef = useRef([]);
+  useEffect(() => { docFoldersRef.current = docFolders; }, [docFolders]);
+  const [docSearch, setDocSearch] = useState('');              // 이름/가지 검색어
+  const [docSort, setDocSort] = useState('recent');            // 'recent' | 'name' | 'created'
+  const [docFolderView, setDocFolderView] = useState('all');   // 'all' | 'fav' | 'unfiled' | <folderId>
+  const [renamingFolderId, setRenamingFolderId] = useState(null);
+  const [folderNameDraft, setFolderNameDraft] = useState('');
+  const [docImportMsg, setDocImportMsg] = useState('');        // 가져오기 결과 안내
+  const docImportInputRef = useRef(null);                      // 숨김 file input
+  // 문서 관리자 ↔ 구글 드라이브: 드라이브에서 읽어오기
+  const [driveDocs, setDriveDocs] = useState(null);            // null=미로드 | 'loading' | 'error' | [{id,name,modifiedTime,size}]
+  const [mgrDrivePreview, setMgrDrivePreview] = useState(null);// { fileId, loading?, error?, nodeCount, rootLabel, branches[], branchesMore, textPreview, textMore }
+  const [driveImportedIds, setDriveImportedIds] = useState([]);// 이번 세션에 가져온 드라이브 파일 id (✓ 표시)
+  const [driveImportingId, setDriveImportingId] = useState(null); // 가져오는 중인 파일 id (버튼 스피너)
+  const [driveSort, setDriveSort] = useState('recent');        // 드라이브 목록 정렬: recent|oldest|name|size
+  const [showDriveBackups, setShowDriveBackups] = useState(false); // 드라이브 뷰에서 Backup 폴더 파일까지 표시할지(기본: 최신본만)
+  // 문서 태그·메모 편집
+  const [editingMetaDocId, setEditingMetaDocId] = useState(null); // 태그·메모 편집 중인 문서 id (null=없음)
+  const [tagDraft, setTagDraft] = useState('');                // 태그 입력칸 텍스트
+  const [memoDraft, setMemoDraft] = useState('');              // 메모 편집 버퍼
+
+  // ─────────── 구글 드라이브 연동 상태 ───────────
+  const [driveSignedIn, setDriveSignedIn] = useState(false);  // 로그인(토큰 보유) 여부
+  const [driveBusy, setDriveBusy] = useState(false);          // 저장/불러오기 진행 중
+  const [driveStatus, setDriveStatus] = useState('');         // 상태 메시지
+  const [driveFiles, setDriveFiles] = useState(null);         // 불러오기용 파일 목록 (null=안 봄, []=비었음)
+  const [driveAutoStatus, setDriveAutoStatus] = useState('');  // 자동저장 상태 메시지
+  const [driveAutoFailed, setDriveAutoFailed] = useState(false); // 자동저장 켜졌는데 실패(4번 위험상태)
+  const [driveLinkedPending, setDriveLinkedPending] = useState(false); // 연결 이력은 있으나, 팝업을 피하려 토큰은 '첫 상호작용' 때 받음(대기)
+  const [scrollToDriveOnOpen, setScrollToDriveOnOpen] = useState(false); // 설정 열 때 드라이브 섹션으로 스크롤할지
+  // 자동저장 setInterval 클로저가 항상 최신값을 보도록 ref에 동기화
+  const autoSaveRef = useRef({ tree: null, prefix: '', signedIn: false, busy: false });
+  const isSavingRef = useRef(false); // 저장(수동/자동)이 진행 중인지 — 중복 실행 방어
+  const lastSavedContentRef = useRef(null); // 마지막으로 드라이브에 저장한 내용(JSON 문자열) — 변경 없으면 자동저장 skip
+  // 다중 기기 충돌 감지: 내가 마지막으로 저장/불러온 파일의 modifiedTime(ISO 문자열).
+  // 드라이브의 현재 최신본이 이 시각보다 새로우면 "다른 기기에서 업데이트됨"으로 보고 사용자에게 물어봄.
+  const lastSyncedTimeRef = useRef(null);
+  // 동기화 기준 시각을 메모리 ref + IndexedDB 양쪽에 기록한다.
+  // 메모리 ref는 새로고침 시 초기화되므로, 영구 저장본을 함께 두어
+  // "이미 확인/저장한 최신본"으로 매 새로고침마다 다시 묻지 않게 한다(오탐 반복 차단).
+  const setSyncedTime = (t) => {
+    lastSyncedTimeRef.current = t || null;
+    try { idbSet('driveSyncedTime', t || null); } catch (e) {}
+  };
+  const isCheckingRemoteRef = useRef(false); // 외부 업데이트 확인 중복 실행 방어
+  const lastLocalSaveRef = useRef(null); // 마지막으로 IndexedDB(lastWork)에 쓴 내용 — 변경 없으면 재저장 skip
+  // 외부 최신본 안내 다이얼로그 ({ file } | null). file = {id, name, modifiedTime}
+  const [remoteNewer, setRemoteNewer] = useState(null);
+  const [remoteCompare, setRemoteCompare] = useState(null); // { loading } | { error } | { remoteTree, diff } — 최신본 비교 자료
+  // 같은 브라우저에서 중복 탭이 열렸을 때 표시하는 배너 (true면 "이미 다른 탭에서 열려 있어요")
+  const [duplicateTab, setDuplicateTab] = useState(false);
+  // 보기 모드: 'edit'(편집, 기본) | 'immerse'(몰입 — 편집 잠금 + 클릭한 노드 경로만 강조)
+  const [viewMode, setViewMode] = useState('edit');
+  // 아웃라인 뷰: 맵 대신 들여쓰기 목록으로 보기 (헤더의 🗂 버튼으로 토글)
+  const [outlineView, setOutlineView] = useState(false);
+  const [chartView, setChartView] = useState(null);   // null | 'gantt' | 'timeline' (일정 뷰)
+  const schedule = useMemo(() => computeSchedule(tree), [tree]);   // 간트/타임라인 일정(시작·종료·하위 롤업)
+  // 아웃라인 그룹 경계 안내 팝업: null | { dir: 'up'|'down' }
+  const [outlineHint, setOutlineHint] = useState(null);
+  // 그룹 경계에서 "빠르게 두 번" 판정용 (마지막 경계 도달 노드·방향·시각)
+  const outlineBoundaryRef = useRef({ id: null, dir: null, time: 0 });
+  // 태그 필터: 활성화된 태그 목록(빈 배열=필터 없음). 선택한 태그를 가진 노드+조상만 또렷, 나머지는 흐림.
+  const [tagFilter, setTagFilter] = useState([]);
+  const [tagInput, setTagInput] = useState(''); // 우측 패널 태그 입력 중인 값
+  // 아이콘 필터: 활성화된 아이콘 목록(빈 배열=필터 없음). 화면 하단 '아이콘 모아보기'에서 누르면 해당 아이콘 노드+조상만 또렷.
+  const [iconFilter, setIconFilter] = useState([]);
+  // 관계선 만들기: 시작 노드 id가 설정되면 "대상 노드 클릭 대기" 상태(null이면 비활성)
+  const [linkSourceId, setLinkSourceId] = useState(null);
+  // 관계선 곡선 편집: 선택된 관계선('from|to'), 드래그 중 제어점 미리보기({from,to,dx,dy})
+  const [selectedLinkKey, setSelectedLinkKey] = useState(null);
+  const [linkDrag, setLinkDrag] = useState(null);
+  const linkSvgRef = useRef(null);  // 연결선 SVG — 마우스 화면좌표→맵 논리좌표 변환 기준
+  // 자유 그룹: Shift+클릭으로 떨어진 노드 여러 개를 골라 하나로 묶기
+  const [groupSelectIds, setGroupSelectIds] = useState([]);  // 묶기 전 다중 선택 중인 노드 id들
+  const [selectedGroupId, setSelectedGroupId] = useState(null);  // 관리(이름·색·해제) 중인 그룹 id
+  // 몰입 모드에서 클릭해 강조 중인 노드 id (null이면 강조 없음)
+  const [immerseFocusId, setImmerseFocusId] = useState(null);
+  // 빈 공간 우클릭 메뉴 위치 ({x, y, nodeId} | null)
+  const [bgMenu, setBgMenu] = useState(null);
+  // 관계선 우클릭 메뉴 — 모양·선(점선/실선)·두께 옵션. { x, y, from, to } | null
+  const [linkMenu, setLinkMenu] = useState(null);
+  // 우측 패널 '임시 열림' — 설정 '우측 패널 표시'가 꺼져 있어도 "노드 세부 정보"로 잠시 연 상태.
+  // 바탕 클릭 시 이 임시 열림만 닫는다(설정으로 켜 둔 영구 표시는 건드리지 않음).
+  const [panelTempOpen, setPanelTempOpen] = useState(false);
+
+  // ─────────── 노드 검색 (Ctrl+F) ───────────
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchMatchIds, setSearchMatchIds] = useState([]); // 매칭된 노드 id 목록(트리 순서)
+  const [searchPos, setSearchPos] = useState(0);            // 현재 보고 있는 매칭 인덱스
+  const searchInputRef = useRef(null);
+
+  const settingsLoadedRef = useRef(false); // 초기 로드 완료 플래그
+
+  // ─────────── Undo/Redo 히스토리 ───────────
+  // 각 항목: { tree, inputText, selectedId, label }
+  const [history, setHistory] = useState([]);     // 과거 스냅샷들
+  const [future, setFuture] = useState([]);       // Redo 스택
+  const HISTORY_LIMIT = 100;
+  const isApplyingHistoryRef = useRef(false);     // Undo/Redo 적용 중에는 새 스냅샷 안 만듦
+
+  // 동기화 방향 제어: 어느 쪽이 마지막으로 수정했는지 기억
+  // 'tree' = 다이어그램에서 변경 → 텍스트박스 업데이트해야 함
+  // 'text' = 텍스트박스에서 변경 → 트리 업데이트해야 함
+  // null = 아무것도 안 함 (사용자 입력 대기)
+  const syncSourceRef = useRef('text');
+
+  // 최근에 사용한 트렌디 단어 5개 — 연속 중복 방지용 (휘발성, 세션 내)
+  const recentIdeaWordsRef = useRef([]);
+
+  // ─────────── 타이머 상태 ───────────
+  // 타이머 상태:
+  //   'idle'    - 시작 전 (시간만 표시)
+  //   'running' - 카운트다운 중
+  //   'paused'  - 일시정지 (남은 시간 고정)
+  //   'done'    - 종료됨 (알림 표시)
+  // 정확도를 위해 "목표 종료 시각"(timerEndAt)을 기준으로 매 틱마다 차이 계산
+  // → 백그라운드 탭에서 setInterval이 느려져도 정확한 종료 시각 유지
+  const [timerState, setTimerState] = useState('idle');
+  const [timerEndAt, setTimerEndAt] = useState(null);          // running 일 때 사용 (timestamp)
+  const [timerRemainingMs, setTimerRemainingMs] = useState(null); // paused 일 때 사용 (ms)
+  // timerDisplayMs 제거 — 카운트다운 표시는 TimerChip이 자체 250ms로 관리(App 틱마다 리렌더 방지)
+  const [timerFlash, setTimerFlash] = useState(false);         // 종료 시 헤더 깜빡임 트리거
+  const [timerPopup, setTimerPopup] = useState(null);          // 화면 정중앙 반투명 알림 { text, key }
+  const timerPopupTimerRef = useRef(null);
+  const timerMilestoneRef = useRef({});                        // 발화한 마일스톤 기록 (중복 방지)
+  const timerTotalMsRef = useRef(0);                           // 이번 타이머의 총 길이 (경과 계산용)
+
+  // 히스토리 스냅샷 저장 (변경 직전의 상태를 저장)
+  const pushHistory = useCallback((label, overrides) => {
+    if (isApplyingHistoryRef.current) return;
+    if (!tree) return;
+    setHistory(h => {
+      const snapshot = {
+        tree: cloneTree(tree),
+        // 텍스트 편집 경로: setInputText가 이미 커밋된 뒤 디바운스에서 push되므로,
+        // 클로저의 inputText(=새 텍스트)를 그대로 담으면 tree(옛것)와 어긋난다 → 호출측이 옛 텍스트를 넘김
+        inputText: (overrides && typeof overrides.inputText === 'string') ? overrides.inputText : inputText,
+        selectedId,
+        label: label || '변경',
+      };
+      const next = [...h, snapshot];
+      if (next.length > HISTORY_LIMIT) next.shift();
+      return next;
+    });
+    // 새로운 변경이 일어나면 Redo 스택은 비워짐 (표준 동작)
+    setFuture([]);
+  }, [tree, inputText, selectedId]);
+
+  // Undo
+  const undo = useCallback(() => {
+    setHistory(h => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      // 현재 상태를 future에 푸시
+      setFuture(f => [...f, {
+        tree: tree ? cloneTree(tree) : null,
+        inputText,
+        selectedId,
+        label: prev.label,
+      }]);
+      // 이전 상태로 복원
+      isApplyingHistoryRef.current = true;
+      syncSourceRef.current = null; // 동기화 effect 모두 막기
+      setTree(prev.tree);
+      setInputText(prev.inputText);
+      setSelectedId(prev.selectedId);
+      setEditingId(null);
+      // 다음 틱에 플래그 해제
+      setTimeout(() => { isApplyingHistoryRef.current = false; }, 0);
+      showToast(`↶ 실행 취소: ${prev.label}`);
+      return h.slice(0, -1);
+    });
+  }, [tree, inputText, selectedId]);
+
+  // Redo
+  const redo = useCallback(() => {
+    setFuture(f => {
+      if (f.length === 0) return f;
+      const next = f[f.length - 1];
+      // 현재 상태를 history에 푸시
+      setHistory(h => [...h, {
+        tree: tree ? cloneTree(tree) : null,
+        inputText,
+        selectedId,
+        label: next.label,
+      }]);
+      isApplyingHistoryRef.current = true;
+      syncSourceRef.current = null;
+      setTree(next.tree);
+      setInputText(next.inputText);
+      setSelectedId(next.selectedId);
+      setEditingId(null);
+      setTimeout(() => { isApplyingHistoryRef.current = false; }, 0);
+      showToast(`↷ 다시 실행: ${next.label}`);
+      return f.slice(0, -1);
+    });
+  }, [tree, inputText, selectedId]);
+
+  const canvasRef = useRef(null);
+  const canvasScrollRef = useRef(null);
+  const mapWrapperRef = useRef(null); // 맵 래퍼 (중앙 정렬됨) - 노드 위치 계산 기준
+  const pendingCenterRef = useRef(null); // 접기/펼치기 후 중앙 정렬할 노드 id (레이아웃 갱신 후 실행)
+  const pendingScrollRef = useRef(null); // 새로고침 후 복원할 스크롤 위치 {left, top}
+  const viewSaveRef = useRef(null);      // 뷰 상태(줌·스크롤) 저장 디바운스 타이머
+  const textInputRef = useRef(null); // 좌측 텍스트박스 - 자동 포커스용
+
+  // 좌측 텍스트박스에 자동 포커스 + 커서를 두 번째 줄 첫 칸에 위치
+  // expectedText: 이 시점에 textarea가 가져야 할 텍스트 (state 반영 전이라도 강제로 맞춤)
+  //   - 넘기지 않으면 현재 el.value 기준으로 동작
+  const focusTextInputAtSecondLine = (expectedText = null) => {
+    // React 렌더가 끝난 뒤 실행되도록 rAF 2번 + 약간의 지연
+    const run = () => {
+      const el = textInputRef.current;
+      if (!el) return;
+
+      // 다이얼로그가 떠 있으면 포커스 양보
+      if (document.querySelector('.modal-backdrop')) return;
+
+      let text = (expectedText != null) ? expectedText : (el.value || '');
+
+      // 줄바꿈이 없으면 두 번째 줄을 만들어 줌
+      let firstNL = text.indexOf('\n');
+      if (firstNL === -1) {
+        text = text + '\n';
+        firstNL = text.length - 1;
+        // state도 동기화 (텍스트박스 표시값과 일치시키기)
+        syncSourceRef.current = 'text';
+        setInputText(text);
+      }
+      const pos = firstNL + 1; // 두 번째 줄 첫 칸
+
+      // 포커스 + 커서. value가 아직 갱신 안 됐을 수 있으니 한 번 더 rAF
+      requestAnimationFrame(() => {
+        const el2 = textInputRef.current;
+        if (!el2) return;
+        el2.focus();
+        // setSelectionRange는 value 길이를 넘으면 무시되므로, 현재 value 기준으로 clamp
+        const safePos = Math.min(pos, el2.value.length);
+        try {
+          el2.setSelectionRange(safePos, safePos);
+        } catch (e) { /* 일부 브라우저 예외 무시 */ }
+        el2.scrollTop = 0;
+      });
+    };
+
+    // 두 번의 rAF로 React 커밋 이후를 보장 + 안전하게 한 번 더 지연
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(run, 30)));
+  };
+
+  const showToast = (msg, opts = {}) => {
+    // 이전 토스트의 닫힘 타이머가 새 메시지를 일찍 지우지 않도록 항상 정리
+    if (toastTimerRef.current) { clearTimeout(toastTimerRef.current); toastTimerRef.current = null; }
+    setToast(msg);
+    // sticky=true면 다음 showToast가 올 때까지 유지 (예: "저장 중…" → 완료 메시지가 교체)
+    if (!opts.sticky) {
+      toastTimerRef.current = setTimeout(() => { setToast(null); toastTimerRef.current = null; }, opts.duration || 2200);
+    }
+  };
+
+  /* ---------- 트리 → 텍스트 자동 동기화 ----------
+     트리가 변경되면 (다이어그램에서 노드 추가/삭제/이동/편집) 텍스트박스도 업데이트 */
+  useEffect(() => {
+    if (!tree) return;
+    if (syncSourceRef.current === 'tree') {
+      const newText = treeToText(tree);
+      setInputText(newText);
+      syncSourceRef.current = null;
+    }
+  }, [tree]);
+
+  /* ---------- 텍스트박스 입력 핸들러 ----------
+     사용자가 텍스트박스를 수정하면 (디바운스 후) 트리도 업데이트 */
+  const handleTextChange = (e) => {
+    syncSourceRef.current = 'text';
+    setInputText(e.target.value);
+  };
+
+  /* ---------- 텍스트박스 Enter 키: 자동 들여쓰기 ----------
+     현재 줄의 선행 공백(들여쓰기)을 다음 줄에도 유지.
+     예: "    333333"에서 Enter → 다음 줄도 "    "로 시작해서
+         "444"가 "333333" 첫 글자 아래로 정렬됨 */
+  const handleTextKeyDown = (e) => {
+    // 한글 등 IME 조합 중에는 Enter가 조합 확정용이므로 가로채지 않음
+    if (e.nativeEvent && e.nativeEvent.isComposing) return;
+    if (e.key !== 'Enter') return;
+    // Shift+Enter 등 수정자 조합도 동일하게 들여쓰기 유지 (특별 처리 안 함)
+
+    const el = e.target;
+    const value = el.value;
+    const selStart = el.selectionStart;
+    const selEnd = el.selectionEnd;
+
+    // 현재 커서가 속한 줄의 시작 위치 찾기
+    const lineStart = value.lastIndexOf('\n', selStart - 1) + 1;
+    // 그 줄의 선행 공백 추출
+    const currentLine = value.slice(lineStart, selStart);
+    const indentMatch = currentLine.match(/^[ \t]*/);
+    const indent = indentMatch ? indentMatch[0] : '';
+
+    // 들여쓰기가 없으면 기본 동작에 맡김 (불필요한 가로채기 방지)
+    if (indent.length === 0) return;
+
+    e.preventDefault();
+
+    // 커서 위치에 "\n + 들여쓰기" 삽입 (선택 영역이 있으면 대체)
+    const insert = '\n' + indent;
+    const newValue = value.slice(0, selStart) + insert + value.slice(selEnd);
+    const newCaret = selStart + insert.length;
+
+    // React state 업데이트
+    syncSourceRef.current = 'text';
+    setInputText(newValue);
+
+    // state 반영 후 커서 위치 복원 (다음 틱)
+    requestAnimationFrame(() => {
+      const el2 = textInputRef.current;
+      if (!el2) return;
+      el2.selectionStart = el2.selectionEnd = newCaret;
+    });
+  };
+
+  // 텍스트 → 트리 디바운스 동기화
+  // 검수자: 인라인 편집 중에는 트리 재생성을 막아 노드 ID 무효화/포커스 손실 방지
+  useEffect(() => {
+    if (syncSourceRef.current !== 'text') return;
+    if (editingId) return; // 편집 중에는 동기화 일시 정지
+    const timer = setTimeout(() => {
+      // 붙여넣은 텍스트가 BrainBloom 마크다운(캘린더 등에서 복사)이면 전용 파서로 복원.
+      // 아니면 평소처럼 들여쓰기/하이픈 파서 사용.
+      let parsed;
+      if (looksLikeBrainBloomMarkdown(inputText)) {
+        parsed = parseBrainBloomMarkdown(inputText);
+        if (!parsed) parsed = parseInput(inputText); // 복원 실패 시 폴백
+      } else {
+        parsed = parseInput(inputText);
+      }
+      if (parsed) {
+        walk(parsed, n => { if (!n.meta) n.meta = {}; });
+        // 기존 색상/메타 정보를 라벨 기준으로 보존
+        if (tree) preserveMetadata(parsed, tree);
+        assignDefaultColors(parsed);
+        // 디바운스 단위로 한 묶음의 텍스트 변경을 히스토리에 저장.
+        // 이 시점의 inputText는 이미 '새 텍스트'라, 스냅샷엔 옛 트리에 대응하는 텍스트를 넘겨
+        // Undo 시 맵과 텍스트 패널이 함께 되돌아가게 한다(어긋남 방지).
+        maybePushHistory('텍스트 편집', 'text-edit', { inputText: tree ? treeToText(tree) : inputText });
+        syncSourceRef.current = null; // 무한 루프 방지
+        setTree(parsed);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line
+  }, [inputText, editingId]);
+
+  // 라벨 경로 기준으로 색상/메타 보존
+  // 키에 '동명 형제 순번(#k)'을 포함해, 같은 이름의 형제가 여러 개여도 메타/관계선이
+  // 마지막 하나로 뭉개지지 않고 발생 순서대로 1:1 매칭된다(라벨이 유니크하면 항상 #0 = 기존과 동일).
+  function preserveMetadata(newTree, oldTree) {
+    const childKey = (parentKey, child, occ) => (parentKey ? parentKey + '|' : '') + (child.label || '') + '#' + occ;
+    const visitChildren = (node, parentKey, fn) => {
+      if (!node.children) return;
+      const seen = {};
+      node.children.forEach(c => {
+        const lb = c.label || '';
+        const occ = seen[lb] || 0; seen[lb] = occ + 1;
+        fn(c, childKey(parentKey, c, occ));
+      });
+    };
+    const oldMap = new Map();
+    const oldIdToKey = new Map(); // 옛 노드 id → 라벨 경로(관계선 재매핑용)
+    function collect(node, key) {
+      oldMap.set(key, {
+        color: node.color, meta: node.meta, tags: node.tags, note: node.note, icons: node.icons,
+        pinnedSide: node.pinnedSide, autoSide: node.autoSide,
+        collapsed: node.collapsed,
+        createdAt: node.createdAt, updatedAt: node.updatedAt,
+        task: node.task, done: node.done, shape: node.shape, w: node.w,
+      });
+      oldIdToKey.set(node.id, key);
+      visitChildren(node, key, collect);
+    }
+    collect(oldTree, (oldTree.label || '') + '#0');
+    const keyToNewId = new Map(); // 라벨 경로 → 새 노드 id
+    function apply(node, key) {
+      keyToNewId.set(key, node.id);
+      const old = oldMap.get(key);
+      if (old) {
+        if (old.color && !node.color) node.color = old.color;
+        if (old.meta) node.meta = { ...old.meta, ...node.meta };
+        // 노트 보존 (텍스트 재파싱으로 사라지지 않게)
+        if (old.note && !node.note) node.note = old.note;
+        // 아이콘 보존
+        if (Array.isArray(old.icons) && old.icons.length > 0 && !node.icons) node.icons = [...old.icons];
+        // 태그 보존 (텍스트 재파싱으로 사라지지 않게)
+        if (Array.isArray(old.tags) && old.tags.length > 0 && !node.tags) {
+          node.tags = [...old.tags];
+        }
+        // 사용자 수동 지정 좌/우 위치 보존
+        if (old.pinnedSide && !node.pinnedSide) {
+          node.pinnedSide = old.pinnedSide;
+        }
+        // 자동 분배 기록(autoSide) 보존 — 좌/우 점프 방지
+        if (old.autoSide && !node.autoSide) {
+          node.autoSide = old.autoSide;
+        }
+        // 접힘 상태 보존
+        if (old.collapsed === true && node.collapsed === undefined) {
+          node.collapsed = true;
+        }
+        // 생성·수정 시각 보존(시스템 기록 — 재파싱으로 사라지지 않게)
+        if (old.createdAt && !node.createdAt) node.createdAt = old.createdAt;
+        if (old.updatedAt && !node.updatedAt) node.updatedAt = old.updatedAt;
+        if (old.task && node.task === undefined) node.task = old.task;
+        if (old.done && node.done === undefined) node.done = old.done;
+        if (old.shape && node.shape === undefined) node.shape = old.shape;
+        if (typeof old.w === 'number' && node.w === undefined) node.w = old.w;   // 사용자 지정 노드 폭 보존
+      }
+      // 텍스트로 새로 생긴 노드 → 생성 시각 기록
+      if (!node.createdAt) { const t = new Date().toISOString(); node.createdAt = t; node.updatedAt = node.updatedAt || t; }
+      visitChildren(node, key, apply);
+    }
+    apply(newTree, (newTree.label || '') + '#0');
+    // 관계선(links) 재매핑: 옛 id → 라벨키 → 새 id. 양 끝이 모두 살아있을 때만 유지.
+    if (Array.isArray(oldTree.links) && oldTree.links.length) {
+      const remapped = [];
+      const seen = new Set();
+      for (const l of oldTree.links) {
+        const nf = keyToNewId.get(oldIdToKey.get(l.from));
+        const nt = keyToNewId.get(oldIdToKey.get(l.to));
+        if (nf && nt && nf !== nt) {
+          const k = nf < nt ? nf + '~' + nt : nt + '~' + nf;
+          if (!seen.has(k)) {
+            seen.add(k);
+            const nl = { from: nf, to: nt };
+            if (l.label) nl.label = l.label;
+            if (l.type) nl.type = l.type;      // 관계선 종류 유지
+            if (l.dash) nl.dash = l.dash;      // 선 스타일(실선) 유지
+            if (l.width) nl.width = l.width;   // 선 두께 유지
+            if (l.curve) nl.curve = l.curve;   // 곡선 모양 유지(레거시)
+            if (l.points) nl.points = l.points;  // 곡선 3 웨이포인트 유지
+            remapped.push(nl);
+          }
+        }
+      }
+      if (remapped.length) newTree.links = remapped;
+    }
+    // 경계/그룹 재매핑: 옛 nodeId → 라벨키 → 새 id. 살아있을 때만 유지.
+    if (Array.isArray(oldTree.boundaries) && oldTree.boundaries.length) {
+      const rb = [];
+      const seen = new Set();
+      for (const b of oldTree.boundaries) {
+        const nid = keyToNewId.get(oldIdToKey.get(b.nodeId));
+        if (nid && !seen.has(nid)) { seen.add(nid); rb.push({ nodeId: nid }); }
+      }
+      if (rb.length) newTree.boundaries = rb;
+    }
+    // 자유 그룹 재매핑: 각 그룹의 nodeIds를 새 id로. 살아남은 노드가 2개 이상일 때만 유지.
+    if (Array.isArray(oldTree.groups) && oldTree.groups.length) {
+      const rg = [];
+      for (const g of oldTree.groups) {
+        const ids = [];
+        const seenG = new Set();
+        for (const id of g.nodeIds) {
+          const nid = keyToNewId.get(oldIdToKey.get(id));
+          if (nid && !seenG.has(nid)) { seenG.add(nid); ids.push(nid); }
+        }
+        if (ids.length >= 2) rg.push({ id: g.id, nodeIds: ids, label: g.label, color: g.color });
+      }
+      if (rg.length) newTree.groups = rg;
+    }
+  }
+
+  // 최초 로드 시 트리 생성
+  // ─────────── 시작 시: 설정/마지막 작업 복원 + 시작 다이얼로그 ───────────
+  useEffect(() => {
+    (async () => {
+      // 1) 설정 불러오기
+      const savedSettings = await idbGet('settings');
+      if (savedSettings) {
+        setSettings(s => {
+          const merged = { ...s, ...savedSettings };
+          // 옛 설정에 visibleSaveButtons가 없으면 기본값 보장
+          if (!Array.isArray(merged.visibleSaveButtons) || merged.visibleSaveButtons.length === 0) {
+            // 빈 배열은 사용자가 의도적으로 다 끈 것일 수 있으나,
+            // 옛 설정(undefined)인 경우만 기본값으로 복구
+            if (!('visibleSaveButtons' in savedSettings)) {
+              merged.visibleSaveButtons = ['pdf', 'jpg', 'svg', 'csv', 'json', 'md'];
+            } else if (!Array.isArray(merged.visibleSaveButtons)) {
+              merged.visibleSaveButtons = ['pdf', 'jpg', 'svg', 'csv', 'json', 'md'];
+            }
+          }
+          // 격언 설정 누락 방어
+          if (!merged.quoteSource) merged.quoteSource = 'sample';
+          if (!Array.isArray(merged.customQuotes)) merged.customQuotes = [];
+          // 캘린더 제목 누락 방어
+          if (!merged.calendarEventTitle || typeof merged.calendarEventTitle !== 'string') {
+            merged.calendarEventTitle = '브레인스토밍';
+          }
+          // 캘린더 일정 방식 누락 방어 (기본: 종일)
+          if (merged.calendarMode !== 'allday' && merged.calendarMode !== 'timed') {
+            merged.calendarMode = 'allday';
+          }
+          // AI 요약 설정 누락 방어
+          if (!merged.aiService || !AI_SERVICES[merged.aiService]) {
+            merged.aiService = 'chatgpt';
+          }
+          if (!merged.aiPrompt || typeof merged.aiPrompt !== 'string') {
+            merged.aiPrompt = DEFAULT_AI_PROMPT;
+          }
+          // 트렌디 단어 설정 누락 방어
+          if (!merged.ideaWordSource || !['sample', 'custom', 'both'].includes(merged.ideaWordSource)) {
+            merged.ideaWordSource = 'sample';
+          }
+          if (!Array.isArray(merged.customIdeaWords)) merged.customIdeaWords = [];
+          // 타이머 시간 누락/잘못된 값 방어 (정상값이면 그대로 유지, 깨진 값만 기본 3분으로 복구)
+          if (typeof merged.timerMinutes !== 'number' || merged.timerMinutes < 1 || merged.timerMinutes > 120) {
+            merged.timerMinutes = 3;
+          }
+          if (typeof merged.timerNotifyMinutes !== 'number' || merged.timerNotifyMinutes < 0 || merged.timerNotifyMinutes > 60) {
+            merged.timerNotifyMinutes = 10;
+          }
+          // 좌/우 패널 표시 여부 누락 방어 (기본 표시)
+          if (typeof merged.showLeftPanel !== 'boolean') merged.showLeftPanel = true;
+          if (typeof merged.showCanvasHint !== 'boolean') merged.showCanvasHint = true;
+          if (typeof merged.hideOutlineGroupHint !== 'boolean') merged.hideOutlineGroupHint = false;
+          // 'showToolbarButtons' 설정은 3.20.0에서 UI 제거됨(미니멀 상단바로 통합).
+          // 과거에 false로 저장된 값이 있어도 헤더 버튼이 정상 표시되도록 항상 true로 정규화.
+          merged.showToolbarButtons = true;
+          if (typeof merged.minimalHeader !== 'boolean') merged.minimalHeader = false;
+          // 기존 사용자(showUndoRedo 키가 없던 옛 설정) 호환: 보던 대로 Undo·Redo 유지(true).
+          // 신규 사용자는 savedSettings 자체가 없어 이 블록을 타지 않고 기본값(false=숨김)을 씀.
+          if (typeof merged.showUndoRedo !== 'boolean') merged.showUndoRedo = true;
+          if (typeof merged.focusModeOnEdit !== 'boolean') merged.focusModeOnEdit = false;
+          if (merged.focusDimLevel !== 'soft' && merged.focusDimLevel !== 'medium' && merged.focusDimLevel !== 'strong') merged.focusDimLevel = 'medium';
+          if (typeof merged.duplicateTabAlert !== 'boolean') merged.duplicateTabAlert = true;
+          { const validThemes = ['default','ivory','mint','gray','charcoal','navy','softdark'];
+            if (!validThemes.includes(merged.bgTheme)) merged.bgTheme = 'default'; }
+          if (typeof merged.bgDots !== 'boolean') merged.bgDots = true;
+          // 노드 라벨 줄 수 설정 — 잘못된 값이면 기본값으로
+          if (merged.urlLabelLines !== 1 && merged.urlLabelLines !== 2) merged.urlLabelLines = 1;
+          if (merged.plainLabelLines !== 1 && merged.plainLabelLines !== 2 && merged.plainLabelLines !== 'all') merged.plainLabelLines = 'all';
+          if (typeof merged.nodeFont !== 'string') merged.nodeFont = 'system';
+          if (typeof merged.nodeFontCustom !== 'string') merged.nodeFontCustom = '';
+          if (typeof merged.showRightPanel !== 'boolean') merged.showRightPanel = true;
+          // 자동저장 설정 누락 방어
+          if (typeof merged.driveAutoSave !== 'boolean') merged.driveAutoSave = false;
+          if (typeof merged.driveAutoSaveMinutes !== 'number' || merged.driveAutoSaveMinutes < 1 || merged.driveAutoSaveMinutes > 120) {
+            merged.driveAutoSaveMinutes = 1;
+          }
+          // 드라이브 보관 개수 누락 방어 (1~100, 기본 5)
+          if (typeof merged.driveKeepCount !== 'number' || merged.driveKeepCount < 1 || merged.driveKeepCount > 100) {
+            merged.driveKeepCount = 5;
+          }
+          if (typeof merged.drivePrefix !== 'string') merged.drivePrefix = '';
+          if (typeof merged.driveAlertEnabled !== 'boolean') merged.driveAlertEnabled = true;
+          // 아이콘 줄(행) 구성 — 옛 설정의 평면 iconChoices를 한 줄짜리 iconRows로 승격
+          if (!Array.isArray(merged.iconRows)) {
+            merged.iconRows = (Array.isArray(merged.iconChoices) && merged.iconChoices.length > 0)
+              ? [merged.iconChoices.slice()]
+              : [];
+          }
+          // iconRows 정규화: 각 줄은 문자열 배열만, 잘못된 형태 정리(빈 줄은 사용자가 비워둘 수 있어 유지)
+          merged.iconRows = merged.iconRows
+            .filter(r => Array.isArray(r))
+            .map(r => r.filter(ic => typeof ic === 'string'));
+          if (merged.iconRows.length === 0) merged.iconRows = [['✅', '⭐', '❗'], ['💡', '🎯', '📌']];
+          return merged;
+        });
+      }
+
+      // 마지막 작업 메타 불러오기
+      const lastWorkRaw = await idbGet('lastWork');
+      // lastWork: { savedAt, tree, inputText }
+      // 저장 데이터 손상 방어 — 트리를 검증/복구. 복구 실패 시 lastWork 무효 처리.
+      let lastWork = null;
+      if (lastWorkRaw && typeof lastWorkRaw === 'object') {
+        const safeTree = sanitizeTree(lastWorkRaw.tree);
+        if (safeTree) {
+          lastWork = {
+            savedAt: (typeof lastWorkRaw.savedAt === 'number') ? lastWorkRaw.savedAt : Date.now(),
+            tree: safeTree,
+            inputText: (typeof lastWorkRaw.inputText === 'string') ? lastWorkRaw.inputText : '',
+          };
+        } else if (lastWorkRaw.tree) {
+          // 트리가 있었지만 복구 불가능할 정도로 손상됨 → 사용자에게 알리고 새로 시작
+          console.warn('저장된 작업 데이터가 손상되어 복구하지 못했습니다. 새로 시작합니다.');
+          showToast('저장된 작업을 복구하지 못해 새로 시작합니다');
+        }
+      }
+
+      // 드라이브 동기화 기준 시각 복원 — 새로고침 후에도 "이미 확인한 최신본"을 기억해
+      // 같은 원격본으로 매번 다시 묻지 않게 한다(메모리 ref는 새로고침 시 초기화되므로 영구 저장본 복원).
+      // 연결 직후 syncBaselineOnConnect/checkRemoteNewer보다 먼저 끝난다(드라이브 재연결은 GIS 로딩을 기다리므로).
+      try {
+        const syncedT = await idbGet('driveSyncedTime');
+        if (syncedT) lastSyncedTimeRef.current = syncedT;
+      } catch (e) {}
+
+      // ── 업데이트 알림: 새 버전으로 올라왔으면 "이번 버전 소개" 팝업 1회 표시 ──
+      // lastSeenVersion = 이 브라우저에서 마지막으로 본 버전(영구 저장).
+      //  · 기존 사용자가 더 높은 버전으로 올라옴 → 팝업 1회(설정 '업데이트 알림'이 켜져 있을 때)
+      //  · 완전 신규(설정 자체가 없음) → 팝업 없이 현재 버전만 조용히 기록
+      // 표시 자체는 startupDialog(어제 작업 묻기)가 닫힌 뒤로 미룬다(렌더 조건에서 처리).
+      try {
+        const seenV = await idbGet('lastSeenVersion');
+        if (seenV !== APP_VERSION) {
+          idbSet('lastSeenVersion', APP_VERSION); // 알림 on/off와 무관하게 '현재 버전 봄'으로 기록
+          const notifyOn = !savedSettings || savedSettings.updateNotify !== false;
+          const isUpgrade = seenV ? isNewerVersion(APP_VERSION, seenV) : !!savedSettings;
+          if (notifyOn && isUpgrade) setShowUpdate(true);
+        }
+      } catch (e) {}
+
+      const behavior = (savedSettings?.startupBehavior) || 'ask';
+      // '자동으로 새 파일'로 시작하면서 기존 작업(lastWork)이 있는 경우 —
+      // 기존 문서를 덮지 않도록 docMeta 초기화에서 새 문서 슬롯을 배정하기 위한 표시
+      let startedFreshOverExisting = false;
+
+      if (lastWork && lastWork.tree && isBeforeToday(lastWork.savedAt)) {
+        // 어제(혹은 그 이전) 작업이 있음
+        if (behavior === 'restore') {
+          // 자동 복원
+          restoreWork(lastWork);
+          showToast('마지막 작업을 불러왔습니다');
+          focusTextInputAtSecondLine(lastWork.inputText || '');
+        } else if (behavior === 'new') {
+          // 자동으로 새 파일 — 어제 문서는 보존해야 하므로 아래 docMeta 초기화에서 '새 문서 슬롯'을 배정한다
+          startedFreshOverExisting = true;
+          startFresh();
+          focusTextInputAtSecondLine(inputText);
+        } else {
+          // 'ask': 다이얼로그 띄움 (포커스는 다이얼로그 선택 후)
+          setStartupDialog({
+            savedAt: lastWork.savedAt,
+            lastTree: lastWork.tree,
+            lastInputText: lastWork.inputText,
+          });
+        }
+      } else if (lastWork && lastWork.tree && !isBeforeToday(lastWork.savedAt)) {
+        // 오늘 작업한 게 있음 - 그냥 이어서 (다이얼로그 X)
+        restoreWork(lastWork);
+        focusTextInputAtSecondLine(lastWork.inputText || '');
+      } else if (!savedSettings) {
+        // 진짜 첫 실행(설정 저장조차 없음): 단순한 화면으로 시작
+        // - 패널 숨김 + 미니멀 헤더(캘린더·AI·설정만) — 설정 > 화면 표시에서 언제든 되돌릴 수 있음
+        // - 날짜 루트 + 시작 가지 3개 + 격언 팝업
+        setSettings(prev => ({ ...prev, minimalHeader: true, showLeftPanel: false, showRightPanel: false }));
+        startFirstRun();
+      } else {
+        // 저장된 것 없음(데이터만 비움) - 기본 트리 + 명언
+        startFresh();
+        focusTextInputAtSecondLine(inputText);
+      }
+
+      // ── 다중 문서 초기화/마이그레이션 ──
+      // 기존 단일 문서 사용자: docMeta가 없으면 lastWork(또는 새로 시작한 내용)를 '문서 1'로 승격.
+      // 활성 문서 내용은 위 분기에서 이미 tree/inputText로 로드됨 — 여기선 목록·포인터만 세운다.
+      try {
+        const meta = await idbGet('docMeta');
+        if (meta && Array.isArray(meta.list) && meta.list.length > 0) {
+          const list = meta.list.filter(d => d && d.id).map(normalizeDocItem); // 옛 항목에 새 필드 채움
+          const curId = (meta.currentId && list.some(d => d.id === meta.currentId)) ? meta.currentId : list[0].id;
+          const folders = Array.isArray(meta.folders) ? meta.folders.filter(f => f && f.id && typeof f.name === 'string') : [];
+          docFoldersRef.current = folders;
+          setDocFolders(folders);
+          if (startedFreshOverExisting) {
+            // '자동 새 파일' 시작: 기존 문서(curId)를 덮지 않도록 새 문서 슬롯을 만들어 현재로 배정
+            const nid = newDocId(); const now = Date.now();
+            const freshItem = { id: nid, name: DEFAULT_DOC_NAME, savedAt: now, createdAt: now, auto: true, pinned: false, folderId: null, nodeCount: 0, branches: [], tags: [], memo: '' };
+            const list2 = [...list, freshItem];
+            docListRef.current = list2;
+            setDocList(list2);
+            currentDocIdRef.current = nid;
+            setCurrentDocId(nid);
+            persistDocMeta(list2, nid, folders);
+          } else {
+            docListRef.current = list;
+            setDocList(list);
+            currentDocIdRef.current = curId;
+            setCurrentDocId(curId);
+          }
+        } else {
+          // 최초 승격: 현재(=lastWork 미러) 문서를 목록에 등록
+          const id = newDocId();
+          const baseTree = (lastWork && lastWork.tree) ? lastWork.tree : null;
+          const savedAt = (lastWork && lastWork.savedAt) ? lastWork.savedAt : Date.now();
+          const st = docStatsOf(baseTree);
+          const item = { id, name: deriveDocName(baseTree), savedAt, createdAt: savedAt, auto: true, pinned: false, folderId: null, nodeCount: st.nodeCount, branches: st.branches, tags: [], memo: '' };
+          docFoldersRef.current = [];
+          setDocFolders([]);
+          if (lastWork && lastWork.tree) {
+            idbSet(DOC_KEY(id), { savedAt, tree: lastWork.tree, inputText: lastWork.inputText || '', name: item.name });
+          }
+          if (startedFreshOverExisting && lastWork && lastWork.tree) {
+            // 기존 작업은 '문서 1'로 보존하고, 새 화면은 별도 새 문서 슬롯에
+            const nid = newDocId(); const now = Date.now();
+            const freshItem = { id: nid, name: DEFAULT_DOC_NAME, savedAt: now, createdAt: now, auto: true, pinned: false, folderId: null, nodeCount: 0, branches: [], tags: [], memo: '' };
+            docListRef.current = [item, freshItem];
+            setDocList([item, freshItem]);
+            currentDocIdRef.current = nid;
+            setCurrentDocId(nid);
+            persistDocMeta([item, freshItem], nid, []);
+          } else {
+            docListRef.current = [item];
+            setDocList([item]);
+            currentDocIdRef.current = id;
+            setCurrentDocId(id);
+            persistDocMeta([item], id, []);
+          }
+        }
+      } catch (e) { console.warn('docMeta init 실패', e); }
+
+      // ── 브라우저별 고정 접두어 ── localStorage에 1회 배정, 이후 변경 불가(읽기전용)
+      setSettings(s => {
+        const fixed = getBrowserPrefix(s.drivePrefix);
+        return s.drivePrefix === fixed ? s : { ...s, drivePrefix: fixed };
+      });
+      settingsLoadedRef.current = true;
+    })();
+    // eslint-disable-next-line
+  }, []);
+
+  // 마지막 작업 복원
+  function restoreWork(work) {
+    syncSourceRef.current = null;
+    setInputText(work.inputText || '');
+    if (work.tree) {
+      walk(work.tree, n => { if (!n.meta) n.meta = {}; });
+      assignDefaultColors(work.tree);
+      // ID 충돌 방지: 복원된 트리에서 가장 큰 ID 숫자를 찾아 idSeed 갱신
+      let maxId = idSeed;
+      walk(work.tree, n => {
+        const m = String(n.id || '').match(/^n(\d+)$/);
+        if (m) maxId = Math.max(maxId, parseInt(m[1], 10));
+      });
+      idSeed = maxId;
+      setTree(work.tree);
+    }
+    setMorningQuote(''); // 이어서 작업할 때는 명언 표시 안 함
+  }
+
+  // ─────────── 다중 문서: 헬퍼 & 동작 ───────────
+  const DEFAULT_DOC_NAME = '제목 없는 문서';
+  const DOC_KEY = (id) => 'doc:' + id;
+  const newDocId = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // 트리 루트 라벨에서 문서 이름 후보 추출(첫 줄, 60자 제한)
+  function deriveDocName(t) {
+    const raw = (t && typeof t.label === 'string') ? t.label.trim() : '';
+    const firstLine = raw.split('\n')[0].trim();
+    return firstLine ? firstLine.slice(0, 60) : DEFAULT_DOC_NAME;
+  }
+  // 목록에 보일 이름: 현재 문서이고 자동이름이면 살아있는 트리에서, 아니면 저장된 이름
+  function docDisplayName(d) {
+    if (!d) return DEFAULT_DOC_NAME;
+    if (d.id === currentDocId && d.auto !== false) return deriveDocName(tree);
+    return d.name || DEFAULT_DOC_NAME;
+  }
+  function fmtDocWhen(ts) {
+    if (!ts) return '';
+    const d = new Date(ts), now = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    if (d.toDateString() === now.toDateString()) return `오늘 ${hh}:${mm}`;
+    const yest = new Date(now); yest.setDate(now.getDate() - 1);
+    if (d.toDateString() === yest.toDateString()) return `어제 ${hh}:${mm}`;
+    return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  }
+  const persistDocMeta = (list, currentId, folders) => { try { idbSet('docMeta', { currentId, list, folders: folders || docFoldersRef.current || [] }); } catch (e) {} };
+  // 카드 미리보기용 트리 요약 — 노드 수 + 상위 가지 라벨(최대 4개)
+  function docStatsOf(t) {
+    if (!t || typeof t !== 'object') return { nodeCount: 0, branches: [] };
+    let n = 0;
+    (function count(x) { n++; if (Array.isArray(x.children)) x.children.forEach(count); })(t);
+    const branches = (Array.isArray(t.children) ? t.children : []).slice(0, 4).map(c => {
+      const lbl = (c && typeof c.label === 'string') ? c.label.split('\n')[0].trim() : '';
+      return lbl.slice(0, 24);
+    }).filter(Boolean);
+    return { nodeCount: n, branches };
+  }
+  // 옛 목록 항목을 새 필드(createdAt·pinned·folderId·nodeCount·branches)까지 채워 정규화(하위호환)
+  function normalizeDocItem(d) {
+    const savedAt = typeof d.savedAt === 'number' ? d.savedAt : Date.now();
+    return {
+      id: d.id,
+      name: d.name || DEFAULT_DOC_NAME,
+      savedAt,
+      createdAt: typeof d.createdAt === 'number' ? d.createdAt : savedAt,
+      auto: d.auto !== false,
+      pinned: d.pinned === true,
+      folderId: (typeof d.folderId === 'string') ? d.folderId : null,
+      nodeCount: typeof d.nodeCount === 'number' ? d.nodeCount : 0,
+      branches: Array.isArray(d.branches) ? d.branches.filter(s => typeof s === 'string') : [],
+      tags: Array.isArray(d.tags) ? d.tags.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim().slice(0, 24)).slice(0, 12) : [],
+      memo: typeof d.memo === 'string' ? d.memo.slice(0, 500) : '',
+    };
+  }
+  const newFolderId = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  // 목록 항목 부분 갱신(태그·메모 등) + 저장
+  function patchDocItem(docId, patch) {
+    const nextList = docListRef.current.map(d => d.id === docId ? { ...d, ...patch } : d);
+    docListRef.current = nextList; setDocList(nextList);
+    persistDocMeta(nextList, currentDocIdRef.current);
+  }
+  // 태그 추가(중복·공백·길이 정리, 최대 12개)
+  function addDocTag(docId, raw) {
+    const t = (raw || '').trim().replace(/[,]/g, '').slice(0, 24);
+    if (!t) return;
+    const cur = (docListRef.current.find(d => d.id === docId) || {}).tags || [];
+    if (cur.some(x => x.toLowerCase() === t.toLowerCase()) || cur.length >= 12) return;
+    patchDocItem(docId, { tags: [...cur, t] });
+  }
+  function removeDocTag(docId, tag) {
+    const cur = (docListRef.current.find(d => d.id === docId) || {}).tags || [];
+    patchDocItem(docId, { tags: cur.filter(x => x !== tag) });
+  }
+  // 활성 문서 내용을 doc:<id> + lastWork(미러)에 기록하고 목록 savedAt/자동이름 갱신.
+  // 자동저장(1.5초 디바운스) 경로에서 호출되므로 setState 없이 ref+IDB만 갱신(렌더 비용 없음).
+  function writeActiveDoc(payload) {
+    idbSet('lastWork', payload); // 기존 복원/드라이브 로직 호환용 미러
+    const id = currentDocIdRef.current;
+    if (!id) return;
+    const list = docListRef.current;
+    const cur = list.find(d => d.id === id);
+    if (!cur) return;
+    const name = (cur.auto === false) ? cur.name : deriveDocName(payload.tree);
+    const stats = docStatsOf(payload.tree);
+    idbSet(DOC_KEY(id), { ...payload, name });
+    const nextList = list.map(d => d.id === id
+      ? { ...d, savedAt: payload.savedAt, name, nodeCount: stats.nodeCount, branches: stats.branches }
+      : d);
+    docListRef.current = nextList;
+    persistDocMeta(nextList, id);
+  }
+  // 패널 열 때 목록·폴더를 IndexedDB에서 다시 읽어 화면에 반영(savedAt/이름/폴더 최신화)
+  async function refreshDocList() {
+    try {
+      const meta = await idbGet('docMeta');
+      if (meta && Array.isArray(meta.list)) {
+        const list = meta.list.filter(d => d && d.id).map(normalizeDocItem);
+        docListRef.current = list; setDocList(list);
+        const folders = Array.isArray(meta.folders) ? meta.folders.filter(f => f && f.id && typeof f.name === 'string') : [];
+        docFoldersRef.current = folders; setDocFolders(folders);
+        // 보던 폴더가 (다른 탭 등에서) 사라졌으면 '전체'로 보정 — 빈 목록에 갇히지 않게
+        if (docFolderView !== 'all' && docFolderView !== 'fav' && docFolderView !== 'unfiled'
+            && !folders.some(f => f.id === docFolderView)) setDocFolderView('all');
+      }
+    } catch (e) {}
+  }
+  // 현재 화면 내용을 즉시 활성 문서 슬롯에 저장(전환/생성/삭제 직전 보존용)
+  function flushActiveDoc() {
+    if (!tree) return;
+    writeActiveDoc({ savedAt: Date.now(), tree: serializeTree(tree), inputText });
+  }
+  // 전환·생성·삭제 시 화면(뷰/선택/편집)을 깔끔히 정리 — 맵 편집 모드로
+  function resetViewForDocChange() {
+    setHistory([]); setFuture([]);
+    setSelectedId(null); setEditingId(null);
+    setViewMode('edit'); setOutlineView(false); setChartView(null); setImmerseFocusId(null);
+    overlapFixRef.current = 0; // 겹침 자동복구 시도 횟수는 문서별 — 이전 문서에서 소진돼 새 문서에서 비활성화되지 않게
+  }
+  // doc:<id> 내용을 화면(tree·inputText)에 로드. 직전 문서 보존(flush)은 호출 측 책임.
+  async function loadDocIntoView(id) {
+    // 슬롯을 먼저 읽는다 — 읽는 동안엔 currentDocId가 아직 옛 문서라, 이 사이 자동저장이 터져도
+    // 옛 슬롯(또는 목록에 없어 no-op)에 안전하게 쓰이고 대상 슬롯을 덮지 않는다.
+    const data = await idbGet(DOC_KEY(id));
+    currentDocIdRef.current = id;
+    setCurrentDocId(id);
+    resetViewForDocChange();
+    const safeTree = data ? sanitizeTree(data.tree) : null;
+    if (safeTree) {
+      restoreWork({ tree: safeTree, inputText: (data.inputText || '') });
+      // lastWork 미러도 이 문서로 맞춰, 다음 새로고침에 동일 문서가 복원되게
+      idbSet('lastWork', { savedAt: Date.now(), tree: serializeTree(safeTree), inputText: (data.inputText || '') });
+    } else {
+      // 슬롯이 비어 있으면 빈 문서로 시작
+      const rootLabel = generateRootLabel();
+      const freshTree = { id: genId(), label: rootLabel, children: [], meta: {}, color: 'navy' };
+      syncSourceRef.current = null;
+      setTree(freshTree); setInputText(rootLabel + '\n'); setMorningQuote('');
+    }
+  }
+  // 다른 문서 열기
+  async function switchDoc(id) {
+    setRenamingDocId(null);
+    if (id === currentDocIdRef.current) { setShowDocs(false); return; }
+    flushActiveDoc();
+    await loadDocIntoView(id);
+    persistDocMeta(docListRef.current, id);
+    setShowDocs(false);
+    const d = docListRef.current.find(x => x.id === id);
+    showToast(`"${d ? (d.name || DEFAULT_DOC_NAME) : '문서'}" 열었어요`);
+  }
+  // 새 문서 만들기 (현재 문서는 보존하고 빈 문서로 전환)
+  function createDoc() {
+    flushActiveDoc();
+    const id = newDocId();
+    const rootLabel = generateRootLabel();
+    const freshTree = { id: genId(), label: rootLabel, children: [], meta: {}, color: 'navy' };
+    const freshText = rootLabel + '\n';
+    const savedAt = Date.now();
+    // 폴더 보기 중이면 새 문서를 그 폴더에 생성
+    const targetFolder = docFoldersRef.current.some(f => f.id === docFolderView) ? docFolderView : null;
+    const item = { id, name: deriveDocName(freshTree), savedAt, createdAt: savedAt, auto: true, pinned: false, folderId: targetFolder, nodeCount: docStatsOf(freshTree).nodeCount, branches: [], tags: [], memo: '' };
+    const nextList = [...docListRef.current, item];
+    docListRef.current = nextList;
+    setDocList(nextList);
+    currentDocIdRef.current = id;
+    setCurrentDocId(id);
+    persistDocMeta(nextList, id);
+    idbSet(DOC_KEY(id), { savedAt, tree: freshTree, inputText: freshText, name: item.name });
+    syncSourceRef.current = null;
+    resetViewForDocChange();
+    setTree(freshTree); setInputText(freshText);
+    setMorningQuote(pickQuote());
+    setShowDocs(false);
+    showToast('새 문서를 만들었어요');
+    focusTextInputAtSecondLine(freshText);
+  }
+  // 문서 이름 바꾸기 (빈 값이면 자동이름 모드로 되돌림)
+  function commitRename(id, rawName) {
+    const name = (rawName || '').trim().slice(0, 60);
+    const liveName = (id === currentDocId) ? deriveDocName(tree) : null;
+    const nextList = docListRef.current.map(d =>
+      d.id === id ? { ...d, name: name || (liveName || DEFAULT_DOC_NAME), auto: name ? false : true } : d);
+    docListRef.current = nextList;
+    setDocList(nextList);
+    persistDocMeta(nextList, currentDocIdRef.current);
+    if (id === currentDocIdRef.current) {
+      // 현재 문서: 슬롯을 읽어 되쓰면(read-modify-write) 그 사이 자동저장과 경합해
+      // 옛 트리를 복원할 수 있다 → 살아있는 트리로 즉시 flush(목록의 새 이름이 함께 반영됨)
+      flushActiveDoc();
+    } else {
+      // 비현재 문서: 자동저장이 이 슬롯에 쓰지 않으므로 재기록 경합 없음
+      idbGet(DOC_KEY(id)).then(d => {
+        const finalName = name || (d ? deriveDocName(d.tree) : DEFAULT_DOC_NAME);
+        if (d) idbSet(DOC_KEY(id), { ...d, name: finalName });
+        // 비운 경우: 살아있는 트리로 라벨을 못 구하므로, 슬롯의 실제(루트) 이름으로 목록도 맞춰 불일치 제거
+        if (!name) patchDocItem(id, { name: finalName });
+      });
+    }
+    setRenamingDocId(null);
+  }
+  // 문서 삭제 (마지막 1개는 삭제 불가)
+  async function deleteDoc(id) {
+    const list = docListRef.current;
+    if (list.length <= 1) { showToast('마지막 문서는 삭제할 수 없어요'); return; }
+    const wasCurrent = (id === currentDocIdRef.current);
+    const nextList = list.filter(d => d.id !== id);
+    docListRef.current = nextList;
+    setDocList(nextList);
+    idbDel(DOC_KEY(id));
+    if (wasCurrent) {
+      // 현재 문서를 지웠으면 가장 최근 문서로 이동 — flush 없이 곧장 로드(지운 슬롯 재생성 방지)
+      const target = nextList.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
+      await loadDocIntoView(target.id);
+      persistDocMeta(docListRef.current, target.id);
+    } else {
+      persistDocMeta(nextList, currentDocIdRef.current);
+    }
+    setRenamingDocId(null);
+    showToast('문서를 삭제했어요');
+  }
+  // ── 폴더 ──
+  function createFolder() {
+    const f = { id: newFolderId(), name: '새 폴더' };
+    const next = [...docFoldersRef.current, f];
+    docFoldersRef.current = next; setDocFolders(next);
+    persistDocMeta(docListRef.current, currentDocIdRef.current, next);
+    setDocFolderView(f.id);
+    setRenamingFolderId(f.id); setFolderNameDraft('새 폴더');
+  }
+  function commitFolderRename(id, raw) {
+    const name = (raw || '').trim().slice(0, 40) || '새 폴더';
+    const next = docFoldersRef.current.map(f => f.id === id ? { ...f, name } : f);
+    docFoldersRef.current = next; setDocFolders(next);
+    persistDocMeta(docListRef.current, currentDocIdRef.current, next);
+    setRenamingFolderId(null);
+  }
+  function deleteFolder(id) {
+    const next = docFoldersRef.current.filter(f => f.id !== id);
+    const nextList = docListRef.current.map(d => d.folderId === id ? { ...d, folderId: null } : d);
+    docFoldersRef.current = next; setDocFolders(next);
+    docListRef.current = nextList; setDocList(nextList);
+    persistDocMeta(nextList, currentDocIdRef.current, next);
+    if (docFolderView === id) setDocFolderView('all');
+    showToast('폴더를 삭제했어요 (문서는 미분류로 이동)');
+  }
+  function moveDocToFolder(docId, folderId) {
+    const fid = (typeof folderId === 'string' && folderId) ? folderId : null;
+    const nextList = docListRef.current.map(d => d.id === docId ? { ...d, folderId: fid } : d);
+    docListRef.current = nextList; setDocList(nextList);
+    persistDocMeta(nextList, currentDocIdRef.current);
+  }
+  // ── 즐겨찾기(상단 고정) ──
+  function togglePinDoc(docId) {
+    const nextList = docListRef.current.map(d => d.id === docId ? { ...d, pinned: !d.pinned } : d);
+    docListRef.current = nextList; setDocList(nextList);
+    persistDocMeta(nextList, currentDocIdRef.current);
+  }
+  // ── 복제(통째 복사 → 새 문서) ──
+  async function duplicateDoc(id) {
+    const src = docListRef.current.find(d => d.id === id);
+    const data = (id === currentDocIdRef.current)
+      ? { tree: serializeTree(tree), inputText }
+      : await idbGet(DOC_KEY(id));
+    const safeTree = data ? sanitizeTree(data.tree) : null;
+    if (!safeTree) { showToast('복제할 내용을 찾지 못했어요'); return; }
+    const nid = newDocId(); const now = Date.now();
+    const baseName = (src && src.auto === false && src.name) ? src.name : deriveDocName(safeTree);
+    const name = (baseName + ' 사본').slice(0, 60);
+    const stats = docStatsOf(safeTree);
+    const item = { id: nid, name, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: (src && src.folderId) || null, nodeCount: stats.nodeCount, branches: stats.branches, tags: (src && Array.isArray(src.tags)) ? src.tags.slice() : [], memo: (src && src.memo) || '' };
+    const nextList = [...docListRef.current, item];
+    docListRef.current = nextList; setDocList(nextList);
+    idbSet(DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: (data.inputText || treeToText(safeTree)), name });
+    persistDocMeta(nextList, currentDocIdRef.current);
+    showToast(`"${name}" 만들었어요`);
+  }
+  // ── JSON 백업을 "새 문서"로 가져오기 (현재 문서 안 덮음) ──
+  function importDocFromFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ''));
+        const rawTree = (parsed && parsed.tree) ? parsed.tree : parsed;
+        const safeTree = sanitizeTree(rawTree);
+        if (!safeTree) { setDocImportMsg('JSON에서 마인드맵을 읽지 못했어요'); return; }
+        walk(safeTree, n => { if (!n.meta) n.meta = {}; });
+        assignDefaultColors(safeTree);
+        const nid = newDocId(); const now = Date.now();
+        const name = (deriveDocName(safeTree) || '가져온 문서').slice(0, 60);
+        const stats = docStatsOf(safeTree);
+        const targetFolder = docFoldersRef.current.some(f => f.id === docFolderView) ? docFolderView : null;
+        const item = { id: nid, name, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: targetFolder, nodeCount: stats.nodeCount, branches: stats.branches, tags: [], memo: '' };
+        const nextList = [...docListRef.current, item];
+        docListRef.current = nextList; setDocList(nextList);
+        idbSet(DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: treeToText(safeTree), name });
+        persistDocMeta(nextList, currentDocIdRef.current);
+        setDocImportMsg('"' + name + '"(으)로 가져왔어요 — 목록에서 열어보세요');
+        showToast('JSON을 새 문서로 가져왔어요');
+      } catch (e) {
+        setDocImportMsg('JSON 형식이 올바르지 않아요');
+      }
+    };
+    reader.readAsText(file);
+  }
+  // ── 구글 드라이브에서 읽어오기 (문서 관리자) ──
+  async function loadDriveDocs() {
+    if (!driveSignedIn) { setDriveDocs(null); return; }
+    setDriveDocs('loading');
+    setMgrDrivePreview(null);
+    try {
+      // 메인 + Backup을 합쳐, 같은 이름은 최신(modifiedTime)만, 최신순으로
+      setDriveDocs(await fetchMergedDriveList());
+    } catch (e) {
+      if (/401|403/.test(String(e && e.message))) { setDriveSignedIn(false); setDriveDocs(null); }
+      else setDriveDocs('error');
+    }
+  }
+  // 드라이브 파일 미리보기 토글(노드 수·중심·가지·텍스트 일부)
+  async function previewDriveFileInMgr(file) {
+    if (mgrDrivePreview && mgrDrivePreview.fileId === file.id) { setMgrDrivePreview(null); return; }
+    setMgrDrivePreview({ fileId: file.id, loading: true });
+    try {
+      const data = JSON.parse(await driveLoadFileById(file.id));
+      const safe = sanitizeTree(data.tree || data);
+      if (!safe) { setMgrDrivePreview({ fileId: file.id, error: true }); return; }
+      let nodeCount = 0; walk(safe, () => { nodeCount++; });
+      const branches = (safe.children || []).map(c => (c && typeof c.label === 'string') ? c.label.split('\n')[0].trim() : '').filter(Boolean);
+      const lines = treeToText(safe).split('\n');
+      setMgrDrivePreview({
+        fileId: file.id, nodeCount,
+        rootLabel: (safe.label || '(빈 노드)').split('\n')[0],
+        branches: branches.slice(0, 6), branchesMore: Math.max(0, branches.length - 6),
+        textPreview: lines.slice(0, 14).join('\n'), textMore: Math.max(0, lines.length - 14),
+      });
+    } catch (e) {
+      if (/401|403/.test(String(e && e.message))) { setDriveSignedIn(false); setMgrDrivePreview(null); }
+      else setMgrDrivePreview({ fileId: file.id, error: true });
+    }
+  }
+  // 드라이브 파일을 "새 문서"로 가져오기. open=true면 가져온 뒤 바로 열고 관리자 닫기.
+  async function importDriveFile(file, open) {
+    setDriveImportingId(file.id);
+    try {
+      const data = JSON.parse(await driveLoadFileById(file.id));
+      const safeTree = sanitizeTree(data.tree || data);
+      if (!safeTree) { showToast('파일 형식이 올바르지 않아요'); return; }
+      walk(safeTree, n => { if (!n.meta) n.meta = {}; });
+      assignDefaultColors(safeTree);
+      const nid = newDocId(); const now = Date.now();
+      const baseName = (file.name.replace(/\.json$/i, '').trim() || deriveDocName(safeTree)).slice(0, 60);
+      const stats = docStatsOf(safeTree);
+      const item = { id: nid, name: baseName, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: null, nodeCount: stats.nodeCount, branches: stats.branches, tags: [], memo: '' };
+      const nextList = [...docListRef.current, item];
+      docListRef.current = nextList; setDocList(nextList);
+      const inputForDoc = treeToText(safeTree);
+      // 슬롯 쓰기를 await로 확정(레이스 방지) — currentId 가리키기/재읽기 전에 디스크에 안착
+      await idbSet(DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: inputForDoc, name: baseName });
+      persistDocMeta(nextList, currentDocIdRef.current);
+      setDriveImportedIds(ids => ids.includes(file.id) ? ids : [...ids, file.id]);
+      if (open) {
+        // 현재 문서 보존 후, IDB 재읽기 없이 메모리에서 바로 전환(createDoc와 동일 패턴 — 읽기/쓰기 레이스 회피)
+        flushActiveDoc();
+        currentDocIdRef.current = nid;
+        setCurrentDocId(nid);
+        resetViewForDocChange();
+        syncSourceRef.current = null;
+        restoreWork({ tree: safeTree, inputText: inputForDoc });
+        idbSet('lastWork', { savedAt: now, tree: serializeTree(safeTree), inputText: inputForDoc });
+        persistDocMeta(docListRef.current, nid);
+        setShowDocs(false);
+        showToast(`"${baseName}" 드라이브에서 열었어요`);
+      } else {
+        showToast(`"${baseName}" 가져왔어요`);
+      }
+    } catch (e) {
+      if (/401|403/.test(String(e && e.message))) { setDriveSignedIn(false); showToast('드라이브 세션 만료 — 다시 연결해 주세요'); }
+      else showToast('가져오기 실패: ' + ((e && e.message) || '오류'));
+    } finally {
+      setDriveImportingId(null);
+    }
+  }
+  // 관리자에서 드라이브 소스를 보고, 로그인돼 있고, 아직 안 불러왔으면 목록 자동 로드
+  useEffect(() => {
+    if (showDocs && docFolderView === 'drive' && driveSignedIn && driveDocs === null) loadDriveDocs();
+    // eslint-disable-next-line
+  }, [showDocs, docFolderView, driveSignedIn]);
+
+  // 현재 문서 이름(헤더 표시용) — 자동이름이면 살아있는 루트 라벨을 따라감
+  const currentDocName = useMemo(() => {
+    const d = docList.find(x => x.id === currentDocId);
+    if (d && d.auto === false) return d.name || DEFAULT_DOC_NAME;
+    return deriveDocName(tree);
+    // eslint-disable-next-line
+  }, [docList, currentDocId, tree]);
+
+  // 문서 관리자에 보일 목록(폴더 필터 + 검색 + 정렬, 고정은 항상 위)
+  const visibleDocs = useMemo(() => {
+    let arr = docList.slice();
+    if (docFolderView === 'fav') arr = arr.filter(d => d.pinned);
+    else if (docFolderView === 'unfiled') arr = arr.filter(d => !d.folderId);
+    else if (docFolderView !== 'all') arr = arr.filter(d => d.folderId === docFolderView);
+    const q = docSearch.trim().toLowerCase();
+    if (q) arr = arr.filter(d => (docDisplayName(d) || '').toLowerCase().includes(q)
+      || (d.branches || []).some(b => (b || '').toLowerCase().includes(q))
+      || (d.tags || []).some(t => (t || '').toLowerCase().includes(q))
+      || (d.memo || '').toLowerCase().includes(q));
+    const cmp = docSort === 'name'
+      ? (a, b) => docDisplayName(a).localeCompare(docDisplayName(b), 'ko')
+      : docSort === 'created'
+        ? (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+        : (a, b) => (b.savedAt || 0) - (a.savedAt || 0);
+    return arr.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || cmp(a, b));
+    // eslint-disable-next-line
+  }, [docList, docFolderView, docSearch, docSort, currentDocId, tree]);
+
+  // 새 파일 시작 + 명언
+  // 첫 실행 전용 시작: 날짜 루트 + 시작 가지 3개(오늘/개인/회사) + 격언 팝업
+  // 처음 온 사람이 "뭘 해야 하지?" 없이 바로 가지를 채워 나가게 하는 발판.
+  function startFirstRun() {
+    const root = {
+      id: genId(),
+      label: generateRootLabel(),
+      color: 'navy',
+      meta: {},
+      children: [
+        { id: genId(), label: '머리속에 있는 모든 생각 여기에 적고, 정리하시면 두통이 사라집니다!', color: 'rose', meta: {}, children: [] },
+        { id: genId(), label: '개인적으로 할일', color: 'amber',    meta: {}, children: [] },
+        { id: genId(), label: '회사에서 할일',   color: 'teal',     meta: {}, children: [] },
+        { id: genId(), label: '그냥 생각',       color: 'charcoal', meta: {}, children: [] },
+      ],
+    };
+    syncSourceRef.current = null;
+    setTree(root);
+    setInputText(treeToText(root));
+    setWelcomeQuote(pickQuote()); // 구석 배너 대신, 첫 만남은 가운데 팝업으로
+  }
+
+  function startFresh() {
+    const parsed = parseInput(inputText);
+    if (parsed) {
+      walk(parsed, n => { if (!n.meta) n.meta = {}; });
+      assignDefaultColors(parsed);
+      syncSourceRef.current = null;
+      setTree(parsed);
+    }
+    setMorningQuote(pickQuote());
+  }
+
+  // 시작 다이얼로그의 "새로 시작" 전용: 기존 문서 슬롯을 덮지 않도록
+  // 새 문서 슬롯을 배정한 뒤 startFresh를 실행한다. (docMeta는 이 시점에 이미 초기화됨)
+  function startFreshInNewDoc() {
+    const nid = newDocId(); const now = Date.now();
+    const freshItem = { id: nid, name: DEFAULT_DOC_NAME, savedAt: now, createdAt: now, auto: true, pinned: false, folderId: null, nodeCount: 0, branches: [], tags: [], memo: '' };
+    const nextList = [...docListRef.current, freshItem];
+    docListRef.current = nextList;
+    setDocList(nextList);
+    currentDocIdRef.current = nid;
+    setCurrentDocId(nid);
+    persistDocMeta(nextList, nid);
+    startFresh();
+  }
+
+  // 사용자가 작업 중에 "새로 시작" 버튼을 눌렀을 때
+  // - 기존 작업 내용을 모두 비우고 빈 다이어그램으로 시작
+  // - Undo 히스토리에 푸시해서 실수해도 Ctrl+Z로 되돌릴 수 있게
+  // - 새 명언과 함께 시작
+  const resetToNewFile = () => {
+    // 변경 직전 상태를 히스토리에 푸시 (실수 방어용)
+    pushHistory('새로 시작');
+
+    // 새 트리 만들기 — 루트 하나만 있는 깨끗한 트리
+    // 라벨은 "오늘 날짜 + 슬로건" 으로 매번 새로 생성
+    const rootLabel = generateRootLabel();
+    const freshTree = {
+      id: genId(),
+      label: rootLabel,
+      children: [],
+      meta: {},
+      color: 'navy',
+    };
+
+    syncSourceRef.current = null;
+    setTree(freshTree);
+    // 루트 라벨 + 줄바꿈을 넣어, 사용자가 바로 두 번째 줄에 자식을 입력할 수 있게
+    const freshText = rootLabel + '\n';
+    setInputText(freshText);
+    setSelectedId(null);
+    setEditingId(null);
+
+    // 새 명언으로 갱신 (이전 명언이 떠 있어도 새 것으로 교체)
+    setMorningQuote(pickQuote());
+
+    showToast('새 파일을 시작합니다');
+
+    // 텍스트박스에 자동 포커스 + 두 번째 줄(빈 줄)로 커서
+    focusTextInputAtSecondLine(freshText);
+  };
+
+  // ─────────── 구글 드라이브 핸들러 ───────────
+  // 새로고침 후 재연결: 즉시 토큰을 받으면 GIS 로그인 팝업이 매번 잠깐 깜빡인다
+  // (백엔드 없는 브라우저 implicit 플로우엔 완전 무팝업이 없음). 대신 '연결됨(대기)' 상태로 두었다가,
+  // 사용자의 첫 상호작용(클릭·키 입력) 때 조용히 토큰을 받는다.
+  // → 새로고침해서 보기만 하면 팝업이 전혀 안 뜨고, 작업을 시작하면 그때(이미 손을 움직이는 중) 1회만 받는다.
+  useEffect(() => {
+    if (!getDriveLinkedFlag()) return;
+    // 같은 탭 새로고침: 세션에 유효한 토큰이 남아 있으면 팝업 없이 즉시 복원(요청 자체를 안 함)
+    if (restoreDriveTokenFromSession()) {
+      setDriveSignedIn(true);
+      setDriveAutoFailed(false);
+      syncBaselineOnConnect();
+      return;
+    }
+    // 토큰이 없거나 만료(새 탭·새 방문·1시간 경과): 대기 → 첫 상호작용 때 조용히 연결(팝업 1회)
+    setDriveLinkedPending(true);
+  }, []);
+
+  // 대기 상태일 때, 첫 상호작용에서 조용히 재연결 (제스처 직후라 팝업 차단도 덜 됨)
+  useEffect(() => {
+    if (!driveLinkedPending) return;
+    let done = false;
+    const reconnect = async () => {
+      if (done) return;
+      done = true;
+      let waited = 0;
+      while (!isGisReady() && waited < 9000) { await new Promise(r => setTimeout(r, 300)); waited += 300; }
+      if (!isGisReady()) { setDriveLinkedPending(false); return; } // GIS 미로딩 → 수동 연결로
+      try {
+        await requestDriveToken(false); // 조용히(prompt:'') 1회
+        setDriveSignedIn(true);
+        setDriveAutoFailed(false);
+        setDriveLinkedPending(false);
+        setDriveStatus('구글 드라이브에 다시 연결되었습니다.');
+        syncBaselineOnConnect(); // 재연결 직후 기준점 동기화(집↔회사 충돌 방지)
+      } catch (e) {
+        // 조용한 재발급 실패(세션 만료 등) → 대기 해제, 다음엔 수동 연결
+        setDriveLinkedPending(false);
+        setDriveLinkedFlag(false);
+      }
+    };
+    const onInteract = () => reconnect();
+    window.addEventListener('pointerdown', onInteract, { once: true });
+    window.addEventListener('keydown', onInteract, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onInteract);
+      window.removeEventListener('keydown', onInteract);
+    };
+  }, [driveLinkedPending]);
+
+  // 같은 브라우저에서 중복 탭 감지 (BroadcastChannel).
+  // 새로 연 탭이 "있냐?"고 물으면 기존 탭들이 "있다"고 답한다. 답을 받으면 내가 나중에 열린 탭 → 배너 표시.
+  // 같은 출처(도메인)의 탭끼리만 통신하므로 다른 브라우저·기기와는 무관(의도대로).
+  useEffect(() => {
+    if (!settings.duplicateTabAlert) return;       // 옵션 꺼져 있으면 감지 안 함
+    if (typeof BroadcastChannel === 'undefined') return; // 미지원 브라우저 방어
+    let ch;
+    try { ch = new BroadcastChannel('brainbloom_tabs'); } catch (e) { return; }
+    const myId = Math.random().toString(36).slice(2); // 이 탭의 임시 식별자
+    let alivePinged = false;   // 이미 배너를 띄웠는지
+    let isExistingTab = false; // 내가 다른 탭의 'who'에 응답한 적 있으면(=기존 탭) true
+    const onMsg = (ev) => {
+      const d = ev.data || {};
+      if (d.type === 'who' && d.from !== myId) {
+        // 다른 탭이 새로 열려 물어봄 → 나는 이미 있으니 "있다"고 응답 + 나는 기존 탭으로 표시
+        isExistingTab = true;
+        try { ch.postMessage({ type: 'here', from: myId }); } catch (e) {}
+      } else if (d.type === 'here' && d.from !== myId) {
+        // 'here'는 브로드캐스트라 모두에게 퍼진다. 내가 기존 탭(누군가에게 응답한 적 있음)이면
+        // 남의 here는 무시 — 안 그러면 먼저 열린 탭에도 배너가 뜬다.
+        if (isExistingTab) return;
+        if (!alivePinged) { alivePinged = true; setDuplicateTab(true); }
+      }
+    };
+    ch.addEventListener('message', onMsg);
+    // 마운트 직후 "누구 있냐?" 1회 방송 (DOM 준비 후)
+    const askTimer = setTimeout(() => {
+      try { ch.postMessage({ type: 'who', from: myId }); } catch (e) {}
+    }, 300);
+    return () => {
+      clearTimeout(askTimer);
+      try { ch.removeEventListener('message', onMsg); ch.close(); } catch (e) {}
+    };
+    // eslint-disable-next-line
+  }, [settings.duplicateTabAlert]);
+
+  // 로그인 (토큰 발급)
+  const handleDriveSignIn = async () => {
+    setDriveStatus('');
+    try {
+      await requestDriveToken(false);
+      setDriveSignedIn(true);
+      setDriveAutoFailed(false); // 재연결 성공 → 위험상태 해제
+      setDriveLinkedFlag(true);  // 새로고침 후 자동 재연결 대상으로 표시
+      setDriveStatus('구글 드라이브에 연결되었습니다.');
+      syncBaselineOnConnect(); // 연결 직후 기준점 동기화(집↔회사 충돌 방지)
+      // 드라이브를 연결하면 자동저장을 기본으로 켜 준다 — 단 사용자가 자동저장 토글을 직접 건드린 적 없을 때만(끈 의도 존중)
+      if (!settings.driveAutoSave && !settings.autoSaveSetByUser) {
+        setSettings(s => ({ ...s, driveAutoSave: true }));
+        showToast('☁️ 자동저장을 켰어요 — 설정에서 끌 수 있어요', { duration: 2000 });
+      }
+    } catch (e) {
+      setDriveStatus('로그인 실패: ' + (e.message || '알 수 없는 오류'));
+    }
+  };
+
+  // 로그아웃 (토큰 해제)
+  const handleDriveSignOut = () => {
+    revokeDriveToken();
+    setDriveSignedIn(false);
+    setDriveLinkedPending(false); // 대기 상태도 해제(첫 상호작용 재연결 방지)
+    setDriveLinkedFlag(false); // 자동 재연결 대상에서 제외(명시적 로그아웃)
+    setDriveStatus('연결을 해제했습니다.');
+  };
+
+  // 드라이브에 저장 (앱 폴더에 입력한 이름으로 새 파일 — 날짜별로 쌓임)
+  const handleDriveSave = async () => {
+    if (!tree) { setDriveStatus('저장할 내용이 없습니다.'); return; }
+    if (isSavingRef.current) { setDriveStatus('저장이 진행 중입니다. 잠시 후 다시 시도하세요.'); return; }
+    isSavingRef.current = true;
+    setDriveBusy(true);
+    setDriveStatus('저장 중…');
+    try {
+      // 다른 기기 최신본 차단 — 자동저장과 같은 안전문 (수동 저장도 덮어쓰기 전에 반드시 확인)
+      if (autoSaveRef.current.remotePending) {
+        setDriveStatus('다른 기기의 최신본 안내가 떠 있어요 — 먼저 선택해 주세요.');
+        return 'remote';
+      }
+      const remote = await checkRemoteNewer();
+      if (remote === 'busy') {
+        setDriveStatus('다른 확인 작업이 진행 중이에요 — 잠시 후 다시 저장해 주세요.');
+        return 'busy';
+      }
+      if (remote) {
+        setDriveStatus('다른 기기에서 더 최신 작업본을 발견해 저장을 멈췄어요 — 안내 창에서 선택해 주세요.');
+        return 'remote';
+      }
+      // 자동저장과 동일한 규칙(접두어+날짜.버전, 설정된 보관 개수 유지, 과거 정리)으로 저장
+      const saved = await runVersionedSave(tree, settings.drivePrefix || '', undefined, settings.driveKeepCount);
+      setDriveStatus(`"${saved.name}" 저장 완료 (${new Date().toLocaleTimeString()})`);
+      setDriveAutoFailed(false);
+      setDriveFiles(null); // 목록 캐시 무효화
+      return saved; // 단축키 등 호출측에서 성공 여부 판단용
+    } catch (e) {
+      if (String(e.message).includes('401') || String(e.message).includes('403')) {
+        setDriveSignedIn(false);
+        setDriveStatus('세션이 만료되었습니다. 다시 연결해 주세요.');
+      } else {
+        setDriveStatus('저장 실패: ' + (e.message || '알 수 없는 오류'));
+      }
+      return null;
+    } finally {
+      isSavingRef.current = false;
+      setDriveBusy(false);
+    }
+  };
+
+  // 트리를 "내용 비교/저장용" 문자열로 직렬화 (레이아웃 필드 제외, 내용만).
+  // 자동저장 변경 감지와 저장 payload 생성에 공통으로 사용 — 기준을 일치시킴.
+  const serializeTreeContent = (treeArg) => {
+    const clean = cloneTree(treeArg);
+    // 레이아웃 캐시(_ 접두 필드: _x/_y/_w/_h/_subH/_subW/_side 등)는 '내용'이 아니므로 전부 제거 → 순수 내용만 비교.
+    // autoSide도 layoutTree가 렌더 중 자동 배정하는 '파생값'이라 내용에서 제외(파싱 직후 헛저장·가짜 충돌 방지).
+    // 단 pinnedSide(사용자가 직접 고정한 방향)는 의도이므로 유지.
+    walk(clean, n => { for (const k in n) if (k.charAt(0) === '_') delete n[k]; delete n.autoSide; });
+    return JSON.stringify(clean);
+  };
+
+  // ── 자동저장 핵심: 버전관리 해석 B 적용 ──
+  // 1) 과거 날짜 정리(최신 1개만 날짜이름으로 rename, 나머지 삭제)
+  // 2) 오늘 다음 버전번호로 저장  3) 오늘 5개 초과분(오래된 것) 삭제
+  // treeArg/prefixArg를 인자로 받아 setInterval 클로저의 낡은 값 문제를 피함.
+  const runVersionedSave = async (treeArg, prefixArg, shouldCancel, keepArg) => {
+    const cancelled = () => (typeof shouldCancel === 'function' && shouldCancel());
+    if (!treeArg) throw new Error('저장할 내용이 없습니다.');
+    const prefix = (prefixArg || '').trim();
+    // 보관 개수: 인자로 받은 설정값을 1~100으로 보정 (없거나 깨졌으면 5)
+    const keep = (typeof keepArg === 'number' && keepArg >= 1 && keepArg <= 100) ? Math.floor(keepArg) : 5;
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 저장할 내용 준비 (내용 직렬화는 serializeTreeContent와 동일 기준)
+    const contentStr = serializeTreeContent(treeArg);
+    const payload = JSON.stringify({ version: APP_VERSION, savedAt: new Date().toISOString(), tree: JSON.parse(contentStr) }, null, 2);
+
+    // 현재 메인 폴더 파일 목록 (충돌 감지가 의존하는 driveListFiles는 '메인만' 유지)
+    const mainId = await driveGetOrCreateFolder();
+    let files = await driveListFiles();
+    if (cancelled()) return null; // 취소됨 → 아무것도 안 함
+
+    // 1) 새 버전을 메인 폴더에 저장 (오늘 다음 번호). 저장 직전 취소면 저장 안 함.
+    if (cancelled()) return null;
+    const nextV = nextVersionForDate(files, prefix, today);
+    const newName = buildDriveBase(prefix, today, nextV);
+    const saved = await driveSaveNewFile(newName, payload);
+    // 저장 성공 → 마지막 저장 내용 기록(자동저장 변경 감지 기준)
+    lastSavedContentRef.current = contentStr;
+    // 방금 저장한 파일이 최신 → 동기화 기준 시각 갱신(다중 기기 충돌 감지용, 새로고침 후에도 유지)
+    if (saved && saved.modifiedTime) setSyncedTime(saved.modifiedTime);
+
+    // 2) 메인의 "방금 저장본·설정파일을 뺀 나머지 전부"를 Backup/으로 이동 → 메인엔 최신 1개만.
+    //    drive.file 범위라 이 폴더엔 앱이 만든 파일만 있음 → 접두어/리조트(브라우저 코드명) 무관하게 모두 정리.
+    //    saved.id가 없으면(이론상) 새 저장본을 식별 못 해 전부 이동될 위험 → 그 경우 재배치를 건너뛴다.
+    try {
+      if (!saved || !saved.id) return saved;
+      const backupId = await driveGetOrCreateBackupFolder(mainId);
+      const after = await driveListFiles();
+      const movables = after.filter(f => f.id !== saved.id && f.name !== SETTINGS_FILE_NAME);
+      for (const f of movables) {
+        try { await driveMoveFile(f.id, backupId, mainId); } catch (e) {}
+      }
+      // 3) Backup을 '같은 이름 계열(버전번호 제외)'별로 keep개씩만 남기고 오래된 것 삭제.
+      //    서로 다른 날짜/리조트(=다른 작업본)의 이력은 각각 보존 — 전체를 한꺼번에 keep개로 깎지 않음.
+      const backups = (await driveListBackupFiles()).filter(f => f.name !== SETTINGS_FILE_NAME);
+      const seriesKey = (name) => name.replace(/\.json$/i, '').replace(/[_.]\d+$/, '');
+      const groups = {};
+      for (const f of backups) { const k = seriesKey(f.name); (groups[k] = groups[k] || []).push(f); }
+      for (const k in groups) {
+        const arr = groups[k];
+        if (arr.length <= keep) continue;
+        const oldFirst = arr.slice().sort((a, b) => (Date.parse(a.modifiedTime) || 0) - (Date.parse(b.modifiedTime) || 0));
+        for (const f of oldFirst.slice(0, arr.length - keep)) {
+          try { await driveDeleteFile(f.id); } catch (e) {}
+        }
+      }
+    } catch (e) { /* Backup 정리 실패는 저장 자체엔 영향 없음 */ }
+
+    return saved;
+  };
+
+  // 다른 기기에서 더 새 버전이 올라왔는지 확인.
+  // 드라이브 최신 파일의 modifiedTime이 내 기준 시각(lastSyncedTimeRef)보다 새로우면 remoteNewer 설정.
+  // 반환: true=외부 최신본 있음(작업 보류 권장) / false=없음.
+  // 연결 직후 기준점 동기화: 서버 최신 파일을 한 번 내려받아 내 화면 내용과 직접 비교.
+  // 같으면 → 기준 시각·내용을 조용히 세팅(불필요한 안내 없이 모든 비교 로직이 올바로 작동).
+  // 다르면 → 즉시 "다른 기기의 최신본" 안내(불러오기/무시 선택). 새로고침-후-옛-트리-저장 충돌의 근본 차단.
+  const syncBaselineOnConnect = async () => {
+    if (isCheckingRemoteRef.current) return;
+    isCheckingRemoteRef.current = true;
+    try {
+      const files = (await driveListFiles()).filter(f => f.name !== SETTINGS_FILE_NAME);
+      if (!files.length) return; // 서버에 마인드맵 없음(첫 사용) → 기준 불필요
+      const latest = files[0];
+      const localTree = autoSaveRef.current.tree;
+      if (!localTree) { setRemoteNewer({ file: latest }); return; } // 로컬이 비어 있으면 불러오기 유도
+      const data = JSON.parse(await driveLoadFileById(latest.id));
+      // 내용 비교는 원격도 raw(저장 당시와 동일한 직렬화 기준)로 — sanitize 정규화(필드 순서·기본값 보정) 비대칭으로 인한 오탐 방지.
+      const remoteRaw = data.tree || data;
+      const remoteStr = (remoteRaw && typeof remoteRaw === 'object') ? serializeTreeContent(remoteRaw) : null;
+      const localStr = serializeTreeContent(localTree);
+      if (remoteStr !== null && remoteStr === localStr) {
+        setSyncedTime(latest.modifiedTime);
+        lastSavedContentRef.current = remoteStr; // 내용 동일 → 자동저장 "변경 없음" 판정까지 정합
+        setRemoteNewer(null); // 경합으로 떠 있던 안내가 있으면 해제(내용이 같음이 확인됐으므로)
+      } else {
+        // 내용이 다르더라도, 최신 원격본이 "내가 이미 기준으로 삼은 시각"보다 새롭지 않으면
+        // = 내 로컬이 그 원격을 이미 반영(또는 무시 결정)한 최신본 → 다시 묻지 않는다.
+        // (새로고침 후에도 lastSyncedTimeRef가 영구 저장본으로 복원되므로 이 비교가 유효하다.
+        //  반대로 다른 기기가 더 새 버전을 올렸다면 latest > base가 되어 정상적으로 안내가 뜬다 → 충돌 보호 유지.)
+        const base = lastSyncedTimeRef.current;
+        const remoteIsNewer = !base ||
+          (latest.modifiedTime && new Date(latest.modifiedTime).getTime() > new Date(base).getTime());
+        if (remoteIsNewer) {
+          setRemoteNewer({ file: latest });
+        } else {
+          setRemoteNewer(null); // 원격이 기준보다 새롭지 않음 → 로컬이 최신(권위). 반복 질문 안 함.
+        }
+      }
+    } catch (e) {
+      // 기준 동기화 실패(네트워크 등)는 치명적이지 않음 — 저장 직전 검사망(이젠 base 없으면 안내)이 받친다
+    } finally {
+      isCheckingRemoteRef.current = false;
+    }
+  };
+
+  const checkRemoteNewer = async () => {
+    // 이미 다른 검사가 진행 중: '충돌 없음(false)'과 구분되는 'busy'를 반환 —
+    // false로 답하면 호출측(저장 직전 안전문)이 "확인 완료"로 오인해 원격 최신본을 덮어쓸 수 있다
+    if (isCheckingRemoteRef.current) return 'busy';
+    if (!autoSaveRef.current.signedIn) return false;
+    isCheckingRemoteRef.current = true;
+    try {
+      const files = await driveListFiles(); // 최신순
+      if (!files || files.length === 0) return false;
+      const latest = files[0];
+      const base = lastSyncedTimeRef.current;
+      // 기준 시각이 없음 = 이번 세션은 서버와 동기화 이력이 없음 = 내 화면이 최신이라는 보장 없음.
+      // 예전엔 "비교 불가 → 통과"였는데, 이게 집↔회사 충돌의 주범이었다(새로고침 직후 옛 트리를 그대로 저장).
+      // 이제는 서버에 파일이 있으면 안전하게 안내를 띄워 사용자 결정을 받는다.
+      // (연결 직후 syncBaselineOnConnect가 내용이 같으면 기준을 조용히 잡아주므로, 평소엔 이 분기까지 안 온다)
+      if (!base) {
+        setRemoteNewer({ file: latest });
+        return true;
+      }
+      if (latest.modifiedTime && new Date(latest.modifiedTime).getTime() > new Date(base).getTime()) {
+        setRemoteNewer({ file: latest });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false; // 확인 실패는 조용히 무시(저장 자체를 막지 않음)
+    } finally {
+      isCheckingRemoteRef.current = false;
+    }
+  };
+
+  // 안내 창이 뜨면 최신본을 한 번 내려받아 "지금 화면 vs 최신본" 비교 자료를 준비
+  useEffect(() => {
+    const f = remoteNewer && remoteNewer.file;
+    if (!f) { setRemoteCompare(null); return; }
+    let cancelled = false;
+    setRemoteCompare({ loading: true });
+    (async () => {
+      try {
+        const data = JSON.parse(await driveLoadFileById(f.id));
+        const remoteTree = sanitizeTree(data.tree || data);
+        if (!remoteTree) throw new Error('형식 오류');
+        const localTree = autoSaveRef.current.tree;
+        const diff = localTree ? diffTrees(localTree, remoteTree) : null;
+        // 내용 미리보기: 드라이브 목록 미리보기와 같은 형식(텍스트 앞 12줄)
+        const lines = treeToText(remoteTree).split('\n');
+        const PREVIEW_LINES = 12;
+        if (!cancelled) setRemoteCompare({
+          remoteTree,
+          diff,
+          textPreview: lines.slice(0, PREVIEW_LINES).join('\n'),
+          textMore: Math.max(0, lines.length - PREVIEW_LINES),
+        });
+      } catch (e) {
+        if (!cancelled) setRemoteCompare({ error: e.message || '비교 실패' });
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line
+  }, [remoteNewer && remoteNewer.file && remoteNewer.file.id]);
+
+  // 🔀 합치기("복원" 방식): 루트 아래 "복원" 노드를 만들어 최신본 전체를 그 밑에 붙인다 (Ctrl+Z 복구 가능)
+  const handleMergeRemote = () => {
+    const f = remoteNewer && remoteNewer.file;
+    const rt = remoteCompare && remoteCompare.remoteTree;
+    if (!f || !rt || !tree) return;
+    const remoteDate = f.modifiedTime ? String(f.modifiedTime).slice(0, 10) : null;
+    const result = mergeRemoteIntoLocal(tree, rt, remoteDate);
+    if (!result) return;
+    maybePushHistory('최신본 합치기(복원)');
+    walk(result.merged, n => { if (!n.meta) n.meta = {}; });
+    assignDefaultColors(result.merged);
+    syncSourceRef.current = null;
+    setTree(result.merged);
+    setInputText(treeToText(result.merged));
+    setSelectedId(null);
+    setEditingId(null);
+    if (f.modifiedTime) setSyncedTime(f.modifiedTime); // 이 최신본은 확인·반영했음 (합친 결과는 다음 저장 때 새 버전으로)
+    setRemoteNewer(null);
+    showToast(`🔀 "복원" 가지 아래에 최신본을 통째로 붙였어요 (노드 ${result.addedCount}개) — Ctrl+Z로 되돌릴 수 있어요`, { duration: 3500 });
+  };
+
+  // 🗑 Google Drive 저장 파일 삭제 (한 번 더 확인 — 현재 화면은 유지)
+  const handleDeleteRemote = async () => {
+    const f = remoteNewer && remoteNewer.file;
+    if (!f) return;
+    if (!window.confirm(`Google Drive의 저장 파일 "${f.name}"을(를) 삭제할까요?\n\n현재 화면(이 기기 작업)은 그대로 유지됩니다.\n이 작업은 되돌릴 수 없어요.`)) return;
+    try {
+      setDriveStatus('드라이브 파일 삭제 중…');
+      await driveDeleteFile(f.id);
+      setRemoteNewer(null);
+      setSyncedTime(null);   // 원격 기준 시각 초기화(삭제됨) — 다음 저장 때 현재 화면이 새로 올라감
+      setDriveStatus('');
+      showToast('🗑 Google Drive 저장 파일을 삭제했어요 — 현재 화면은 그대로예요');
+    } catch (e) {
+      setDriveStatus('');
+      showToast('삭제에 실패했어요 — 잠시 후 다시 시도해 주세요', { duration: 3000 });
+    }
+  };
+
+  // 좌우 비교 아웃라인 색칠용 노드 상태 (모달이 떠 있고 최신본을 받았을 때만 계산)
+  const remoteCmpStatus = useMemo(() => {
+    if (!remoteNewer || !remoteCompare || !remoteCompare.remoteTree || !tree) return null;
+    return nodeDiffStatus(tree, remoteCompare.remoteTree);
+  }, [remoteNewer, remoteCompare, tree]);
+
+  // 자동저장이 참조할 최신값을 ref에 동기화
+  useEffect(() => {
+    autoSaveRef.current = {
+      tree,
+      prefix: settings.drivePrefix || '',
+      keepCount: settings.driveKeepCount, // 보관 개수도 ref 경유 (stale closure 방지 — prefix와 동일 패턴)
+      signedIn: driveSignedIn,
+      busy: driveBusy,
+      remotePending: !!remoteNewer, // 외부 최신본 안내가 떠 있으면 자동저장 보류
+    };
+  }, [tree, settings.drivePrefix, settings.driveKeepCount, driveSignedIn, driveBusy, remoteNewer]);
+
+  // 자동저장 타이머: 켜져 있고 로그인했을 때만 간격마다 저장
+  useEffect(() => {
+    if (!settings.driveAutoSave || !driveSignedIn) {
+      // 자동저장이 꺼져 있으면 위험상태(빨간 설정)도 의미 없으므로 해제
+      if (!settings.driveAutoSave) setDriveAutoFailed(false);
+      return;
+    }
+    const minutes = (typeof settings.driveAutoSaveMinutes === 'number' && settings.driveAutoSaveMinutes >= 1)
+      ? settings.driveAutoSaveMinutes : 1;
+    const intervalMs = minutes * 60 * 1000;
+    let cancelled = false;
+
+    const tick = async () => {
+      const st = autoSaveRef.current;
+      if (cancelled || !st.signedIn || st.busy || !st.tree) return; // 수동 작업 중이면 건너뜀
+      if (st.remotePending) return; // 외부 최신본 안내가 떠 있으면 사용자 결정 전까지 저장 보류
+      if (isSavingRef.current) return; // 이전 저장이 아직 진행 중 → 중복 실행 방지
+      // 내용이 마지막 저장과 동일하면 자동저장 건너뜀 (변경 없을 때 불필요한 저장·충돌 방지)
+      const currentContent = serializeTreeContent(st.tree);
+      if (lastSavedContentRef.current !== null && currentContent === lastSavedContentRef.current) {
+        return;
+      }
+      // 검사~저장 전체 구간을 isSavingRef로 점유 — 검사 await 사이에 다음 tick/수동 저장이
+      // 끼어들어 중복 저장(중복 버전 파일·Backup 재배치 경합)되는 것을 막는다. finally가 해제.
+      isSavingRef.current = true;
+      try {
+        // 저장 직전: 다른 기기에서 더 새 버전이 올라왔는지 확인. 있으면(busy 포함) 덮어쓰지 않음.
+        const remote = await checkRemoteNewer();
+        if (remote || cancelled) return;
+        setDriveAutoStatus('자동저장 중…');
+        // shouldCancel: effect가 정리됐거나(cancelled) 자동저장이 꺼졌으면 중단
+        const saved = await runVersionedSave(st.tree, st.prefix, () => cancelled || !autoSaveRef.current.signedIn, st.keepCount);
+        if (!cancelled && saved) {
+          setDriveAutoStatus(`자동저장됨: ${saved.name} (${new Date().toLocaleTimeString()})`);
+          setDriveAutoFailed(false); // 성공 → 위험상태 해제
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setDriveAutoFailed(true); // 실패 → 위험상태(설정 글자 빨강)
+        // 토큰 만료/권한 실패 → 자동저장 조용히 중단하고 재연결 안내
+        if (String(e.message).includes('401') || String(e.message).includes('403') || String(e.message).includes('로그인')) {
+          setDriveSignedIn(false);
+          setDriveAutoStatus('연결이 만료되어 자동저장이 중단되었습니다. 다시 연결해 주세요.');
+        } else {
+          setDriveAutoStatus('자동저장 실패: ' + (e.message || '알 수 없는 오류'));
+        }
+      } finally {
+        isSavingRef.current = false;
+      }
+    };
+
+    const timer = setInterval(tick, intervalMs);
+    return () => { cancelled = true; clearInterval(timer); };
+    // eslint-disable-next-line
+  }, [settings.driveAutoSave, settings.driveAutoSaveMinutes, driveSignedIn]);
+
+  // ── 연결 촘촘 감시: 자동저장이 켜져 있고 로그인된 동안만 ──
+  // (1) 30초마다 토큰 만료 미리 감지·갱신(방식 A)  (2) 10분마다 실제 연결 검사(ping)
+  // (3) 탭이 다시 활성화될 때 즉시 검사. 실패하면 위험상태(설정 빨강), 성공하면 해제.
+  useEffect(() => {
+    if (!settings.driveAutoSave || !driveSignedIn) return;
+    let cancelled = false;
+
+    // 토큰만 조용히 보장(가벼움, 네트워크는 갱신 때만). 실패 시 위험상태.
+    const refreshToken = async () => {
+      if (cancelled) return;
+      try {
+        await ensureDriveToken();
+        if (!cancelled) setDriveAutoFailed(false);
+      } catch (e) {
+        if (cancelled) return;
+        setDriveAutoFailed(true);
+        if (String(e.message).includes('401') || String(e.message).includes('403') || String(e.message).includes('로그인')) {
+          setDriveSignedIn(false);
+          setDriveAutoStatus('연결이 만료되어 자동저장이 중단되었습니다. 다시 연결해 주세요.');
+        }
+      }
+    };
+
+    // 실제 드라이브에 가벼운 요청으로 연결 검사. 실패 시 위험상태.
+    const checkConnection = async () => {
+      if (cancelled) return;
+      try {
+        await drivePing();
+        if (!cancelled) setDriveAutoFailed(false);
+      } catch (e) {
+        if (cancelled) return;
+        setDriveAutoFailed(true);
+        if (String(e.message).includes('401') || String(e.message).includes('403') || String(e.message).includes('로그인')) {
+          setDriveSignedIn(false);
+          setDriveAutoStatus('연결이 만료되어 자동저장이 중단되었습니다. 다시 연결해 주세요.');
+        } else {
+          setDriveAutoStatus('연결 확인 실패: ' + (e.message || '알 수 없는 오류'));
+        }
+      }
+    };
+
+    const tokenTimer = setInterval(refreshToken, 30 * 1000);       // 30초
+    const pingTimer = setInterval(() => { checkConnection(); checkRemoteNewer(); }, 10 * 60 * 1000); // 10분 (연결 + 다른 기기 최신본 — 항상 켜둔 탭도 알림 받게)
+    // 탭 복귀 시 즉시 검사 (연결 상태 + 다른 기기의 최신본 여부)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        checkConnection();
+        checkRemoteNewer(); // 자리 비운 사이 다른 기기에서 업데이트됐는지 확인
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    // 탭은 보이는 채로 창만 오갔을 때(둘째 모니터 등)도 검사 — visibilitychange가 안 오는 틈을 메움
+    const onWindowFocus = () => { checkConnection(); checkRemoteNewer(); };
+    window.addEventListener('focus', onWindowFocus);
+
+    return () => {
+      cancelled = true;
+      clearInterval(tokenTimer);
+      clearInterval(pingTimer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onWindowFocus);
+    };
+    // eslint-disable-next-line
+  }, [settings.driveAutoSave, driveSignedIn]);
+
+  // 불러오기 1단계: 앱 폴더 안 파일 목록 가져와서 보여주기
+  const handleDriveListFiles = async () => {
+    setDriveBusy(true);
+    setDriveStatus('목록 불러오는 중…');
+    try {
+      // 메인 + Backup을 합쳐, 같은 이름은 최신만, 최신순으로 (설정 백업은 제외)
+      const files = await fetchMergedDriveList();
+      setDriveFiles(files);
+      setDrivePreview(null); // 목록을 새로 받으면 이전 미리보기는 닫음
+      setDriveStatus(files.length === 0 ? '저장된 파일이 없습니다.' : `${files.length}개의 파일이 있습니다. 불러올 파일을 선택하세요.`);
+    } catch (e) {
+      if (String(e.message).includes('401') || String(e.message).includes('403')) {
+        setDriveSignedIn(false);
+        setDriveStatus('세션이 만료되었습니다. 다시 연결해 주세요.');
+      } else {
+        setDriveStatus('목록 실패: ' + (e.message || '알 수 없는 오류'));
+      }
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  // ── 설정 백업: 드라이브에 저장/불러오기 (수동 전용, 자동저장 없음) ──
+  // 고정 파일명 1개를 유지: 새 파일 저장 후 옛 사본 삭제(저장이 실패해도 기존 백업이 남도록 이 순서).
+  const handleDriveSaveSettings = async () => {
+    if (isSavingRef.current) { setDriveStatus('다른 저장이 진행 중입니다. 잠시 후 다시 시도해 주세요.'); return; }
+    setDriveBusy(true);
+    setDriveStatus('설정을 드라이브에 저장하는 중…');
+    try {
+      const olds = (await driveListFiles()).filter(f => f.name === SETTINGS_FILE_NAME);
+      const payload = JSON.stringify({
+        __type: 'brainbloom-settings',
+        version: APP_VERSION,
+        savedAt: new Date().toISOString(),
+        settings,
+      }, null, 2);
+      await driveSaveNewFile('BrainBloom_settings', payload);
+      for (const f of olds) { try { await driveDeleteFile(f.id); } catch (_) { /* 옛 사본 삭제 실패는 치명적이지 않음 */ } }
+      setDriveStatus(`설정을 드라이브에 저장했습니다 (${new Date().toLocaleTimeString()})`);
+    } catch (e) {
+      if (String(e.message).includes('401') || String(e.message).includes('403')) {
+        setDriveSignedIn(false);
+        setDriveStatus('세션이 만료되었습니다. 다시 연결해 주세요.');
+      } else {
+        setDriveStatus('설정 저장 실패: ' + (e.message || '알 수 없는 오류'));
+      }
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+  // ── 불러오기 미리보기 ──
+  // 목록에서 파일을 누르면 바로 불러오지 않고, 내용 요약(노드 수·깊이·루트와 가지·앞부분 텍스트)을
+  // 먼저 보여준다. "이 파일 불러오기"를 눌러야 실제 교체. 잘못 불러오는 실수 방지.
+  const [drivePreview, setDrivePreview] = useState(null); // { file, nodeCount, depth, rootLabel, branches[], textPreview, textMore } | null
+  const handleDrivePreviewFile = async (file) => {
+    setDriveBusy(true);
+    setDriveStatus(`"${file.name}" 미리보기 불러오는 중…`);
+    try {
+      const data = JSON.parse(await driveLoadFileById(file.id));
+      const safe = sanitizeTree(data.tree || data);
+      if (!safe) { setDriveStatus('미리보기 실패: 파일 형식이 올바르지 않습니다.'); return; }
+      let nodeCount = 0;
+      walk(safe, () => { nodeCount++; });
+      const depthOf = (n) => (n.children && n.children.length) ? 1 + Math.max(...n.children.map(depthOf)) : 1;
+      const branches = (safe.children || []).map(c => c.label || '(빈 노드)');
+      const lines = treeToText(safe).split('\n');
+      const PREVIEW_LINES = 12;
+      setDrivePreview({
+        file,
+        nodeCount,
+        depth: depthOf(safe),
+        rootLabel: safe.label || '(빈 노드)',
+        branches: branches.slice(0, 5),
+        branchesMore: Math.max(0, branches.length - 5),
+        textPreview: lines.slice(0, PREVIEW_LINES).join('\n'),
+        textMore: Math.max(0, lines.length - PREVIEW_LINES),
+      });
+      setDriveStatus(`"${file.name}" 미리보기입니다. 내용을 확인하고 불러오세요.`);
+    } catch (e) {
+      if (String(e.message).includes('401') || String(e.message).includes('403')) {
+        setDriveSignedIn(false);
+        setDriveStatus('세션이 만료되었습니다. 다시 연결해 주세요.');
+      } else {
+        setDriveStatus('미리보기 실패: ' + (e.message || '알 수 없는 오류'));
+      }
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const handleDriveLoadSettings = async () => {
+    setDriveBusy(true);
+    setDriveStatus('드라이브에서 설정을 불러오는 중…');
+    try {
+      const f = (await driveListFiles()).find(x => x.name === SETTINGS_FILE_NAME); // 목록은 최신순 → 첫 매치가 최신
+      if (!f) { setDriveStatus('드라이브에 저장된 설정이 없습니다. 먼저 "설정 저장"을 눌러 주세요.'); return; }
+      const data = JSON.parse(await driveLoadFileById(f.id));
+      if (!data || data.__type !== 'brainbloom-settings' || typeof data.settings !== 'object' || data.settings === null) {
+        setDriveStatus('설정 파일 형식이 아닙니다.');
+        return;
+      }
+      // 안전 병합: 현재 설정에 존재하는 키만, 타입(배열 여부 포함)이 맞을 때만 덮어씀.
+      // 알 수 없는 키·형식이 깨진 값은 조용히 무시 → 손상된 백업도 앱을 망가뜨리지 못함.
+      setSettings(prev => {
+        const next = { ...prev };
+        for (const k of Object.keys(prev)) {
+          if (!(k in data.settings)) continue;
+          const a = prev[k], b = data.settings[k];
+          const typeOk = Array.isArray(a) ? Array.isArray(b) : (typeof b === typeof a);
+          if (typeOk) next[k] = b;
+        }
+        return next;
+      });
+      setDriveStatus(`설정을 불러와 적용했습니다 (${f.name}, 저장 시각: ${data.savedAt ? new Date(data.savedAt).toLocaleString() : '알 수 없음'})`);
+      showToast('⚙️ 설정을 불러와 적용했어요', { duration: 1000 });
+    } catch (e) {
+      if (String(e.message).includes('401') || String(e.message).includes('403')) {
+        setDriveSignedIn(false);
+        setDriveStatus('세션이 만료되었습니다. 다시 연결해 주세요.');
+      } else {
+        setDriveStatus('설정 불러오기 실패: ' + (e.message || '알 수 없는 오류'));
+      }
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  // 불러오기 2단계: 선택한 파일 내용을 트리에 적용
+  const handleDriveLoadFile = async (fileId, fileName, modifiedTime) => {
+    setDriveBusy(true);
+    setDriveStatus(`"${fileName}" 불러오는 중…`);
+    try {
+      const text = await driveLoadFileById(fileId);
+      const data = JSON.parse(text);
+      const loadedTree = data.tree || data;
+      const safe = sanitizeTree(loadedTree);
+      if (!safe) { setDriveStatus('파일을 읽을 수 없습니다(형식 오류).'); setDriveBusy(false); return; }
+      walk(safe, n => { if (!n.meta) n.meta = {}; });
+      assignDefaultColors(safe);
+      maybePushHistory('드라이브에서 불러오기');
+      syncSourceRef.current = null;
+      setTree(safe);
+      setInputText(treeToText(safe));
+      setSelectedId(null);
+      setEditingId(null);
+      setDriveFiles(null);
+      setDrivePreview(null);
+      // 불러온 내용을 "마지막 저장 내용/시각" 기준으로 삼음 →
+      // 불러온 직후 자동저장이 변경으로 오판하지 않고, 외부 업데이트 비교 기준도 갱신
+      lastSavedContentRef.current = serializeTreeContent(safe);
+      if (modifiedTime) setSyncedTime(modifiedTime);
+      setRemoteNewer(null); // 방금 최신본을 불러왔으니 안내 해제
+      setDriveStatus(`"${fileName}" 불러왔습니다.`);
+    } catch (e) {
+      if (String(e.message).includes('401') || String(e.message).includes('403')) {
+        setDriveSignedIn(false);
+        setDriveStatus('세션이 만료되었습니다. 다시 연결해 주세요.');
+      } else {
+        setDriveStatus('불러오기 실패: ' + (e.message || '알 수 없는 오류'));
+      }
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  // ── 로컬 JSON 파일 열기 ──
+  // 내보내기(JSON)의 짝. 드라이브 불러오기와 같은 정제 흐름(sanitizeTree)을 거치므로
+  // 손상·과대·악성 파일도 안전하게 걸러진다. 교체 전 히스토리에 쌓아 Ctrl+Z로 복구 가능.
+  const jsonFileInputRef = useRef(null);
+  const handleOpenJsonClick = () => {
+    const input = jsonFileInputRef.current;
+    if (!input) return;
+    input.value = ''; // 같은 파일을 연속으로 다시 선택해도 change가 발생하도록 초기화
+    input.click();
+  };
+  const handleJsonFileSelected = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        const loadedTree = data.tree || data; // 과거 형식({tree:...})과 현재 형식(루트 직접) 모두 수용
+        const safe = sanitizeTree(loadedTree);
+        if (!safe) { showToast('파일을 읽을 수 없어요 — BrainBloom JSON 형식이 아닙니다'); return; }
+        walk(safe, n => { if (!n.meta) n.meta = {}; });
+        assignDefaultColors(safe);
+        maybePushHistory('JSON 파일 열기');
+        syncSourceRef.current = null;
+        setTree(safe);
+        setInputText(treeToText(safe));
+        setSelectedId(null);
+        setEditingId(null);
+        setImmerseFocusId(null);
+        setShowSettings(false); // 설정에서 연 경우, 불러온 지도가 바로 보이도록 닫음
+        // 드라이브 불러오기와 달리 lastSavedContentRef는 갱신하지 않는다 —
+        // 로컬 파일 내용은 아직 드라이브에 없는 것이므로, 자동저장이 "변경됨"으로 보고 저장하는 게 맞다.
+        showToast(`📂 "${file.name}" 열었어요 — 이전 작업은 Ctrl+Z로 되돌릴 수 있어요`, { duration: 3500 });
+      } catch (err) {
+        showToast('JSON을 읽지 못했어요 — 파일이 올바른지 확인해 주세요');
+      }
+    };
+    reader.onerror = () => showToast('파일을 읽는 중 오류가 났어요');
+    reader.readAsText(file);
+  };
+
+  // 레이아웃 계산
+  // layoutTree는 tree에 좌표(_x/_y)를 직접 써넣는 side-effect가 있어, useMemo에 두면
+  // 동시성 렌더 등 드문 타이밍에 이 mutate가 누락돼 모든 노드가 (0,0)에 겹쳐 보이는 버그가 났다.
+  // → 매 렌더 직접 호출해 좌표를 항상 보장한다. 결정적·O(n)이라 가볍고, 노드는 React.memo로
+  //    _x가 동일하면 리렌더를 건너뛰므로 실제 비용은 거의 없다.
+  const spaceMul = settings.layoutSpacing === 'compact' ? 0.55 : settings.layoutSpacing === 'wide' ? 1.6 : 1;
+  const layoutInfo = tree ? layoutTree(tree, spaceMul) : { width: 0, height: 0 };
+  // 레이아웃 간격(촘촘/보통/넓게)이 바뀌면 트리를 다시 클론해 전체 재배치 (위치 메모들이 tree 키라 한 번에 갱신)
+  const spacingFirstRef = useRef(true);
+  useEffect(() => {
+    if (spacingFirstRef.current) { spacingFirstRef.current = false; return; }
+    syncSourceRef.current = 'tree';
+    setTree(t => t ? cloneTree(t) : t);
+  }, [settings.layoutSpacing]);
+
+  // ── 자동 맞춤(축소 전용): 지도가 화면보다 커지면 전부 보이게 줌을 낮춘다 ──
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const fitToScreen = () => {
+    const el = canvasScrollRef.current;
+    if (!el || !layoutInfo.width || !layoutInfo.height) return;
+    const pad = 48;
+    const availW = Math.max(100, el.clientWidth - pad * 2);
+    const availH = Math.max(100, el.clientHeight - pad * 2);
+    const s = Math.min(availW / layoutInfo.width, availH / layoutInfo.height, 1); // 축소 전용(확대는 안 함)
+    const z = Math.max(0.2, Math.floor(s * 100) / 100);
+    setZoom(z);
+    // 줌 반영(리렌더·페인트) 후 지도 전체가 화면 중앙에 오도록 스크롤 — 더블 rAF로 측정 시점 보장
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const wrapper = mapWrapperRef.current;
+      const sc = canvasScrollRef.current;
+      if (!wrapper || !sc) return;
+      sc.scrollTo({
+        left: Math.max(0, wrapper.offsetLeft - (sc.clientWidth - wrapper.offsetWidth) / 2),
+        top: Math.max(0, wrapper.offsetTop - (sc.clientHeight - wrapper.offsetHeight) / 2),
+        behavior: 'auto',
+      });
+    }));
+  };
+
+  // 지도 자동 맞춤: '처음 열 때'에만 1회 축소 평가. 창 크기 변경은 아래 resize effect가, 수동은 ⊡(툴바·우클릭 메뉴)가 담당.
+  // - 노드 편집·추가(엔터)로 레이아웃이 커져도 배율을 바꾸지 않는다(작업 중 줌 출렁임 방지).
+  // - didAutoFitRef로 최초 레이아웃 측정 시 1회만 맞춤. autoFitMap을 끄면 리셋되어, 다시 켜면 1회 재맞춤.
+  const didAutoFitRef = useRef(false);
+  useEffect(() => {
+    if (!settings.autoFitMap) { didAutoFitRef.current = false; return; }
+    if (didAutoFitRef.current) return;     // 최초 1회만 — 편집·추가로는 재맞춤 안 함
+    if (editingId) return;                  // 편집 중이면 보류(끝나고 최초 측정 시 평가)
+    const el = canvasScrollRef.current;
+    if (!el || !layoutInfo.width) return;   // 레이아웃 측정 전이면 대기
+    didAutoFitRef.current = true;
+    const pad = 48;
+    const overflow =
+      layoutInfo.width * zoomRef.current > el.clientWidth - pad * 2 ||
+      layoutInfo.height * zoomRef.current > el.clientHeight - pad * 2;
+    if (overflow) fitToScreen();
+    // eslint-disable-next-line
+  }, [layoutInfo.width, layoutInfo.height, settings.autoFitMap, editingId]);
+
+  // ── 뷰 상태 유지: 새로고침해도 "떠날 때 화면 그대로" (배율·스크롤 위치·접힘 모두 보존, 화면을 자동으로 움직이지 않음) ──
+  const pendingViewRef = useRef(null);          // 복원 대기 { selectedId, scrollLeft, scrollTop, collapsedIds }
+  const selectedIdRef = useRef(selectedId);     // interval 클로저가 항상 최신 선택 노드를 보도록
+  selectedIdRef.current = selectedId;
+  const viewTreeRef = useRef(tree);             // interval 클로저가 항상 최신 tree를 보도록(접힘 상태 수집)
+  viewTreeRef.current = tree;
+  // 1) 저장된 뷰 복원 — 자동 맞춤보다 우선
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const v = await idbGet('viewState');
+      if (!alive || !v || typeof v.zoom !== 'number') return;
+      didAutoFitRef.current = true;   // 저장된 뷰가 있으면 자동 맞춤 건너뜀
+      setZoom(Math.max(0.2, Math.min(2, v.zoom)));
+      pendingViewRef.current = {
+        selectedId: v.selectedId || null,
+        scrollLeft: v.scrollLeft || 0,
+        scrollTop: v.scrollTop || 0,
+        collapsedIds: Array.isArray(v.collapsedIds) ? v.collapsedIds : null,
+      };
+    })();
+    return () => { alive = false; };
+  }, []);
+  // 2) 레이아웃·줌이 잡힌 뒤 적용 — ① 접힘/펼침 반영 ② 선택 노드를 화면 중앙에(없으면 스크롤)
+  useEffect(() => {
+    if (!tree || !pendingViewRef.current) return;
+    const p = pendingViewRef.current;
+    // ① 저장된 접힘 상태를 tree에 반영 (한 번만)
+    if (p.collapsedIds) {
+      const cset = new Set(p.collapsedIds);
+      let changed = false;
+      walk(tree, n => { if (!!n.collapsed !== cset.has(n.id)) changed = true; });
+      p.collapsedIds = null;   // 소비
+      if (changed) {
+        const nt = cloneTree(tree);
+        walk(nt, n => { if (cset.has(n.id)) n.collapsed = true; else delete n.collapsed; });
+        syncSourceRef.current = 'tree';
+        setTree(nt);
+        return;   // tree가 바뀌면 effect 재실행 → 아래 중앙 정렬로 이어짐
+      }
+    }
+    // ② 떠날 때 화면 그대로 — 선택 highlight만 복원하고 스크롤(배율·위치)은 1px도 바꾸지 않는다.
+    //    접힘 상태까지 위에서 동일하게 맞췄으므로 저장된 스크롤 좌표가 그대로 유효 → 화면이 안 튄다.
+    //    (예전엔 centerNode로 선택 노드를 강제 중앙 이동시켜, 선택을 안 푼 채 줌만 줄였을 때 화면이 튀었음)
+    const hadSel = p.selectedId && findNode(tree, p.selectedId);
+    if (hadSel) setSelectedId(p.selectedId);
+    const applyScroll = () => {
+      const el = canvasScrollRef.current;
+      if (el) el.scrollTo({ left: p.scrollLeft, top: p.scrollTop, behavior: 'auto' });
+    };
+    // 페인트 직후 1회 + 지연 레이아웃이 스크롤을 덮었을 때를 대비해 두 번 더 같은 위치로 보정
+    requestAnimationFrame(() => requestAnimationFrame(applyScroll));
+    const t1 = setTimeout(applyScroll, 240);
+    const t2 = setTimeout(() => { applyScroll(); pendingViewRef.current = null; }, 700);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [tree, layoutInfo.width, zoom]);
+  // 3) 1초마다 현재 뷰(줌·선택 노드·스크롤·접힘 상태) 저장
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const el = canvasScrollRef.current;
+      const tr = viewTreeRef.current;
+      const collapsedIds = [];
+      if (tr) walk(tr, n => { if (n.collapsed === true) collapsedIds.push(n.id); });
+      try {
+        idbSet('viewState', {
+          zoom: zoomRef.current,
+          selectedId: selectedIdRef.current || null,
+          scrollLeft: el ? el.scrollLeft : 0,
+          scrollTop: el ? el.scrollTop : 0,
+          collapsedIds,
+        });
+      } catch (e) {}
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // 창 크기가 줄어 지도가 화면을 넘게 되면 다시 맞춤
+  useEffect(() => {
+    if (!settings.autoFitMap) return;
+    // 모바일 키보드·주소창은 '높이'만 바꿈 → 폭이 바뀐 진짜 리사이즈(회전·창 크기 변경)일 때만 맞춤.
+    let lastW = window.innerWidth;
+    const onResize = () => {
+      const w = window.innerWidth;
+      const widthChanged = w !== lastW;
+      lastW = w;
+      if (!widthChanged) return; // 키보드 등 높이만 변한 경우 배율 건드리지 않음
+      const el = canvasScrollRef.current;
+      if (!el || !layoutInfo.width || editingId) return;
+      const pad = 48;
+      const overflow =
+        layoutInfo.width * zoomRef.current > el.clientWidth - pad * 2 ||
+        layoutInfo.height * zoomRef.current > el.clientHeight - pad * 2;
+      if (overflow) fitToScreen();
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+    // eslint-disable-next-line
+  }, [settings.autoFitMap, layoutInfo.width, layoutInfo.height, editingId]);
+
+  // ─────────── 트리 변경 헬퍼 (모두 syncSourceRef를 'tree'로 설정) ───────────
+
+  // 연속 변경 합치기용 (같은 키로 들어오는 연속 변경은 한 번만 히스토리에 저장)
+  // 예: 우측 패널에서 라벨을 한 글자씩 수정 → 한 묶음으로
+  const lastCoalesceRef = useRef({ key: null, time: 0 });
+  const COALESCE_MS = 800;
+  const maybePushHistory = (label, coalesceKey, overrides) => {
+    const now = Date.now();
+    if (coalesceKey &&
+        lastCoalesceRef.current.key === coalesceKey &&
+        now - lastCoalesceRef.current.time < COALESCE_MS) {
+      // 같은 키로 연속 변경 - 히스토리 저장 스킵, 시간만 갱신
+      lastCoalesceRef.current.time = now;
+      return;
+    }
+    pushHistory(label, overrides);
+    lastCoalesceRef.current = { key: coalesceKey || null, time: now };
+  };
+
+  const updateNode = (id, updater, opts = {}) => {
+    maybePushHistory(opts.label || '속성 변경', opts.coalesceKey);
+    syncSourceRef.current = 'tree';
+    // 함수형 업데이트: 같은 렌더에서 변경이 연달아 일어나도 최신(prev) 위에 적용 → 편집 유실 방지
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const node = findNode(newTree, id);
+      if (!node) return prev;
+      updater(node);
+      node.updatedAt = new Date().toISOString();   // 수정 시각 자동 기록(시스템)
+      return newTree;
+    });
+  };
+
+  // ── 일정(간트/타임라인) — 노드의 시작/종료일 설정 ──
+  const setNodeDates = (id, startISO, endISO) => {
+    updateNode(id, n => {
+      n.meta = n.meta || {};
+      if (startISO) n.meta.start = startISO; else delete n.meta.start;
+      if (endISO && endISO !== startISO) n.meta.end = endISO; else delete n.meta.end;
+    }, { label: '일정 변경' });
+  };
+  // 간트/타임라인 뷰에 넘기는 동작 모음
+  const chartActions = {
+    select: (id) => { setGroupSelectIds([]); setSelectedId(id); },
+    deselect: () => { setSelectedId(null); },
+    toggleCollapse: (id) => toggleCollapse(id),
+    toggleDone: (id) => updateNode(id, nn => { nn.done = !nn.done; }, { label: '완료 토글' }),
+    setDates: setNodeDates,
+    setView: (v) => {
+      setEditingId(null);
+      if (v === 'gantt') { setChartView('gantt'); setOutlineView(false); }
+      else if (v === 'timeline') { setChartView('timeline'); setOutlineView(false); }
+      else { setChartView(null); }
+    },
+  };
+
+  // ── 관계선(cross-link): 루트 노드의 links 배열에 보관 ──
+  const addLink = (from, to, label) => {
+    setLinkSourceId(null);
+    if (!tree || !from || !to || from === to) return;
+    const newTree = cloneTree(tree);
+    if (!findNode(newTree, from) || !findNode(newTree, to)) return; // 양 끝 존재 확인
+    const links = Array.isArray(newTree.links) ? newTree.links : [];
+    const exists = links.some(l => (l.from === from && l.to === to) || (l.from === to && l.to === from));
+    if (exists) { showToast('이미 연결되어 있어요'); return; }
+    maybePushHistory('관계선 추가');
+    syncSourceRef.current = 'tree';
+    newTree.links = links.concat(label ? { from, to, label } : { from, to });
+    setTree(newTree);
+    showToast('관계선을 추가했어요');
+  };
+  const removeLink = (from, to) => {
+    if (!tree) return;
+    maybePushHistory('관계선 삭제');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    newTree.links = (newTree.links || []).filter(l => !((l.from === from && l.to === to) || (l.from === to && l.to === from)));
+    if (newTree.links.length === 0) delete newTree.links;
+    setTree(newTree);
+  };
+  // 관계선 곡선 제어점 저장 (중점 기준 오프셋). 거의 직선이면 curve 제거(기본 곡률로).
+  const setLinkPoints = (from, to, points) => {
+    if (!tree) return;
+    maybePushHistory('관계선 곡선 조정');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const lk = (newTree.links || []).find(l => l.from === from && l.to === to);
+    if (lk) {
+      lk.points = points.map(p => ({ dx: Math.round(p.dx), dy: Math.round(p.dy) }));
+      delete lk.curve;  // 단일 제어점(레거시)은 3점으로 대체
+    }
+    setTree(newTree);
+  };
+  // 관계선 종류 변경 ('curve' 기본 | 'straight' | 'elbow')
+  const setLinkType = (from, to, type) => {
+    if (!tree) return;
+    maybePushHistory('관계선 종류 변경');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const lk = (newTree.links || []).find(l => l.from === from && l.to === to);
+    if (lk) {
+      if (type === 'straight' || type === 'elbow') lk.type = type;
+      else delete lk.type;   // 곡선(기본)
+    }
+    setTree(newTree);
+  };
+  // 관계선 스타일 변경 (모양 type / 선 dash / 두께 width) — 우클릭 메뉴에서 사용
+  const updateLinkStyle = (from, to, patch) => {
+    if (!tree) return;
+    maybePushHistory('관계선 스타일 변경');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const lk = (newTree.links || []).find(l => l.from === from && l.to === to);
+    if (lk) {
+      if (patch.type !== undefined) {
+        if (patch.type === 'straight' || patch.type === 'elbow') lk.type = patch.type; else delete lk.type;
+      }
+      if (patch.dash !== undefined) {
+        if (patch.dash === 'solid') lk.dash = 'solid'; else delete lk.dash;   // 점선이 기본
+      }
+      if (patch.width !== undefined) {
+        if (typeof patch.width === 'number' && patch.width > 0 && patch.width !== 2) lk.width = patch.width; else delete lk.width;  // 2가 기본
+      }
+    }
+    setTree(newTree);
+  };
+  // 화면(client) 좌표 → 맵 논리좌표 (연결선 SVG는 scale된 부모 안 → zoom으로 나눔)
+  const linkClientToMap = (clientX, clientY) => {
+    const el = linkSvgRef.current;
+    if (!el) return { x: 0, y: 0 };
+    const r = el.getBoundingClientRect();
+    const z = zoomRef.current || 1;
+    return { x: (clientX - r.left) / z, y: (clientY - r.top) / z };
+  };
+  // 제어점 핸들 드래그 — index번째 웨이포인트를 마우스를 따라 옮기고, 놓으면 3점 전체 저장.
+  // mid={x,y}(두 노드 중심 중점), basePoints=현재 3점([{dx,dy}×3]) — 드래그 안 하는 점은 그대로 유지.
+  const startLinkDrag = (e, l, mid, index, basePoints) => {
+    e.preventDefault(); e.stopPropagation();
+    const move = (ev) => {
+      const p = linkClientToMap(ev.clientX, ev.clientY);
+      setLinkDrag({ from: l.from, to: l.to, index, dx: p.x - mid.x, dy: p.y - mid.y });
+    };
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const p = linkClientToMap(ev.clientX, ev.clientY);
+      const next = basePoints.map((bp, i) => i === index ? { dx: p.x - mid.x, dy: p.y - mid.y } : bp);
+      setLinkPoints(l.from, l.to, next);
+      setLinkDrag(null);
+    };
+    // Pointer Events: 마우스·터치·펜 공통 (touch-action:none 캔버스 안에서도 동작)
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  // 관계선 렌더 useMemo가 항상 최신 startLinkDrag를 쓰도록 ref로 보관(메모 의존성에서 제외)
+  const startLinkDragRef = useRef(null);
+  startLinkDragRef.current = startLinkDrag;
+
+  // ── 경계/그룹: 루트 노드의 boundaries 배열에 보관(그 노드의 하위 묶음을 박스로) ──
+  const hasBoundary = (id) => !!(tree && Array.isArray(tree.boundaries) && tree.boundaries.some(b => b.nodeId === id));
+  const toggleBoundary = (id) => {
+    if (!tree || !id) return;
+    maybePushHistory('경계 변경');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const list = Array.isArray(newTree.boundaries) ? newTree.boundaries : [];
+    if (list.some(b => b.nodeId === id)) {
+      newTree.boundaries = list.filter(b => b.nodeId !== id);
+      if (newTree.boundaries.length === 0) delete newTree.boundaries;
+    } else {
+      newTree.boundaries = list.concat({ nodeId: id });
+    }
+    setTree(newTree);
+  };
+
+  // ── 자유 그룹: 떨어진 노드 여러 개를 묶기 ──
+  const GROUP_COLORS = ['#8f7fd6', '#e8845c', '#4aa3a3', '#d6a24a', '#c75f8f', '#5f9fd6'];
+  const toggleGroupSelectNode = (id) => {
+    setGroupSelectIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const createGroup = () => {
+    if (!tree || groupSelectIds.length < 2) return;
+    maybePushHistory('그룹 만들기');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const groups = Array.isArray(newTree.groups) ? newTree.groups : [];
+    const gid = 'g' + Date.now().toString(36);
+    const color = GROUP_COLORS[groups.length % GROUP_COLORS.length];
+    newTree.groups = groups.concat({ id: gid, nodeIds: [...groupSelectIds], label: '그룹', color });
+    setTree(newTree);
+    setGroupSelectIds([]);
+    setSelectedGroupId(gid);
+    showToast('노드를 그룹으로 묶었어요');
+  };
+  const removeGroup = (gid) => {
+    if (!tree) return;
+    maybePushHistory('그룹 해제');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    newTree.groups = (newTree.groups || []).filter(g => g.id !== gid);
+    if (newTree.groups.length === 0) delete newTree.groups;
+    setTree(newTree);
+    setSelectedGroupId(null);
+  };
+  const updateGroup = (gid, patch) => {
+    if (!tree) return;
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const g = (newTree.groups || []).find(x => x.id === gid);
+    if (g) {
+      if (typeof patch.label === 'string') g.label = patch.label.slice(0, 40);
+      if (typeof patch.color === 'string') g.color = patch.color;
+    }
+    setTree(newTree);
+  };
+
+  const addChild = (parentId, opts = {}) => {
+    if (!tree || !findNode(tree, parentId)) return;   // 현재 트리 기준 부모 존재 확인(가드)
+    maybePushHistory('자식 추가');
+    syncSourceRef.current = 'tree';
+    // id·라벨은 미리 결정(부수효과에서 사용), 실제 삽입은 prev 위에서 수행(경쟁 안전)
+    const newId = genId();
+    const nowTs = new Date().toISOString();
+    const givenLabel = opts.label;
+    const isAutoLabel = (givenLabel === undefined || givenLabel === '');
+    const autoLabel = isAutoLabel ? pickRandomIdeaWord(settings, recentIdeaWordsRef.current) : null;
+    if (isAutoLabel && autoLabel) {
+      recentIdeaWordsRef.current.push(autoLabel);
+      if (recentIdeaWordsRef.current.length > 5) recentIdeaWordsRef.current.shift();
+    }
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const parent = findNode(newTree, parentId);
+      if (!parent) return prev;
+      if (!parent.children) parent.children = [];
+      const newColor = colorForMovedNode(parent, newTree);
+      const newNode = { id: newId, label: isAutoLabel ? autoLabel : givenLabel, children: [], meta: {}, color: newColor, createdAt: nowTs, updatedAt: nowTs };
+      if (isAutoLabel) newNode._autoLabel = true;
+      if (parent.shape) newNode.shape = parent.shape;   // 부모 노드의 도형(모양)을 새 자식도 물려받아 가지를 일관되게
+      // 부모가 루트면 좌/우 분배 — 기존 형제 다수파를 따라가 점프 방지
+      if (parent === newTree && parent.children.length > 0) {
+        const rightCount = parent.children.filter(c => (c.pinnedSide || c.autoSide) === 'right').length;
+        const leftCount = parent.children.filter(c => (c.pinnedSide || c.autoSide) === 'left').length;
+        newNode.autoSide = (rightCount >= leftCount) ? 'right' : 'left';
+      }
+      parent.children.push(newNode);
+      if (parent.collapsed === true) delete parent.collapsed;   // 접힌 부모 자동 펼침
+      return newTree;
+    });
+    setSelectedId(newId);
+    if (opts.startEditing) setEditingId(newId);
+    setTimeout(() => scrollNodeIntoView(newId), 60);
+    return newId;
+  };
+
+  const addSibling = (id, opts = {}) => {
+    if (!tree || !findParent(tree, id)) { showToast('루트에는 형제를 추가할 수 없습니다'); return; }
+    maybePushHistory('형제 추가');
+    syncSourceRef.current = 'tree';
+    const newId = genId();
+    const nowTs = new Date().toISOString();
+    const givenLabel = opts.label;
+    const isAutoLabel = (givenLabel === undefined || givenLabel === '');
+    const autoLabel = isAutoLabel ? pickRandomIdeaWord(settings, recentIdeaWordsRef.current) : null;
+    if (isAutoLabel && autoLabel) {
+      recentIdeaWordsRef.current.push(autoLabel);
+      if (recentIdeaWordsRef.current.length > 5) recentIdeaWordsRef.current.shift();
+    }
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const parent = findParent(newTree, id);
+      if (!parent) return prev;
+      const idx = parent.children.findIndex(c => c.id === id);
+      const current = parent.children[idx];
+      const newColor = (parent === newTree) ? colorForMovedNode(parent, newTree) : current.color;
+      const newNode = { id: newId, label: isAutoLabel ? autoLabel : givenLabel, children: [], meta: {}, color: newColor, createdAt: nowTs, updatedAt: nowTs };
+      if (isAutoLabel) newNode._autoLabel = true;
+      if (current.shape) newNode.shape = current.shape;   // 기준 형제 노드의 도형을 그대로 따라 모양 통일
+      if (parent === newTree) {
+        const sideOfCurrent = current.pinnedSide || current.autoSide;
+        if (sideOfCurrent) newNode.autoSide = sideOfCurrent;
+      }
+      const insertIdx = opts.before ? idx : idx + 1;   // before면 위, 아니면 아래
+      parent.children.splice(insertIdx, 0, newNode);
+      if (parent.collapsed === true) delete parent.collapsed;
+      return newTree;
+    });
+    setSelectedId(newId);
+    if (opts.startEditing) setEditingId(newId);
+    setTimeout(() => scrollNodeIntoView(newId), 60);
+    return newId;
+  };
+
+  // 아웃라인 인라인 편집에서 Enter/Tab으로 "확정 후 곧바로 추가"할 때 라벨을 히스토리 없이 확정한다.
+  // 이어서 호출되는 addSibling/addChild가 히스토리 1건만 남기므로, "타이핑+추가"가 Undo 1회로 깔끔히 되돌아간다.
+  const commitNodeLabelSilent = (id, label) => {
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const nt = cloneTree(prev);
+      const n = findNode(nt, id);
+      if (!n) return prev;
+      n.label = label;
+      delete n._autoLabel;
+      n.updatedAt = new Date().toISOString();
+      return nt;
+    });
+  };
+
+  const deleteNode = (id) => {
+    if (tree.id === id) {
+      showToast('루트는 삭제할 수 없습니다');
+      return;
+    }
+    // 삭제 전에 다음 선택할 노드 결정
+    // 우선순위: 1) 이전 형제 (위쪽), 2) 다음 형제 (아래쪽), 3) 부모
+    const parent = findParent(tree, id);
+    let nextSelectedId = null;
+    if (parent) {
+      const siblings = parent.children || [];
+      const idx = siblings.findIndex(c => c.id === id);
+      if (idx > 0) {
+        nextSelectedId = siblings[idx - 1].id; // 이전 형제
+      } else if (idx >= 0 && idx + 1 < siblings.length) {
+        nextSelectedId = siblings[idx + 1].id; // 다음 형제 (첫째였을 때)
+      } else {
+        nextSelectedId = parent.id; // 외동이었으면 부모
+      }
+    }
+
+    maybePushHistory('노드 삭제');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      removeNode(newTree, id);
+      return newTree;
+    });
+    // 선택을 다음 노드로 옮김 (연속 삭제·이동 편리)
+    setSelectedId(nextSelectedId);
+    if (editingId === id) setEditingId(null);
+  };
+
+  // 방금 추가한 빈 노드를 취소 (ESC 또는 빈 상태로 포커스 잃었을 때)
+  // - 추가 직전 상태(히스토리 top)로 되돌려서 Undo 스택을 깨끗하게 유지
+  // - 즉 "노드를 만든 적이 없는 것처럼" 처리
+  const cancelNewNode = (id) => {
+    // 안전 가드: '빈 라벨' 또는 '자동단어 라벨(_autoLabel, 아직 사용자가 확정 안 함)'인 새 노드만 취소.
+    // (자동단어 도입 후 새 노드 라벨이 항상 비어있지 않게 되어, 빈 라벨만 보던 옛 가드는 취소를 전부 막았다)
+    const target = findNode(tree, id);
+    if (!target) return;
+    if (target._autoLabel !== true && (target.label || '').trim() !== '') return; // 사용자가 정한 라벨이면 그냥 둠
+
+    setHistory(h => {
+      if (h.length === 0) {
+        // 히스토리가 비어 있으면 그냥 직접 제거
+        syncSourceRef.current = 'tree';
+        const nt = cloneTree(tree);
+        removeNode(nt, id);
+        setTree(nt);
+        if (selectedId === id) setSelectedId(null);
+        if (editingId === id) setEditingId(null);
+        return h;
+      }
+      // 가장 최근 히스토리(= 추가 직전 상태)로 되돌리되, Redo에는 넣지 않음
+      const prev = h[h.length - 1];
+      isApplyingHistoryRef.current = true;
+      syncSourceRef.current = null;
+      setTree(prev.tree);
+      setInputText(prev.inputText);
+      setSelectedId(prev.selectedId);
+      setEditingId(null);
+      setTimeout(() => { isApplyingHistoryRef.current = false; }, 0);
+      return h.slice(0, -1);
+    });
+    // 연속 변경 묶기용 키도 초기화해서, 다음 변경이 합쳐지지 않게
+    lastCoalesceRef.current = { key: null, time: 0 };
+  };
+
+  const moveSibling = (id, dir) => {
+    maybePushHistory('순서 이동');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const parent = findParent(newTree, id);
+      if (!parent) return prev;
+      const idx = parent.children.findIndex(c => c.id === id);
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= parent.children.length) return prev;
+      [parent.children[idx], parent.children[newIdx]] = [parent.children[newIdx], parent.children[idx]];
+      return newTree;
+    });
+  };
+
+  // 부모가 바뀐 노드에게 적용할 새 색 결정
+  // - 새 부모가 루트(네이비)면 팔레트에서 새 색 (네이비는 루트 전용이라 자식에 쓰면 안 어울림)
+  //   기존 루트 자식들과 색이 안 겹치도록 미사용 색 우선
+  // - 일반 부모면 그 부모의 색을 그대로 (같은 가지는 같은 톤으로 통일)
+  function colorForMovedNode(newParent, treeRoot) {
+    const isParentRoot = (newParent.id === treeRoot.id);
+    if (!isParentRoot) {
+      return newParent.color || 'slate';
+    }
+    // 루트 자식이 되는 경우: 기존 루트 자식들이 사용 중인 색을 피해 팔레트 순환
+    const usedColors = new Set((treeRoot.children || []).map(c => c.color).filter(Boolean));
+    for (const color of PALETTE_ORDER) {
+      if (!usedColors.has(color)) return color;
+    }
+    // 모두 사용 중이면 자식 수 기준 순환
+    return PALETTE_ORDER[(treeRoot.children || []).length % PALETTE_ORDER.length];
+  }
+
+  // 노드와 모든 자손에게 같은 색 적용 (가지 전체 통일)
+  function applyColorToBranch(node, color) {
+    walk(node, n => { n.color = color; });
+  }
+
+  // outdent: 노드를 한 단계 위 계층으로 이동 (자기 부모의 형제가 됨)
+  // - 루트는 부모 없음 → 무시
+  // - 루트의 직계 자식은 outdent하면 루트의 형제가 되어야 하는데 루트는 형제 없음 → 토스트로 안내
+  // - 부모가 바뀌므로 pinnedSide/autoSide 제거 (드래그와 같은 처리)
+  // - 가지 전체 색을 새 부모 색으로 통일
+  const outdentNode = (id) => {
+    if (!tree || tree.id === id) return;
+    const p0 = findParent(tree, id);
+    if (!p0) return;
+    if (p0.id === tree.id) { showToast('더 이상 바깥으로 이동할 수 없습니다'); return; }
+    if (!findParent(tree, p0.id)) return; // 조부모 없음(안전망)
+    maybePushHistory('계층 이동 (바깥쪽)');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const parent = findParent(newTree, id);
+      if (!parent || parent.id === newTree.id) return prev;
+      const grandparent = findParent(newTree, parent.id);
+      if (!grandparent) return prev;
+      const node = parent.children.find(c => c.id === id);
+      if (!node) return prev;
+      parent.children = parent.children.filter(c => c.id !== id);
+      const parentIdx = grandparent.children.findIndex(c => c.id === parent.id);
+      grandparent.children.splice(parentIdx + 1, 0, node);
+      delete node.pinnedSide; delete node.autoSide;
+      applyColorToBranch(node, colorForMovedNode(grandparent, newTree));
+      return newTree;
+    });
+  };
+
+  // indent: 노드를 한 단계 아래 계층으로 이동 (이전 형제의 자식이 됨)
+  // - 이전 형제가 없으면(첫째 자식) 무시
+  // - 부모가 바뀌므로 pinnedSide/autoSide 제거
+  const indentNode = (id) => {
+    if (!tree || tree.id === id) return;
+    const p0 = findParent(tree, id);
+    if (!p0) return;
+    if (p0.children.findIndex(c => c.id === id) <= 0) { showToast('이전 형제가 없어 안쪽으로 이동할 수 없습니다'); return; }
+    maybePushHistory('계층 이동 (안쪽)');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const parent = findParent(newTree, id);
+      if (!parent) return prev;
+      const idx = parent.children.findIndex(c => c.id === id);
+      if (idx <= 0) return prev;
+      const prevSibling = parent.children[idx - 1];
+      const node = parent.children[idx];
+      parent.children.splice(idx, 1);
+      if (!Array.isArray(prevSibling.children)) prevSibling.children = [];
+      prevSibling.children.push(node);
+      delete node.pinnedSide; delete node.autoSide;
+      applyColorToBranch(node, colorForMovedNode(prevSibling, newTree));
+      return newTree;
+    });
+  };
+
+  // 노드 아이콘 토글 (카테고리당 1개만 유지)
+  // - 이미 선택된 아이콘을 다시 클릭하면 제거 (토글 해제)
+  // - 같은 카테고리의 다른 아이콘을 클릭하면 교체
+  // - 다른 카테고리는 그대로 둠
+  const toggleNodeIcon = (id, icon) => {
+    maybePushHistory('아이콘 변경', `icon-${id}`);
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const node = findNode(newTree, id);
+      if (!node) return prev;
+      if (!Array.isArray(node.icons)) node.icons = [];
+      const alreadyOn = node.icons.includes(icon);
+      const cat = iconCategoryOf(icon);
+      if (alreadyOn) {
+        node.icons = node.icons.filter(ic => ic !== icon);   // 이미 켜져 있으면 끄기
+      } else {
+        node.icons = node.icons.filter(ic => iconCategoryOf(ic) !== cat);   // 같은 카테고리 교체
+        node.icons.push(icon);
+      }
+      node.icons = sortIconsByCategory(node.icons);
+      return newTree;
+    });
+  };
+
+  // 노드를 왼쪽/오른쪽에 수동 고정 (또는 해제)
+  // side: 'left' | 'right' | null (null이면 자동 분배로 되돌림)
+  // 루트의 직계 자식에게만 의미 있음
+  const setNodeSide = (id, side) => {
+    if (!tree) return;
+    const parent = findParent(tree, id);
+    if (parent !== tree) {
+      showToast('루트의 직계 자식만 좌/우 이동할 수 있어요');
+      return;
+    }
+    const label = side === null
+      ? '자동 분배로 되돌리기'
+      : (side === 'left' ? '왼쪽으로 이동' : '오른쪽으로 이동');
+    maybePushHistory(label);
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const node = findNode(newTree, id);
+      if (!node) return prev;
+      if (side === null) {
+        // 자동 분배로 되돌리기 — pinnedSide·autoSide 모두 제거(다음 layoutTree에서 새로 분배)
+        delete node.pinnedSide; delete node.autoSide;
+      } else {
+        node.pinnedSide = side;
+      }
+      return newTree;
+    });
+  };
+
+  // 노드 폭 사용자 지정 (드래그 리사이즈 종료 시 확정 — node.w 저장)
+  const setNodeWidth = (id, w) => {
+    updateNode(id, n => { n.w = Math.max(NODE_MIN_W, Math.min(NODE_RESIZE_MAX, Math.round(w))); }, { label: '노드 폭 조절', coalesceKey: 'nodew-' + id });
+  };
+  // 노드 폭을 자동(라벨에 맞춤)으로 되돌리기 — 핸들 더블클릭
+  const resetNodeWidth = (id) => {
+    updateNode(id, n => { delete n.w; }, { label: '노드 폭 자동' });
+  };
+  // 우측 핸들 드래그로 폭 조절: 드래그 중엔 DOM width만 바꿔 부드럽게, 놓을 때 폭 확정(레이아웃 재계산)
+  const startNodeResize = (e, id) => {
+    e.preventDefault(); e.stopPropagation();
+    const nodeEl = e.currentTarget.closest('.node');
+    if (!nodeEl) return;
+    const startX = e.clientX;
+    const startW = nodeEl.offsetWidth;
+    const z = zoomRef.current || 1;
+    let finalW = startW;
+    document.body.style.cursor = 'ew-resize';
+    const move = (ev) => {
+      finalW = Math.max(NODE_MIN_W, Math.min(NODE_RESIZE_MAX, startW + (ev.clientX - startX) / z));
+      nodeEl.style.width = finalW + 'px';   // 드래그 중 시각만(레이아웃 재계산 안 함)
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      document.body.style.cursor = '';
+      setNodeWidth(id, finalW);   // 놓을 때 확정 → layoutTree가 새 폭으로 재배치
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  // 노드의 자식 펼침/접힘 토글
+  // - 루트는 토글 불가 (빈 화면 방지)
+  // - 자식이 없으면 의미 없음
+  // - 자식 추가 시 자동으로 펼침 (안 그러면 추가한 자식이 안 보임)
+  const toggleCollapse = (id) => {
+    if (!tree || tree.id === id) return;
+    const node = findNode(tree, id);
+    if (!node || !node.children || node.children.length === 0) return;
+    const wasCollapsed = node.collapsed === true;
+    maybePushHistory(wasCollapsed ? '자식 펼치기' : '자식 접기');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      const target = findNode(newTree, id);
+      if (!target) return prev;
+      if (wasCollapsed) delete target.collapsed;
+      else target.collapsed = true;
+      return newTree;
+    });
+  };
+
+  // 전체 펼치기 — 모든 노드의 collapsed 해제
+  const expandAll = () => {
+    if (!tree) return;
+    let anyCollapsed = false;
+    walk(tree, n => { if (n.collapsed === true) anyCollapsed = true; });
+    if (!anyCollapsed) { showToast('이미 모두 펼쳐져 있습니다'); return; }
+    maybePushHistory('전체 펼치기');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      walk(newTree, n => { delete n.collapsed; });
+      return newTree;
+    });
+    showToast('전체 펼침');
+    pendingCenterRef.current = tree.id;   // 루트 id는 클론에도 동일 → 레이아웃 후 effect가 중앙 정렬
+  };
+
+  // 1단계만 보기 — 루트의 직계 자식을 모두 접어 큰 가지만 보이게
+  const collapseToFirstLevel = () => {
+    if (!tree || !tree.children || tree.children.length === 0) return;
+    maybePushHistory('1단계만 보기');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      const newTree = cloneTree(prev);
+      // 루트는 펼친 채로, 루트의 직계 자식 중 자식이 있는 노드만 접음
+      (newTree.children || []).forEach(child => {
+        if (child.children && child.children.length > 0) child.collapsed = true;
+      });
+      return newTree;
+    });
+    showToast('1단계만 보기');
+    pendingCenterRef.current = tree.id;   // 루트 id는 클론에도 동일
+  };
+  // 화면 정중앙 반투명 알림 — 클릭·hover를 절대 가로채지 않음(pointer-events 통과), 2.6초 후 자동 소멸
+  const showTimerPopup = (text) => {
+    setTimerPopup({ text, key: Date.now() }); // key로 매번 새 요소 → 애니메이션 재시작
+    if (timerPopupTimerRef.current) clearTimeout(timerPopupTimerRef.current);
+    timerPopupTimerRef.current = setTimeout(() => setTimerPopup(null), 2600);
+  };
+
+  // 시작/재개/일시정지 토글
+  const toggleTimer = () => {
+    const now = Date.now();
+    if (timerState === 'idle' || timerState === 'done') {
+      // 새로 시작
+      const ms = (settings.timerMinutes || 3) * 60 * 1000;
+      setTimerEndAt(now + ms);
+      setTimerRemainingMs(null);
+      setTimerState('running');
+      setTimerFlash(false);
+      timerMilestoneRef.current = {};
+      timerTotalMsRef.current = ms;
+      showTimerPopup(`${settings.timerMinutes || 3}분 타이머 시작\n짜릿한 짜내기 시간을 즐기세요!`);
+    } else if (timerState === 'running') {
+      // 일시정지: 남은 시간을 고정 저장
+      const remaining = Math.max(0, (timerEndAt || now) - now);
+      setTimerRemainingMs(remaining);
+      setTimerEndAt(null);
+      setTimerState('paused');
+    } else if (timerState === 'paused') {
+      // 재개: 남은 시간을 새 종료 시각으로 변환
+      setTimerEndAt(now + (timerRemainingMs || 0));
+      setTimerRemainingMs(null);
+      setTimerState('running');
+    }
+  };
+
+  // 타이머 칩을 1.2초 안쪽 간격으로 11번 연속 클릭하면 'love' 이스터에그 발동
+  const handleTimerClick = () => {
+    const now = Date.now();
+    const c = eggClickRef.current;
+    if (now - c.last > 1200) c.count = 0;   // 텀이 1.2초 넘게 벌어지면 카운트 초기화
+    c.count += 1;
+    c.last = now;
+    if (c.count >= 11) {
+      c.count = 0;
+      triggerEgg('love');
+    }
+    toggleTimer();
+  };
+
+  // 리셋 — idle 상태로 되돌리고 설정 시간으로 초기화
+  const resetTimer = () => {
+    setTimerState('idle');
+    setTimerEndAt(null);
+    setTimerRemainingMs(null);
+    setTimerFlash(false);
+  };
+
+  // 매 초 카운트다운 갱신 (running 일 때만) — 표시는 TimerChip 담당, 여기선 마일스톤·종료만 처리
+  useEffect(() => {
+    if (timerState !== 'running' || !timerEndAt) return;
+    const tick = () => {
+      const remaining = timerEndAt - Date.now();
+      if (remaining <= 0) {
+        // 종료
+        setTimerState('done');
+        setTimerFlash(true);
+        showTimerPopup('짜릿한 시간이셨나요?\n아주, 잘 하셨어요!'); // 토스트 대신 정중앙 팝업으로 (더 잘 보임)
+        // 3초 후 깜빡임 해제 (CSS 애니메이션이 자동으로 끝나지만 state도 정리)
+        setTimeout(() => setTimerFlash(false), 3000);
+      } else {
+        // ── 마일스톤 알림 (중복 발화 방지: timerMilestoneRef) ──
+        const fired = timerMilestoneRef.current;
+        const totalSec = Math.round(timerTotalMsRef.current / 1000);
+        const remainSec = Math.ceil(remaining / 1000);
+        const elapsedSec = totalSec - remainSec;
+
+        // 남은 3·2·1분 전 — 타이머 총 길이보다 긴 마크는 억제(3분 타이머에서 "3분 전" 방지),
+        // 시작 직후 5초는 시작 팝업과 겹치지 않게 침묵. 일시정지로 구간을 건너뛰면 가장 가까운 것만.
+        let firedRemainMark = false;
+        for (const m of [3, 2, 1]) {
+          const key = 'r' + m;
+          if (!fired[key] && totalSec > m * 60 && elapsedSec >= 5
+              && remainSec <= m * 60 && remainSec > (m - 1) * 60) {
+            fired[key] = true;
+            firedRemainMark = true;
+            showTimerPopup(`⏳ ${m}분 전입니다`);
+            break;
+          }
+        }
+
+        // 경과 간격 알림 — 설정값(분)마다. 마지막 3분 구간에선 침묵(3·2·1이 담당), 0이면 끔.
+        const n = settings.timerNotifyMinutes;
+        if (!firedRemainMark && n > 0 && remainSec > 180 && elapsedSec >= 60) {
+          const k = Math.floor(elapsedSec / (n * 60));
+          if (k >= 1 && !fired['e' + k]) {
+            fired['e' + k] = true;
+            showTimerPopup(`⏱ ${k * n}분 지났어요 · 남은 ${Math.ceil(remainSec / 60)}분`);
+          }
+        }
+      }
+    };
+    tick(); // 즉시 한 번
+    const id = setInterval(tick, 250); // 250ms마다 — 부드러운 표시
+    return () => clearInterval(id);
+  }, [timerState, timerEndAt, settings.timerNotifyMinutes]); // 간격 설정을 틱이 직접 읽으므로 deps 포함(낡은 클로저 방지)
+
+  // ─────────── 드래그 앤 드롭 ───────────
+  const handleDragStart = (e, id) => {
+    if (id === tree.id) { e.preventDefault(); return; }
+    setDragInfo({ id });
+    e.dataTransfer.effectAllowed = 'copyMove';   // 이동(기본) + Ctrl/⌘ 복제 모두 허용
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const handleDragOver = (e, targetId) => {
+    if (!dragInfo) return;
+    if (dragInfo.id === targetId) return;
+    const isCopy = e.ctrlKey || e.metaKey;   // Ctrl/⌘ 누른 채 드래그 = 복제
+    if (!isCopy) {
+      // 이동은 자기 자손 위에 놓으면 순환이 되므로 막는다. (복제는 스냅샷이라 어디든 안전)
+      const draggedNode = findNode(tree, dragInfo.id);
+      if (draggedNode && isDescendant(draggedNode, targetId)) return;
+    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = isCopy ? 'copy' : 'move';   // 커서로 복제/이동 피드백(+ 표시)
+    setDropTargetId(targetId);
+  };
+  const handleDrop = (e, targetId) => {
+    e.preventDefault();
+    if (!dragInfo) return;
+    if (dragInfo.id === targetId) { setDragInfo(null); setDropTargetId(null); return; }
+    const isCopy = e.ctrlKey || e.metaKey;
+    const draggedNode = findNode(tree, dragInfo.id);
+    if (!draggedNode) { setDragInfo(null); setDropTargetId(null); return; }
+
+    // ── Ctrl/⌘ + 드래그 → 복제: 원본(+하위)은 그대로 두고, 새 id로 복제해 대상의 자식으로 추가 ──
+    if (isCopy) {
+      maybePushHistory('노드 복제');
+      syncSourceRef.current = 'tree';
+      const newTree = cloneTree(tree);
+      const src = findNode(newTree, dragInfo.id);
+      const newParent = findNode(newTree, targetId);
+      if (!src || !newParent) { setDragInfo(null); setDropTargetId(null); return; }
+      const dup = cloneTree(src);
+      // 복제본 전체에 새 id 부여(기존 id와 절대 겹치지 않게) + 휘발성 좌표 제거
+      const stamp = Date.now().toString(36); let seq = 0;
+      walk(dup, n => { n.id = `c${stamp}_${++seq}`; delete n._x; delete n._y; delete n._w; delete n._h; delete n._subH; });
+      delete dup.pinnedSide; delete dup.autoSide;
+      if (!newParent.children) newParent.children = [];
+      newParent.children.push(dup);
+      if (newParent.collapsed === true) delete newParent.collapsed;   // 접힌 부모면 펼쳐 복제본이 보이게
+      applyColorToBranch(dup, colorForMovedNode(newParent, newTree)); // 새 부모 톤으로 색 통일
+      setTree(newTree);
+      setSelectedId(dup.id);
+      setDragInfo(null); setDropTargetId(null);
+      let cnt = 0; walk(dup, () => cnt++);
+      showToast(`📑 복제 완료 (노드 ${cnt}개) — Ctrl+Z로 되돌리기`);
+      return;
+    }
+
+    // ── 일반 드래그 → 이동 ──
+    if (isDescendant(draggedNode, targetId)) { setDragInfo(null); setDropTargetId(null); return; }
+    maybePushHistory('드래그 이동');
+    syncSourceRef.current = 'tree';
+    const newTree = cloneTree(tree);
+    const moving = findNode(newTree, dragInfo.id);
+    const oldParent = findParent(newTree, dragInfo.id);
+    const newParent = findNode(newTree, targetId);
+    if (!moving || !oldParent || !newParent) { setDragInfo(null); setDropTargetId(null); return; }
+    oldParent.children = oldParent.children.filter(c => c.id !== dragInfo.id);
+    if (!newParent.children) newParent.children = [];
+    newParent.children.push(moving);
+    // 부모가 바뀌었으면 좌/우 지정 데이터는 무의미해지므로 제거 + 색도 새 부모 톤으로
+    if (oldParent !== newParent) {
+      delete moving.pinnedSide;
+      delete moving.autoSide;
+      // 가지 전체 색을 새 부모 톤으로 통일
+      const newColor = colorForMovedNode(newParent, newTree);
+      applyColorToBranch(moving, newColor);
+    }
+    setTree(newTree);
+    setDragInfo(null);
+    setDropTargetId(null);
+    showToast('이동 완료');
+  };
+
+  // ─────────── 마우스 휠로 확대/축소 ───────────
+  // Ctrl+wheel 또는 트랙패드 핀치(deltaY < 1 + ctrlKey)에서 작동
+  // 일반 휠 스크롤은 그대로 유지
+  useEffect(() => {
+    const el = canvasScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      // 트랙패드 핀치 제스처는 ctrlKey가 true로 들어옴 (브라우저 기본 동작)
+      // Ctrl 누른 채 휠도 같은 효과
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // 마우스 위치를 기준으로 확대/축소
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left + el.scrollLeft;
+        const mouseY = e.clientY - rect.top + el.scrollTop;
+
+        setZoom(prevZoom => {
+          // 휠 델타에 따라 줌 변경 (트랙패드는 작은 값, 마우스휠은 큰 값)
+          const delta = -e.deltaY;
+          const factor = Math.exp(delta * 0.003); // 부드러운 지수 변화
+          const newZoom = Math.min(2, Math.max(0.2, prevZoom * factor));
+
+          // 마우스 위치 기준으로 스크롤 조정 (줌 후에도 같은 위치를 가리키도록)
+          requestAnimationFrame(() => {
+            const ratio = newZoom / prevZoom;
+            el.scrollLeft = mouseX * ratio - (e.clientX - rect.left);
+            el.scrollTop = mouseY * ratio - (e.clientY - rect.top);
+          });
+
+          return newZoom;
+        });
+      } else {
+        // ctrlKey 없는 일반 휠 — 맥북 트랙패드 2손가락 스와이프(=패닝) 포함.
+        // 브라우저 기본 스크롤은 그대로 두되, 줌 바를 잠깐 표시(마우스 드래그 패닝과 동일 UX).
+        setZoomBarVisible(true);
+        if (zoomBarTimerRef.current) clearTimeout(zoomBarTimerRef.current);
+        const scheduleHide = () => {
+          zoomBarTimerRef.current = setTimeout(() => {
+            if (zoomBarHoverRef.current) { scheduleHide(); return; } // 툴바에 마우스 올려두면 유지
+            setZoomBarVisible(false);
+          }, 2500);
+        };
+        scheduleHide();
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // ─────────── 화면 드래그로 패닝 + 두 손가락 핀치 줌 ───────────
+  // Pointer Events로 마우스·터치·펜을 공통 처리. 한 포인터=패닝, 두 포인터=핀치 줌.
+  useEffect(() => {
+    const el = canvasScrollRef.current;
+    if (!el) return;
+
+    // 패닝 시작 조건: 캔버스 "빈 공간". 노드/버튼/입력/링크핸들/그룹 위에서는 발동 안 함.
+    const isPanTarget = (target) => {
+      if (!target || !target.closest) return false;
+      if (target.closest('.node')) return false;
+      if (target.closest('.canvas-toolbar')) return false;
+      if (target.closest('button')) return false;
+      if (target.closest('input, textarea')) return false;
+      // 관계선 핸들·hit 영역, 그룹 박스·라벨은 패닝 제외(핸들 드래그가 패닝에 가로채이지 않게)
+      if (target.closest('.cross-link-handle, .cross-link-hit, .group-rect, .group-label')) return false;
+      return true;
+    };
+
+    const pointers = new Map();   // pointerId -> { x, y }
+    let pinch = null;             // { startDist, startZoom, mapX, mapY, rect }
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;   // 마우스는 좌클릭만
+      if (!isPanTarget(e.target)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        // 한 포인터 → 패닝 준비(실제 이동 감지 시 시작)
+        panStartRef.current = { x: e.clientX, y: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop, moved: false };
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      } else if (pointers.size === 2) {
+        // 두 포인터 → 핀치 줌 시작(패닝 취소)
+        panStartRef.current = null;
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+        const rect = el.getBoundingClientRect();
+        const mapX = (pts[0].x + pts[1].x) / 2 - rect.left + el.scrollLeft;
+        const mapY = (pts[0].y + pts[1].y) / 2 - rect.top + el.scrollTop;
+        pinch = { startDist: dist, startZoom: zoomRef.current || 1, mapX, mapY, rect };
+      }
+    };
+
+    const onPointerMove = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // 핀치 줌
+      if (pinch && pointers.size >= 2) {
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+        const newZoom = Math.min(2, Math.max(0.2, pinch.startZoom * (dist / pinch.startDist)));
+        const midX = (pts[0].x + pts[1].x) / 2, midY = (pts[0].y + pts[1].y) / 2;
+        setZoom(newZoom);
+        requestAnimationFrame(() => {   // 두 손가락 중점 기준으로 확대 지점 유지
+          const z = newZoom / pinch.startZoom;
+          el.scrollLeft = pinch.mapX * z - (midX - pinch.rect.left);
+          el.scrollTop = pinch.mapY * z - (midY - pinch.rect.top);
+        });
+        return;
+      }
+      // 패닝
+      const start = panStartRef.current;
+      if (!start) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!start.moved && Math.abs(dx) + Math.abs(dy) < 3) return;   // 3px 이상에서만 패닝(단순 클릭 구분)
+      if (!start.moved) { start.moved = true; setIsPanning(true); }
+      el.scrollLeft = start.scrollLeft - dx;
+      el.scrollTop = start.scrollTop - dy;
+    };
+
+    const endPointer = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = null;
+      try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (pointers.size === 0) {
+        const start = panStartRef.current;
+        panStartRef.current = null;
+        if (start && start.moved) {
+          // 패닝 종료 — 뒤따르는 click을 막아 의도치 않은 선택 해제 방지
+          setIsPanning(false);
+          const stopClick = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+          window.addEventListener('click', stopClick, { capture: true, once: true });
+        }
+      }
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', endPointer);
+    el.addEventListener('pointercancel', endPointer);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', endPointer);
+      el.removeEventListener('pointercancel', endPointer);
+    };
+  }, []);
+
+  // ─────────── 키보드로 노드 사이 이동 ───────────
+  // 선택된 노드가 화면에 보이도록 자동 스크롤
+  const scrollNodeIntoView = (nodeId) => {
+    if (!tree) return;
+    const node = findNode(tree, nodeId);
+    if (!node || node._x === undefined) return;
+    const el = canvasScrollRef.current;
+    const wrapper = mapWrapperRef.current;
+    if (!el) return;
+
+    // 맵이 중앙 정렬되어 있으므로, 맵의 실제 시작 오프셋을 DOM에서 구함
+    // wrapper.offsetLeft/Top = canvas-inner 내부에서 맵이 위치한 좌표 (패딩+중앙오프셋 포함)
+    const offX = wrapper ? wrapper.offsetLeft : 60;
+    const offY = wrapper ? wrapper.offsetTop : 60;
+
+    const nodeLeft = offX + node._x * zoom;
+    const nodeTop = offY + node._y * zoom;
+    const nodeW = (node._w || NODE_W) * zoom;
+    const nodeH = (node._h || nodeHeight(node)) * zoom;
+    const view = {
+      left: el.scrollLeft,
+      top: el.scrollTop,
+      right: el.scrollLeft + el.clientWidth,
+      bottom: el.scrollTop + el.clientHeight,
+    };
+    const margin = 40; // 여유 공간
+    let targetX = el.scrollLeft;
+    let targetY = el.scrollTop;
+    if (nodeLeft < view.left + margin) targetX = nodeLeft - margin;
+    else if (nodeLeft + nodeW > view.right - margin) targetX = nodeLeft + nodeW - el.clientWidth + margin;
+    if (nodeTop < view.top + margin) targetY = nodeTop - margin;
+    else if (nodeTop + nodeH > view.bottom - margin) targetY = nodeTop + nodeH - el.clientHeight + margin;
+    if (targetX !== el.scrollLeft || targetY !== el.scrollTop) {
+      el.scrollTo({ left: targetX, top: targetY, behavior: 'smooth' });
+    }
+  };
+
+  // 노드를 화면 정중앙으로 스크롤.
+  // 노드 DOM의 실제 화면 위치(getBoundingClientRect)를 직접 측정 → 줌·flex·레이아웃이 모두 반영된 값이라 가장 정확.
+  const centerNode = (nodeId) => {
+    const el = canvasScrollRef.current;
+    if (!el) return;
+    const nodeEl = el.querySelector(`[data-node-id="${nodeId}"]`);
+    if (!nodeEl) return;
+    const elRect = el.getBoundingClientRect();
+    const nodeRect = nodeEl.getBoundingClientRect();
+    // 노드 중심의 화면 좌표
+    const nodeCenterX = nodeRect.left + nodeRect.width / 2;
+    const nodeCenterY = nodeRect.top + nodeRect.height / 2;
+    // 뷰포트 중심
+    const viewCenterX = elRect.left + el.clientWidth / 2;
+    const viewCenterY = elRect.top + el.clientHeight / 2;
+    // 차이만큼 스크롤 이동 (smooth 대신 즉시 — 연속 호출 시 이동 중 측정 오차 방지)
+    el.scrollTo({
+      left: Math.max(0, el.scrollLeft + (nodeCenterX - viewCenterX)),
+      top: Math.max(0, el.scrollTop + (nodeCenterY - viewCenterY)),
+      behavior: 'auto',
+    });
+  };
+
+  // 줌 버튼(−/+/⊙): 선택한 노드가 있으면 줌 변경 후 그 노드를 화면 중앙에 유지. 없으면 기존 동작.
+  const zoomBy = (delta) => {
+    setZoom(z => Math.max(0.2, Math.min(2, Math.round((z + delta) * 100) / 100)));
+    if (selectedId) requestAnimationFrame(() => requestAnimationFrame(() => centerNode(selectedId)));
+  };
+  const zoomReset = () => {
+    setZoom(1);
+    if (selectedId) requestAnimationFrame(() => requestAnimationFrame(() => centerNode(selectedId)));
+  };
+
+  // 노드가 화면(스크롤 영역) 밖에 있으면, 여백(margin)을 두고 보이도록 "부족한 만큼만" 스크롤.
+  // centerNode와 달리 화면을 통째로 이동시키지 않아, 편집 흐름이 끊기지 않는다.
+  // getBoundingClientRect 기반이라 줌 배율·편집 링 크기가 자동 반영된다.
+  const ensureNodeVisible = (nodeId, margin = 28) => {
+    const el = canvasScrollRef.current;
+    if (!el) return;
+    const nodeEl = el.querySelector(`[data-node-id="${nodeId}"]`);
+    if (!nodeEl) return;
+    const elRect = el.getBoundingClientRect();
+    const nodeRect = nodeEl.getBoundingClientRect();
+    const viewLeft = elRect.left + margin;
+    const viewRight = elRect.left + el.clientWidth - margin;
+    const viewTop = elRect.top + margin;
+    const viewBottom = elRect.top + el.clientHeight - margin;
+    let dx = 0, dy = 0;
+    if (nodeRect.left < viewLeft) dx = nodeRect.left - viewLeft;          // 왼쪽으로 삐져나감
+    else if (nodeRect.right > viewRight) dx = nodeRect.right - viewRight; // 오른쪽으로 삐져나감
+    if (nodeRect.top < viewTop) dy = nodeRect.top - viewTop;              // 위로 삐져나감
+    else if (nodeRect.bottom > viewBottom) dy = nodeRect.bottom - viewBottom; // 아래로 삐져나감 (이번 이슈)
+    // 노드가 보이는 영역보다 큰 경우엔 시작점(왼쪽/위) 기준으로 맞춤
+    if (nodeRect.width > el.clientWidth - margin * 2) dx = nodeRect.left - viewLeft;
+    if (nodeRect.height > el.clientHeight - margin * 2) dy = nodeRect.top - viewTop;
+    if (dx !== 0 || dy !== 0) {
+      el.scrollTo({
+        left: Math.max(0, el.scrollLeft + dx),
+        top: Math.max(0, el.scrollTop + dy),
+        behavior: 'auto', // 연속 호출(빠른 Tab/Enter·타이핑) 시 측정 오차 방지
+      });
+    }
+  };
+
+  // 편집 시작 시: 편집 노드(입력창)가 화면 밖이면 안으로 끌어온다.
+  // 추가로 편집 중 타이핑으로 노드 폭이 늘어나 오른쪽으로 삐져나가는 것도
+  // ResizeObserver로 따라간다. (이 앱은 입력 길이에 맞춰 노드 폭이 실시간으로 자란다)
+  useEffect(() => {
+    if (!editingId) return;
+    const raf = requestAnimationFrame(() => ensureNodeVisible(editingId));
+    const el = canvasScrollRef.current;
+    const nodeEl = el && el.querySelector(`[data-node-id="${editingId}"]`);
+    let ro = null;
+    if (nodeEl && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => ensureNodeVisible(editingId));
+      ro.observe(nodeEl);
+    }
+    return () => { cancelAnimationFrame(raf); if (ro) ro.disconnect(); };
+    // eslint-disable-next-line
+  }, [editingId]);
+
+  // 접기/펼치기 등으로 tree가 바뀌어 레이아웃이 다시 그려진 뒤, 예약된 노드를 화면 중앙으로.
+  // (setTimeout 클로저가 옛 좌표를 잡는 문제를 피하려고 ref + tree 의존 effect로 처리)
+  useLayoutEffect(() => {
+    if (!pendingCenterRef.current || !tree) return;
+    const id = pendingCenterRef.current;
+    pendingCenterRef.current = null;
+    // 레이아웃·DOM 반영 후 측정하도록 다음 프레임에 실행
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => centerNode(id));
+    });
+    // eslint-disable-next-line
+  }, [tree]);
+
+  // 초기 로드 시 루트를 화면 중앙으로 (canvas-inner의 큰 패딩 때문에 기본 스크롤 0,0이면 맵이 안 보임).
+  // centerNode는 스크롤만 조정하므로 노드 배치(레이아웃)에는 영향 없음.
+  const didInitCenterRef = useRef(false);
+  useLayoutEffect(() => {
+    if (didInitCenterRef.current || !tree) return;
+    didInitCenterRef.current = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { if (tree) centerNode(tree.id); });
+    });
+    // eslint-disable-next-line
+  }, [tree]);
+
+  // ─────────── 노드 검색 ───────────
+  // 검색어가 바뀌면 매칭되는 노드 id 목록을 트리 순서로 수집
+  useEffect(() => {
+    if (!searchOpen || !tree || !searchQuery.trim()) {
+      setSearchMatchIds([]);
+      setSearchPos(0);
+      return;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    const matches = [];
+    walk(tree, n => {
+      if ((n.label || '').toLowerCase().includes(q)) matches.push(n.id);
+    });
+    setSearchMatchIds(matches);
+    setSearchPos(0);
+    // 첫 매칭으로 이동
+    if (matches.length > 0) {
+      setSelectedId(matches[0]);
+      setTimeout(() => scrollNodeIntoView(matches[0]), 60);
+    }
+    // eslint-disable-next-line
+  }, [searchQuery, searchOpen, tree]);
+
+  // 다음/이전 매칭으로 이동
+  const gotoSearchMatch = (dir) => {
+    if (searchMatchIds.length === 0) return;
+    let next = searchPos + dir;
+    if (next < 0) next = searchMatchIds.length - 1;
+    if (next >= searchMatchIds.length) next = 0;
+    setSearchPos(next);
+    const id = searchMatchIds[next];
+    setSelectedId(id);
+    setTimeout(() => scrollNodeIntoView(id), 60);
+  };
+
+  // 검색창 열기/닫기
+  const openSearch = () => {
+    setSearchOpen(true);
+    setTimeout(() => { if (searchInputRef.current) searchInputRef.current.focus(); }, 30);
+  };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchMatchIds([]);
+    setSearchPos(0);
+  };
+
+  // 화살표 키 이동
+  // 트리 구조: 부모 ← 자식, 자식들끼리는 위/아래 형제
+  // ←: 부모로
+  // →: 첫 번째 자식으로
+  // ↑: 같은 부모의 이전 형제 (없으면 부모의 이전 형제의 마지막 자식 — 시각적으로 위에 있는 노드)
+  // ↓: 같은 부모의 다음 형제 (없으면 부모의 다음 형제의 첫 번째 자식)
+  const navigateToNode = (direction) => {
+    if (!tree) return;
+    if (!selectedId) {
+      setSelectedId(tree.id);
+      setTimeout(() => scrollNodeIntoView(tree.id), 50);
+      return;
+    }
+    const current = findNode(tree, selectedId);
+    if (!current) return;
+    const parent = findParent(tree, selectedId);
+    let targetId = null;
+
+    if (direction === 'left') {
+      // 부모로
+      if (parent) targetId = parent.id;
+    } else if (direction === 'right') {
+      // 첫 번째 자식으로 (단, 접힌 노드의 자식은 화면에 없으므로 이동 안 함)
+      if (current.children && current.children.length > 0 && current.collapsed !== true) {
+        targetId = current.children[0].id;
+      }
+    } else if (direction === 'up') {
+      if (parent) {
+        const idx = parent.children.findIndex(c => c.id === selectedId);
+        if (idx > 0) {
+          // 같은 부모의 이전 형제
+          targetId = parent.children[idx - 1].id;
+        }
+        // idx === 0이면 그대로 두기 (혹은 시각적 위 노드로 갈 수도 있지만 단순함 우선)
+      }
+    } else if (direction === 'down') {
+      if (parent) {
+        const idx = parent.children.findIndex(c => c.id === selectedId);
+        if (idx >= 0 && idx < parent.children.length - 1) {
+          // 같은 부모의 다음 형제
+          targetId = parent.children[idx + 1].id;
+        }
+      }
+    }
+
+    if (targetId) {
+      setSelectedId(targetId);
+      // setSelectedId 직후엔 아직 DOM이 업데이트 안 됐을 수 있으니 다음 틱에 스크롤
+      setTimeout(() => scrollNodeIntoView(targetId), 50);
+    }
+  };
+
+  // 아웃라인 전용 ↑/↓ 이동 — 보이는 목록을 차례대로. 단, "그룹(최상위 가지)" 경계에선
+  // 한 번 누르면 안내만 하고 멈추고, 빠르게 두 번 누르면 다음/이전 그룹으로 넘어간다.
+  const OUTLINE_GROUP_DBL_MS = 700;
+  // 아웃라인 ↑/↓ 빠른 이동용 캐시(트리 바뀔 때만 계산): 보이는 노드 평탄 목록 + 노드별 그룹(최상위 가지) 맵
+  const outlineFlat = useMemo(() => { const a = []; if (tree) walkVisible(tree, n => a.push(n)); return a; }, [tree]);
+  const outlineGroupMap = useMemo(() => {
+    const m = new Map();
+    if (tree) (tree.children || []).forEach(g => { (function rec(n) { m.set(n.id, g.id); (n.children || []).forEach(rec); })(g); });
+    return m;
+  }, [tree]);
+  const navigateOutline = (direction) => {
+    if (!tree) return;
+    const flat = outlineFlat;
+    if (flat.length === 0) return;
+    if (!selectedId) { setSelectedId(flat[0].id); return; }
+    const idx = flat.findIndex(n => n.id === selectedId);
+    if (idx < 0) { setSelectedId(flat[0].id); return; }
+    const target = direction === 'down' ? flat[idx + 1] : flat[idx - 1];
+    if (!target) return; // 목록의 처음/끝
+    const curG = outlineGroupMap.has(selectedId) ? outlineGroupMap.get(selectedId) : null;
+    const tgtG = outlineGroupMap.has(target.id) ? outlineGroupMap.get(target.id) : null;
+    // 같은 그룹이거나, 루트가 끼어있으면(그룹 없음) 자유롭게 이동
+    if (curG === tgtG || curG == null || tgtG == null) {
+      setSelectedId(target.id);
+      setOutlineHint(null);
+      outlineBoundaryRef.current = { id: null, dir: null, time: 0 };
+      return;
+    }
+    // 그룹 경계 — 빠르게 두 번이면 넘어감
+    const now = Date.now();
+    const b = outlineBoundaryRef.current;
+    if (b.id === selectedId && b.dir === direction && now - b.time < OUTLINE_GROUP_DBL_MS) {
+      setSelectedId(target.id);
+      setOutlineHint(null);
+      outlineBoundaryRef.current = { id: null, dir: null, time: 0 };
+      return;
+    }
+    // 첫 번째 누름 — 안내(설정에서 끄지 않았다면)만 하고 멈춤
+    outlineBoundaryRef.current = { id: selectedId, dir: direction, time: now };
+    if (settings.hideOutlineGroupHint !== true) setOutlineHint({ dir: direction });
+  };
+
+  // 아웃라인 전용 ←/→ : 트리처럼 펼치기/접기·부모/자식 이동
+  //  →: 접혀 있으면 펼치기, 이미 펼쳐져 있으면 첫 자식으로
+  //  ←: 펼쳐져 있으면 접기, 아니면 부모로
+  const navigateOutlineH = (dir) => {
+    if (!tree || !selectedId) return;
+    const node = findNode(tree, selectedId);
+    if (!node) return;
+    const hasKids = node.children && node.children.length > 0;
+    if (dir === 'right') {
+      if (hasKids && node.collapsed === true) toggleCollapse(selectedId);   // 접힘 → 펼치기
+      else if (hasKids) setSelectedId(node.children[0].id);                 // 펼침 → 첫 자식으로
+    } else {
+      if (hasKids && node.collapsed !== true) toggleCollapse(selectedId);   // 펼침 → 접기
+      else { const p = findParent(tree, selectedId); if (p) setSelectedId(p.id); }  // 아니면 부모로
+    }
+  };
+
+  // 선택된 노드가 속한 그룹(최상위 가지) id — 아웃라인 그룹 배경 강조용
+  const outlineSelectedGroupId = useMemo(
+    () => (tree && selectedId ? groupIdOf(tree, selectedId) : null),
+    [tree, selectedId]
+  );
+
+  // ─────────── 키보드 단축키 ───────────
+  // ─────────── 줌 툴바 자동 표시/숨김 ───────────
+  // 줌이 바뀌면 툴바를 잠깐 보였다가 2.5초 후 자동으로 숨김.
+  // (최초 마운트 시엔 뜨지 않도록 첫 렌더는 건너뜀)
+  const zoomFirstRunRef = useRef(true);
+  useEffect(() => {
+    if (zoomFirstRunRef.current) { zoomFirstRunRef.current = false; return; }
+    setZoomBarVisible(true);
+    if (zoomBarTimerRef.current) clearTimeout(zoomBarTimerRef.current);
+    const scheduleHide = () => {
+      zoomBarTimerRef.current = setTimeout(() => {
+        // 툴바에 마우스를 올려둔 동안엔 숨기지 않고 더 기다림
+        if (zoomBarHoverRef.current) { scheduleHide(); return; }
+        setZoomBarVisible(false);
+      }, 2500);
+    };
+    scheduleHide();
+    return () => { if (zoomBarTimerRef.current) clearTimeout(zoomBarTimerRef.current); };
+  }, [zoom]);
+
+  // 바탕 드래그(패닝) 중에도 줌 툴바를 보여 줌 — 패닝 시작 시 표시, 끝나면 2.5초 뒤 자동 숨김.
+  useEffect(() => {
+    if (!isPanning) return; // 패닝 시작 시에만 동작
+    setZoomBarVisible(true);
+    if (zoomBarTimerRef.current) clearTimeout(zoomBarTimerRef.current);
+    return () => {
+      const scheduleHide = () => {
+        zoomBarTimerRef.current = setTimeout(() => {
+          if (zoomBarHoverRef.current) { scheduleHide(); return; } // 툴바에 마우스 올려두면 유지
+          setZoomBarVisible(false);
+        }, 2500);
+      };
+      scheduleHide();
+    };
+  }, [isPanning]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      // 다이얼로그가 열려있으면 전역 단축키 비활성화 (다이얼로그 전용 핸들러가 처리)
+      if (confirmNewFile || startupDialog || showSettings || showDocs || remoteNewer || colorCascade || showUpdate || welcomeQuote) return;
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      const inTextarea = e.target.tagName === 'TEXTAREA';
+      const inInput = e.target.tagName === 'INPUT';
+      // 한글 IME 조합 중에는 어떤 단축키도 발동하지 않음 (Enter가 조합 종료용으로 쓰이는 케이스 방어)
+      // - keyCode 229: 일부 브라우저에서 조합 중 키 이벤트의 표시
+      // - isComposing: 표준 속성
+      const isComposing = e.isComposing || e.keyCode === 229;
+
+      // ─── Undo / Redo (어디서든 동작, textarea 제외)
+      // textarea는 브라우저 기본 undo를 사용 (텍스트 자체 되돌리기)
+      if (mod && !inTextarea) {
+        if (e.key === 'z' || e.key === 'Z') {
+          if (e.shiftKey) {
+            e.preventDefault();
+            if (future.length > 0) redo();
+          } else {
+            e.preventDefault();
+            if (history.length > 0) undo();
+          }
+          return;
+        }
+        if (e.key === 'y' || e.key === 'Y') {
+          e.preventDefault();
+          if (future.length > 0) redo();
+          return;
+        }
+        // Ctrl/Cmd+F: 노드 검색 열기 (텍스트 입력창 안에서는 브라우저 기본 검색에 양보)
+        if ((e.key === 'f' || e.key === 'F') && !inInput && !inTextarea) {
+          e.preventDefault();
+          openSearch();
+          return;
+        }
+      }
+
+      // 입력 중이면 스킵 (Tab/Enter는 인라인 입력 처리에서 다룸)
+      // - 모든 input/textarea
+      // - 노드 편집 중(editingId가 있음) — input 포커스 타이밍 이슈 방어
+      // - IME 조합 중
+      if (inInput || inTextarea || editingId || isComposing) return;
+
+      // F: 마인드맵 ↔ 아웃라인 화면 토글 (단독 F, 수식키 없을 때만)
+      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        setChartView(null);
+        setOutlineView(v => !v);
+        return;
+      }
+      // G: 간트 / T: 타임라인 토글 (단독 키, 수식키 없을 때만)
+      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault(); setOutlineView(false); setChartView(v => v === 'gantt' ? null : 'gantt'); return;
+      }
+      if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault(); setOutlineView(false); setChartView(v => v === 'timeline' ? null : 'timeline'); return;
+      }
+
+      // +/− : 화면 배율 조정 (수식키 없이 · 맵 화면에서만). Ctrl+±은 브라우저 줌이라 건드리지 않음.
+      if (!outlineView && !chartView && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(0.1); return; }   // +(Shift+=)·= 모두 확대
+        if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(-0.1); return; }  // -·_(Shift+-) 모두 축소
+      }
+
+      // ── 전역 내보내기 단축키 ──
+      // Ctrl+Shift+S: 구글 드라이브에 저장(수동 저장 버튼과 동일 규칙) + 토스트로 결과 안내
+      // Ctrl+Shift+C: 구글 캘린더에 추가(새 탭). e.code(물리 키)로 판별해 한글 자판에서도 동작.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyS') {
+        e.preventDefault();
+        if (!tree) { showToast('저장할 내용이 없어요'); return; }
+        if (!driveSignedIn) { showToast('구글 드라이브가 연결되어 있지 않아요 — 설정에서 연결해 주세요'); return; }
+        if (isSavingRef.current) { showToast('💾 저장 중이에요 — 잠시만 기다려 주세요', { sticky: true }); return; }
+        // 클라우드 저장은 수 초~10초쯤 걸리므로, 시작 즉시 안내를 띄우고 끝날 때까지 유지한다
+        showToast('💾 저장중', { sticky: true });
+        handleDriveSave().then((ok) => {
+          // 성공은 짧게(1초), 실패·보류는 읽고 조치할 시간이 필요하니 3초
+          if (ok === 'remote') showToast('⚠️ 다른 기기의 최신본이 있어 저장을 멈췄어요 — 안내 창에서 선택해 주세요', { duration: 3000 });
+          else if (ok) showToast('✅ 구글 드라이브에 저장했어요', { duration: 1000 });
+          else showToast('저장에 실패했어요 — 설정에서 상태를 확인해 주세요', { duration: 3000 });
+        });
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyC') {
+        e.preventDefault();
+        addToGoogleCalendar();
+        return;
+      }
+
+      // 화살표 키는 선택 노드가 없어도 동작 (루트부터 시작)
+      // - Alt+화살표는 순서 이동이므로 selectedId 필요
+      const isPlainArrow = !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
+        ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+      if (isPlainArrow && tree) {
+        e.preventDefault();
+        // 아웃라인 뷰: ↑/↓는 보이는 목록을 차례로(그룹 경계 처리 포함). →는 펼치기/첫 자식, ←는 접기/부모.
+        if (outlineView && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+          navigateOutline(e.key === 'ArrowUp' ? 'up' : 'down');
+        } else if (outlineView && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          navigateOutlineH(e.key === 'ArrowRight' ? 'right' : 'left');
+        } else if (e.key === 'ArrowUp') navigateToNode('up');
+        else if (e.key === 'ArrowDown') navigateToNode('down');
+        else if (e.key === 'ArrowLeft') navigateToNode('left');
+        else if (e.key === 'ArrowRight') navigateToNode('right');
+        return;
+      }
+
+      // Shift + ←/→ : 선택 노드의 하위 접기(←) / 펼치기(→)
+      // 평범한 ←/→는 노드 사이 이동 그대로 두고, 접기·펼치기는 Shift로 구분한다.
+      if (e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && tree && selectedId && !outlineView &&
+          (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const sel = findNode(tree, selectedId);
+        if (sel && sel.children && sel.children.length > 0) {
+          if (e.key === 'ArrowRight' && sel.collapsed === true) { e.preventDefault(); toggleCollapse(selectedId); return; }
+          if (e.key === 'ArrowLeft'  && sel.collapsed !== true) { e.preventDefault(); toggleCollapse(selectedId); return; }
+        }
+      }
+
+      if (!selectedId) return;
+
+      // 몰입 모드: 편집·추가·삭제·순서변경 차단 (화살표 이동·Space 접기·검색·줌은 위에서 이미 허용)
+      if (viewMode === 'immerse') {
+        if (e.key === 'Escape') { setSelectedId(null); setImmerseFocusId(null); }
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        // 자식 추가 + 즉시 편집
+        addChild(selectedId, { label: '', startEditing: true });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedId === tree.id) {
+          // 루트면 자식 추가 (Shift 여부와 무관 — 루트엔 형제 없음)
+          addChild(selectedId, { label: '', startEditing: true });
+        } else {
+          // Shift+Enter면 위(이전 형제)에, 그냥 Enter면 아래(다음 형제)에 추가
+          addSibling(selectedId, { label: '', startEditing: true, before: e.shiftKey });
+        }
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        setEditingId(selectedId);
+      } else if (e.key === ' ' || e.code === 'Space') {
+        // Space: 선택 노드의 자식 펼침/접힘 토글
+        if (selectedId !== tree.id) { e.preventDefault(); toggleCollapse(selectedId); }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedId !== tree.id) { e.preventDefault(); deleteNode(selectedId); }
+      } else if (e.key === 'ArrowUp' && e.altKey) {
+        e.preventDefault(); moveSibling(selectedId, -1);
+      } else if (e.key === 'ArrowDown' && e.altKey) {
+        e.preventDefault(); moveSibling(selectedId, 1);
+      } else if (e.key === 'ArrowLeft' && e.altKey) {
+        // Alt + ← : outdent (한 단계 위 계층으로)
+        e.preventDefault();
+        if (selectedId !== tree.id) outdentNode(selectedId);
+      } else if (e.key === 'ArrowRight' && e.altKey) {
+        // Alt + → : indent (이전 형제의 자식으로)
+        e.preventDefault();
+        if (selectedId !== tree.id) indentNode(selectedId);
+      } else if (e.key === 'Escape') {
+        setSelectedId(null);
+        setEditingId(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line
+  }, [selectedId, tree, editingId, history.length, future.length, undo, redo, zoom, confirmNewFile, startupDialog, showSettings, showDocs, remoteNewer, colorCascade, showUpdate, welcomeQuote, viewMode, driveSignedIn, outlineView, chartView, settings.hideOutlineGroupHint]);
+
+  // 아웃라인: 선택 행을 화면 안으로 스크롤 (맵 centerNode는 아웃라인에서 동작 안 하므로 별도 처리)
+  useEffect(() => {
+    if (!outlineView || !selectedId) return;
+    const raf = requestAnimationFrame(() => {
+      const el = document.querySelector('.outline-row.selected');
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectedId, outlineView]);
+
+  // 그룹 경계 안내 팝업: 5초 뒤 자동 닫힘, 아웃라인을 떠나면 즉시 닫힘
+  useEffect(() => {
+    if (!outlineHint) return;
+    const t = setTimeout(() => setOutlineHint(null), 5000);
+    return () => clearTimeout(t);
+  }, [outlineHint]);
+  useEffect(() => { if (!outlineView) setOutlineHint(null); }, [outlineView]);
+
+  // 아웃라인 ↔ 맵 전환:
+  //  - 아웃라인 진입 시: 그때의 배율을 기억
+  //  - 맵으로 복귀 시(F·버튼·메뉴 어느 쪽이든): 기억한 배율로 되돌리고,
+  //    아웃라인에서 선택했던 노드를 화면 중앙에 보이게 스크롤 (맵 노드가 다시 렌더된 뒤)
+  const prevOutlineViewRef = useRef(false);
+  const preOutlineZoomRef = useRef(1);
+  useEffect(() => {
+    const was = prevOutlineViewRef.current;
+    prevOutlineViewRef.current = outlineView;
+    if (!was && outlineView) {
+      preOutlineZoomRef.current = zoomRef.current;     // 진입 직전 배율 기억
+    } else if (was && !outlineView) {
+      setZoom(preOutlineZoomRef.current);              // 기존 배율로 복귀
+      const id = selectedId;
+      if (id) requestAnimationFrame(() => requestAnimationFrame(() => centerNode(id)));
+    }
+    // eslint-disable-next-line
+  }, [outlineView]);
+
+  // ─────────── 다이얼로그 전용 키보드 (Enter 확인, Esc 취소) ───────────
+  useEffect(() => {
+    if (!confirmNewFile && !startupDialog && !showSettings && !showDocs) return;
+    const handler = (e) => {
+      // 다이얼로그 안의 input/textarea에서는 동작 안 함 (예: 설정의 파일명 입력, 문서 이름 변경)
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (confirmNewFile) setConfirmNewFile(false);
+        else if (showSettings) setShowSettings(false);
+        else if (showDocs) { setShowDocs(false); setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); }
+        // startupDialog는 Esc로 닫으면 안 됨 - 사용자가 반드시 선택해야 함
+        // (선택 안 하면 빈 화면이 됨)
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (confirmNewFile) {
+          // ✨ 새로 시작 (primary 액션)
+          resetToNewFile();
+          setConfirmNewFile(false);
+        } else if (showSettings) {
+          // 설정 모달은 Enter로 닫기 (완료)
+          setShowSettings(false);
+        } else if (startupDialog) {
+          // 시작 다이얼로그는 기본 액션이 "마지막 작업 이어서 하기"
+          // (작업 보존이 더 안전한 기본값)
+          restoreWork({
+            tree: startupDialog.lastTree,
+            inputText: startupDialog.lastInputText,
+          });
+          const txt = startupDialog.lastInputText || '';
+          setStartupDialog(null);
+          showToast('마지막 작업을 불러왔습니다');
+          focusTextInputAtSecondLine(txt);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line
+  }, [confirmNewFile, startupDialog, showSettings, showDocs]);
+
+  // ─────────── 설정 저장 (변경될 때마다) ───────────
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return;
+    idbSet('settings', settings);
+  }, [settings]);
+
+  // ─────────── 노드 라벨 폰트 적용 ───────────
+  // settings.nodeFont(+custom)에 따라 --node-font CSS 변수를 갱신 → 노드 라벨/편집창에 반영
+  useEffect(() => {
+    const font = resolveNodeFont(settings.nodeFont, settings.nodeFontCustom);
+    document.documentElement.style.setProperty('--node-font', font);
+  }, [settings.nodeFont, settings.nodeFontCustom]);
+
+  // 배경 테마·점 패턴을 <html> 속성으로 반영 (CSS의 [data-theme]/[data-dots] 규칙이 색을 바꿈)
+  useEffect(() => {
+    const el = document.documentElement;
+    const theme = settings.bgTheme || 'default';
+    if (theme === 'default') el.removeAttribute('data-theme');
+    else el.setAttribute('data-theme', theme);
+    el.setAttribute('data-dots', settings.bgDots === false ? 'off' : 'on');
+  }, [settings.bgTheme, settings.bgDots]);
+
+  // ─────────── 구글 캘린더에 추가 ───────────
+  // 설정의 calendarMode에 따라:
+  //   'allday' = 종일 일정 + 제목 뒤 시각
+  //   'timed'  = 시간 일정 (타이머 시간만큼 길이)
+  const addToGoogleCalendar = () => {
+    if (!tree) return;
+    const eventTitle = settings.calendarEventTitle || '브레인스토밍';
+    const { url, detailsLength, title: actualTitle } = buildGoogleCalendarUrl(
+      tree, eventTitle, settings.calendarMode, settings.timerMinutes
+    );
+
+    // URL이 너무 길면 캘린더가 잘라낼 수 있음 — 안전선 ~8KB
+    if (url.length > 7500) {
+      showToast(`내용이 많습니다 (${detailsLength}자). 캘린더에서 일부가 잘릴 수 있어요.`);
+    }
+    // 새 탭으로 열기. 일부 브라우저에서 팝업 차단 가능성 있음
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      showToast('팝업이 차단되었습니다. 브라우저 설정에서 허용해주세요.');
+    } else {
+      showToast(`"${actualTitle}" 일정으로 캘린더가 열렸어요`);
+    }
+  };
+
+  // ─────────── AI 요약: 프롬프트+마인드맵을 클립보드에 복사하고 AI 새 탭 열기 ───────────
+  // 사용자가 새 탭에 붙여넣기(Ctrl+V)해서 요약 받음
+  // 설정의 aiService(어느 AI), aiPrompt(프롬프트 템플릿)를 사용
+  const sendToAI = async () => {
+    if (!tree) return;
+    const serviceKey = settings.aiService || 'chatgpt';
+    const service = AI_SERVICES[serviceKey] || AI_SERVICES.chatgpt;
+    const promptText = buildAIPromptText(settings.aiPrompt, tree);
+
+    // 1) 클립보드 복사 — 사용자 클릭 이벤트 직후에 실행되므로 권한 OK
+    const copied = await copyToClipboard(promptText);
+
+    // 2) 새 탭 열기 (클립보드 결과와 무관하게)
+    const win = window.open(service.url, '_blank', 'noopener,noreferrer');
+
+    // 3) 결과 안내
+    if (!win) {
+      // 팝업 차단됨
+      if (copied) {
+        showToast(`내용 복사 완료. ${service.name}에서 붙여넣기(Ctrl+V) 하세요. (팝업 차단됨 — 직접 열기: ${service.url})`);
+      } else {
+        showToast('팝업·복사 모두 차단되었습니다. 브라우저 설정을 확인해주세요.');
+      }
+    } else if (copied) {
+      showToast(`📋 복사 완료 — ${service.name} 새 탭에서 Ctrl+V 후 엔터`);
+    } else {
+      showToast(`${service.name}이 열렸지만 클립보드 복사 실패. 수동 복사가 필요합니다.`);
+    }
+  };
+
+  // ─────────── 통합 저장 함수 (수동/자동 공통) ───────────
+  const saveAll = async (formats, opts = {}) => {
+    if (!tree) return;
+    const ts = new Date();
+    const stamp = ts.toISOString().replace(/[:.]/g, '-').slice(0, 19); // 2026-01-01T12-30-45
+    // 파일명은 문서 이름으로 시작 — 어떤 문서를 내보냈는지 파일명만 봐도 구분.
+    // 문서 이름이 비어 있으면(금지 문자뿐 등) 설정의 접두사로 대체.
+    const docPart = sanitizeFilePart(currentDocName);
+    const base = docPart || settings.filenameBase || 'brainbloom';
+    const results = [];
+
+    for (const fmt of formats) {
+      let filename, content, mimeType;
+      try {
+        if (fmt === 'json') {
+          filename = `${base}_${stamp}.json`;
+          content = JSON.stringify(serializeTree(tree), null, 2);
+          mimeType = 'application/json';
+        } else if (fmt === 'csv') {
+          filename = `${base}_${stamp}.csv`;
+          content = buildCSVString(tree);
+          mimeType = 'text/csv;charset=utf-8';
+        } else if (fmt === 'pdf') {
+          filename = `${base}_${stamp}.pdf`;
+          content = await buildPDFBlob(tree);
+          mimeType = 'application/pdf';
+        } else if (fmt === 'jpg') {
+          filename = `${base}_${stamp}.jpg`;
+          content = await buildJPGBlob(tree);
+          mimeType = 'image/jpeg';
+        } else if (fmt === 'svg') {
+          filename = `${base}_${stamp}.svg`;
+          content = buildSVGString(tree);
+          mimeType = 'image/svg+xml;charset=utf-8';
+        } else if (fmt === 'md') {
+          filename = `${base}_${stamp}.md`;
+          content = treeToMarkdown(tree);
+          mimeType = 'text/markdown;charset=utf-8';
+        } else continue;
+
+        const result = await saveToTarget(filename, content, mimeType);
+        results.push({ fmt, ...result });
+      } catch (e) {
+        console.error(`${fmt} 저장 실패`, e);
+        results.push({ fmt, ok: false, error: e.message || String(e) });
+      }
+    }
+
+    // 마지막 작업 상태도 IndexedDB에 저장 (다음 날 복원용) — 활성 문서 슬롯에도 함께 기록
+    writeActiveDoc({
+      savedAt: ts.getTime(),
+      tree: serializeTree(tree),
+      inputText,
+    });
+
+    setLastSavedAt(ts.getTime());
+
+    if (!opts.silent) {
+      const okFormats = results.filter(r => r.ok).map(r => r.fmt.toUpperCase()).join(', ');
+      if (okFormats) {
+        showToast(`${okFormats} 다운로드됨`);
+      } else {
+        showToast('저장 실패');
+      }
+    }
+  };
+
+  // ─────────── 페이지 닫기/숨김 시 lastWork 저장 (다음 날 복원용 + 데이터 안전) ───────────
+  useEffect(() => {
+    // 현재 트리/텍스트를 저장하는 공통 함수
+    const saveNow = () => {
+      if (!tree) return;
+      writeActiveDoc({
+        savedAt: Date.now(),
+        tree: serializeTree(tree),
+        inputText,
+      });
+    };
+    // beforeunload: 탭/창을 닫을 때 (fire-and-forget, 완료 보장은 안 되지만 시도)
+    const onBeforeUnload = () => saveNow();
+    // visibilitychange: 탭을 숨기거나 다른 탭으로 전환할 때.
+    // beforeunload보다 신뢰성이 높음 — 브라우저가 'hidden' 시점엔 비동기 쓰기를 더 잘 완료시킴.
+    // 모바일에서 앱 전환·화면 끄기에도 발동하므로 데이터 유실 방어에 효과적.
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') saveNow();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [tree, inputText]);
+
+  // 트리/텍스트가 변할 때마다 IndexedDB에도 가벼운 백업 저장 (디바운스)
+  // 변경이 없으면(직전 저장과 동일) 직렬화·쓰기를 건너뛴다 — 불필요한 IndexedDB I/O 절감.
+  useEffect(() => {
+    if (!tree) return;
+    if (!settingsLoadedRef.current) return;
+    const t = setTimeout(() => {
+      const cleanTree = serializeTree(tree);
+      const snapshot = JSON.stringify({ tree: cleanTree, inputText });
+      // 직전에 저장한 내용과 같으면 건너뜀 (좌표 등 휘발성 필드는 serializeTree가 이미 제거)
+      if (lastLocalSaveRef.current === snapshot) return;
+      lastLocalSaveRef.current = snapshot;
+      writeActiveDoc({
+        savedAt: Date.now(),
+        tree: cleanTree,
+        inputText,
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line
+  }, [tree, inputText]);
+
+  // 통계
+  const stats = useMemo(() => {
+    if (!tree) return { nodes: 0, depth: 0, leaves: 0, groups: 0, boundaries: 0 };
+    let nodes = 0, leaves = 0;
+    function maxDepth(n, d) {
+      nodes++;
+      if (!n.children || n.children.length === 0) { leaves++; return d; }
+      return Math.max(...n.children.map(c => maxDepth(c, d + 1)));
+    }
+    const depth = maxDepth(tree, 1);
+    const groups = Array.isArray(tree.groups) ? tree.groups.length : 0;
+    const boundaries = Array.isArray(tree.boundaries) ? tree.boundaries.length : 0;
+    return { nodes, depth, leaves, groups, boundaries };
+  }, [tree]);
+
+  const selectedNode = useMemo(() => {
+    if (!tree || !selectedId) return null;
+    return findNode(tree, selectedId);
+  }, [tree, selectedId]);
+
+  // 우측 패널 표시 여부 = 설정 '우측 패널 표시'가 켜져 있거나(영구), "노드 세부 정보"로 임시로 열었거나.
+  const rightPanelVisible = settings.showRightPanel !== false || panelTempOpen;
+
+  // 강조(집중) 대상 id 집합 계산. 두 경로로 생김:
+  //  (a) 몰입 모드 + 노드를 클릭해 강조 중일 때 → 그 노드 기준
+  //  (b) 편집 중 집중 모드 옵션 ON + 편집/추가 중 → 편집 노드 기준
+  // 둘 중 하나라도 해당하면 경로+직속자식 집합 반환, 아니면 null(흐리기 없음).
+  const focusIds = useMemo(() => {
+    if (!tree) return null;
+    // (a) 몰입 모드: 클릭한 노드가 있으면 강조
+    if (viewMode === 'immerse') {
+      if (!immerseFocusId) return null;
+      return computeFocusIds(tree, immerseFocusId);
+    }
+    // (b) 편집 중 집중 모드
+    if (!settings.focusModeOnEdit) return null;
+    if (!editingId) return null;
+    return computeFocusIds(tree, editingId);
+  }, [tree, viewMode, immerseFocusId, settings.focusModeOnEdit, editingId]);
+
+  // 맵에 쓰인 모든 태그(중복 제거·가나다순) — 태그 필터 바에 표시
+  const allTags = useMemo(() => {
+    if (!tree) return [];
+    const set = new Set();
+    walk(tree, n => { (n.tags || []).forEach(t => set.add(t)); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [tree]);
+
+  // 태그 필터 적용 시 또렷하게 둘 노드 집합(매칭 노드 + 그 조상). null이면 필터 없음.
+  const tagVisibleIds = useMemo(() => {
+    if (!tree || tagFilter.length === 0) return null;
+    const active = new Set(tagFilter);
+    const visible = new Set();
+    const rec = (n, ancestors) => {
+      const path = ancestors.concat(n.id);
+      if ((n.tags || []).some(t => active.has(t))) path.forEach(id => visible.add(id));
+      (n.children || []).forEach(c => rec(c, path));
+    };
+    rec(tree, []);
+    return visible;
+  }, [tree, tagFilter]);
+  // 더 이상 존재하지 않는 태그는 필터에서 자동 제거(빈 필터로 모두 흐려지는 혼란 방지)
+  useEffect(() => {
+    setTagFilter(prev => {
+      const next = prev.filter(t => allTags.includes(t));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [allTags]);
+
+  // ─────────── 아이콘 모아보기(하단 바) ───────────
+  // 맵의 노드에 실제로 붙어 있는 아이콘 모음
+  const allNodeIcons = useMemo(() => {
+    if (!tree) return new Set();
+    const set = new Set();
+    walk(tree, n => { (n.icons || []).forEach(ic => set.add(ic)); });
+    return set;
+  }, [tree]);
+  // 설정의 줄 구성(iconRows)에 맞춰 '사용 중인' 아이콘만 줄별로 묶고, 어느 줄에도 없는 사용 아이콘은 '기타' 줄로.
+  // 한 줄(가로)로 펼쳐 보여줄 '사용 중' 아이콘 목록 — 설정 줄(iconRows) 순서를 정렬에만 반영,
+  // 어느 줄에도 없는 사용 아이콘은 맨 뒤로. 화면 폭은 CSS(max-width+flex-wrap)가 자동 처리.
+  const iconFilterChips = useMemo(() => {
+    if (allNodeIcons.size === 0) return [];
+    const cfg = Array.isArray(settings.iconRows) ? settings.iconRows : [];
+    const out = [];
+    const seen = new Set();
+    cfg.forEach(row => (row || []).forEach(ic => {
+      if (allNodeIcons.has(ic) && !seen.has(ic)) { seen.add(ic); out.push(ic); }
+    }));
+    allNodeIcons.forEach(ic => { if (!seen.has(ic)) { seen.add(ic); out.push(ic); } });
+    return out;
+  }, [allNodeIcons, settings.iconRows]);
+
+  // 하단 모아보기 바(아이콘/태그)의 높이를 측정 — 토스트(저장 안내 등)가 이 바와 겹치지 않게 위로 띄우기 위함
+  const bottomBarsRef = useRef(null);
+  const [bottomBarsH, setBottomBarsH] = useState(0);
+  useEffect(() => {
+    const el = bottomBarsRef.current;
+    if (!el) { setBottomBarsH(0); return; }
+    const measure = () => setBottomBarsH(el.offsetHeight || 0);
+    measure();
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);   // 칩 추가/제거·창 크기 변화로 줄바꿈돼 높이가 바뀌어도 따라감
+      ro.observe(el);
+    }
+    return () => { if (ro) ro.disconnect(); };
+  }, [iconFilterChips.length, allTags.length]);
+
+  // ── 관계선(cross-link) SVG 요소 — 트리/선택/드래그가 바뀔 때만 재계산(매 렌더 그리기 방지) ──
+  const crossLinkEls = useMemo(() => {
+    if (!tree) return { base: null, overlay: null };
+    const links = tree.links || [];
+    if (!links.length) return { base: null, overlay: null };
+    const vis = new Map();
+    walkVisible(tree, n => { vis.set(n.id, n); });
+    const rectEdge = (cx, cy, hw, hh, tx, ty) => {
+      const dx = tx - cx, dy = ty - cy;
+      if (!dx && !dy) return { x: cx, y: cy };
+      const s = Math.min(dx ? hw / Math.abs(dx) : Infinity, dy ? hh / Math.abs(dy) : Infinity);
+      return { x: cx + dx * s, y: cy + dy * s };
+    };
+    // 끝점 여백: 모든 관계선은 노드에서 약간(BASE_GAP) 떨어져 끝남.
+    // 선택된 노드는 box-shadow 강조 링(약 9px)이 노드 크기 밖에 그려지므로, 그 링만큼 더 띄워
+    // "보이는 경계에서 일정한 여백"이 되도록 통일 (선택/비선택 노드 사이 여백 불균형 해소).
+    const SELECT_RING = 9, BASE_GAP = 3;
+    const endGap = (node) => BASE_GAP + (selectedId === node.id ? SELECT_RING : 0);
+    const pushOut = (edge, cx, cy, gap) => {
+      if (gap <= 0) return edge;
+      const dx = edge.x - cx, dy = edge.y - cy, len = Math.hypot(dx, dy) || 1;
+      return { x: edge.x + dx / len * gap, y: edge.y + dy / len * gap };
+    };
+    // 자동 회피용 장애물: 보이는 모든 노드 사각형
+    const obstacles = [];
+    vis.forEach(n => obstacles.push({ id: n.id, x: n._x, y: n._y, w: n._w || NODE_W, h: n._h || nodeHeight(n) }));
+    // 2차 베지어가 (from,to 제외) 다른 노드 사각형을 지나는지 — 샘플링 검사
+    const bezierHitsNode = (sx, sy, cx, cy, ex, ey, skipF, skipT) => {
+      for (let t = 0.08; t < 0.93; t += 0.07) {
+        const u = 1 - t;
+        const x = u * u * sx + 2 * u * t * cx + t * t * ex;
+        const y = u * u * sy + 2 * u * t * cy + t * t * ey;
+        for (const o of obstacles) {
+          if (o.id === skipF || o.id === skipT) continue;
+          if (x >= o.x - 4 && x <= o.x + o.w + 4 && y >= o.y - 4 && y <= o.y + o.h + 4) return true;
+        }
+      }
+      return false;
+    };
+    // base: 노드 아래 일반 레이어 / overlay: 선택된 관계선(선+핸들)을 노드 위로 올려 가림 방지
+    const base = [], overlay = [];
+    links.forEach((l, i) => {
+      const a = vis.get(l.from), b = vis.get(l.to);
+      if (!a || !b) return; // 끝점이 접힘/삭제로 안 보이면 생략
+      const aw = a._w || NODE_W, ah = a._h || nodeHeight(a);
+      const bw = b._w || NODE_W, bh = b._h || nodeHeight(b);
+      const acx = a._x + aw / 2, acy = a._y + ah / 2;
+      const bcx = b._x + bw / 2, bcy = b._y + bh / 2;
+      const mx = (acx + bcx) / 2, my = (acy + bcy) / 2;
+      const key = l.from + '|' + l.to;
+      const isSel = selectedLinkKey === key;
+      const type = l.type || 'curve';
+      let d, labelPt, handlePt = null;
+      if (type === 'straight') {
+        const s = pushOut(rectEdge(acx, acy, aw / 2, ah / 2, bcx, bcy), acx, acy, endGap(a));
+        const e = pushOut(rectEdge(bcx, bcy, bw / 2, bh / 2, acx, acy), bcx, bcy, endGap(b));
+        d = `M ${s.x},${s.y} L ${e.x},${e.y}`;
+        labelPt = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 };
+      } else if (type === 'elbow') {
+        // ㄱ자(수평 우선): from 수평 가장자리 → 중간 x → to 수평 가장자리 (끝점 여백 포함)
+        const midx = (acx + bcx) / 2;
+        const sx = acx + (bcx >= acx ? 1 : -1) * (aw / 2 + endGap(a)), sy = acy;
+        const ex = bcx + (acx >= bcx ? 1 : -1) * (bw / 2 + endGap(b)), ey = bcy;
+        d = `M ${sx},${sy} L ${midx},${sy} L ${midx},${ey} L ${ex},${ey}`;
+        labelPt = { x: midx, y: (sy + ey) / 2 };
+      } else {
+        // 곡선: 3 웨이포인트 스플라인. basePoints = 저장된 points > (레거시 curve 또는 기본곡률+자동회피)에서 파생
+        let basePoints;
+        if (Array.isArray(l.points) && l.points.length === 3) {
+          basePoints = l.points;   // 사용자가 핸들로 조절 → 그대로(회피 안 함)
+        } else {
+          let midOff;
+          if (l.curve && Number.isFinite(l.curve.dx)) {
+            midOff = { dx: l.curve.dx, dy: l.curve.dy };   // 레거시 단일 제어점 → 중간 웨이포인트
+          } else {
+            const ddx = bcx - acx, ddy = bcy - acy, len = Math.hypot(ddx, ddy) || 1;
+            const baseK = Math.min(len * 0.18, 80);
+            const pxn = -ddy / len, pyn = ddx / len;   // 수직 단위벡터
+            let cdx = pxn * baseK, cdy = pyn * baseK;
+            // 자동 회피(기본 모양일 때만): 중간점이 다른 노드에 걸치면 곡률을 키우거나 반대로 휘게
+            const st0 = rectEdge(acx, acy, aw / 2, ah / 2, mx + cdx, my + cdy);
+            const et0 = rectEdge(bcx, bcy, bw / 2, bh / 2, mx + cdx, my + cdy);
+            if (bezierHitsNode(st0.x, st0.y, mx + cdx, my + cdy, et0.x, et0.y, l.from, l.to)) {
+              let avoided = false;
+              for (let mul = 1.4; mul <= 4.2 && !avoided; mul += 0.4) {
+                for (const sign of [1, -1]) {
+                  const tdx = pxn * baseK * mul * sign, tdy = pyn * baseK * mul * sign;
+                  const st = rectEdge(acx, acy, aw / 2, ah / 2, mx + tdx, my + tdy);
+                  const et = rectEdge(bcx, bcy, bw / 2, bh / 2, mx + tdx, my + tdy);
+                  if (!bezierHitsNode(st.x, st.y, mx + tdx, my + tdy, et.x, et.y, l.from, l.to)) {
+                    cdx = tdx; cdy = tdy; avoided = true; break;
+                  }
+                }
+              }
+            }
+            midOff = { dx: cdx, dy: cdy };
+          }
+          basePoints = linkDefaultPoints(acx, acy, bcx, bcy, midOff);
+        }
+        // 드래그 중이면 잡은 핸들(index)만 마우스 위치로 미리보기
+        let pts3 = basePoints;
+        if (linkDrag && linkDrag.from === l.from && linkDrag.to === l.to && typeof linkDrag.index === 'number') {
+          pts3 = basePoints.map((p, idx) => idx === linkDrag.index ? { dx: linkDrag.dx, dy: linkDrag.dy } : p);
+        }
+        const P = pts3.map(p => ({ x: mx + p.dx, y: my + p.dy }));
+        // 시작/끝점은 가까운 웨이포인트(P[0]/P[2]) 방향으로 노드 가장자리에서(+여백)
+        const s = pushOut(rectEdge(acx, acy, aw / 2, ah / 2, P[0].x, P[0].y), acx, acy, endGap(a));
+        const e = pushOut(rectEdge(bcx, bcy, bw / 2, bh / 2, P[2].x, P[2].y), bcx, bcy, endGap(b));
+        d = catmullRomPath([s, P[0], P[1], P[2], e]);
+        labelPt = P[1];
+        handlePt = { P, pts: pts3, mid: { x: mx, y: my } };
+      }
+      // 선택된 관계선은 '보이는 선·핸들'만 overlay(노드 위)로 올려 가림 방지. hit·라벨은 base(아래)에 둬 노드 클릭을 막지 않음
+      const lineTarget = isSel ? overlay : base;
+      const lw = l.width || 2;   // 두께(기본 2)
+      const ldash = l.dash === 'solid' ? 'none' : `${Math.round(lw * 3)} ${Math.round(lw * 2)}`;  // 실선/점선(점선은 두께 비례)
+      // 보이는 선(두께·점선/실선 인라인 적용)
+      lineTarget.push(<path key={'lk' + i} d={d} className={`cross-link-path ${isSel ? 'sel' : ''}`} markerEnd="url(#bb-link-arrow)" style={{ strokeWidth: lw, strokeDasharray: ldash }} />);
+      // 클릭 hit 영역(투명 굵은 선) — 좌클릭: 선택/해제, 우클릭: 옵션 메뉴 (항상 base: cross-link-path는 pointer-events:none 이라 overlay 선 클릭은 통과)
+      base.push(<path key={'lkhit' + i} d={d} className="cross-link-hit"
+        onClick={(ev) => { ev.stopPropagation(); setSelectedLinkKey(isSel ? null : key); }}
+        onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); setLinkMenu({ x: ev.clientX, y: ev.clientY, from: l.from, to: l.to }); }} />);
+      // 라벨 (base)
+      if (l.label) base.push(<text key={'lt' + i} x={labelPt.x} y={labelPt.y - 5} className="cross-link-label" textAnchor="middle">{l.label}</text>);
+      // 곡선이고 선택됐을 때만 드래그 핸들 3개(웨이포인트) 표시 — 각각 끌어 다양한 곡선
+      if (isSel && handlePt && handlePt.P) {
+        handlePt.P.forEach((pt, hi) => {
+          overlay.push(<circle key={'lkh' + i + '_' + hi} cx={pt.x} cy={pt.y} r="7"
+            className={`cross-link-handle ${hi === 1 ? 'mid' : ''}`}
+            onPointerDown={(ev) => startLinkDragRef.current(ev, l, handlePt.mid, hi, handlePt.pts)} />);
+        });
+      }
+    });
+    return { base, overlay };
+  }, [tree, selectedLinkKey, linkDrag, selectedId]);
+
+  // 아이콘 필터 적용 시 또렷하게 둘 노드 집합(매칭 노드 + 그 조상). null이면 필터 없음.
+  const iconVisibleIds = useMemo(() => {
+    if (!tree || iconFilter.length === 0) return null;
+    const active = new Set(iconFilter);
+    const visible = new Set();
+    const rec = (n, ancestors) => {
+      const path = ancestors.concat(n.id);
+      if ((n.icons || []).some(ic => active.has(ic))) path.forEach(id => visible.add(id));
+      (n.children || []).forEach(c => rec(c, path));
+    };
+    rec(tree, []);
+    return visible;
+  }, [tree, iconFilter]);
+
+  // ── 렌더 비용 절감: 캔버스 SVG/노드 요소를 useMemo로 분리 ──
+  // _x/_y는 layoutTree(tree)가 매 렌더 갱신하지만 '값'은 tree가 바뀔 때만 변하므로 tree를 키로 둔다.
+  // → 토스트·줌바·드라이브 상태 등 무관한 리렌더에서 전체 트리 재순회·요소 재생성을 건너뛴다.
+  const groupEls = useMemo(() => {
+    const gs = (tree && tree.groups) || [];
+    if (!tree || !gs.length) return null;
+    const visN = new Map();
+    walkVisible(tree, n => visN.set(n.id, n));
+    const out = [];
+    gs.forEach((g, gi) => {
+      const ns = (g.nodeIds || []).map(id => visN.get(id)).filter(Boolean);
+      if (ns.length < 1) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      ns.forEach(n => {
+        const w = n._w || NODE_W, h = n._h || nodeHeight(n);
+        minX = Math.min(minX, n._x); minY = Math.min(minY, n._y);
+        maxX = Math.max(maxX, n._x + w); maxY = Math.max(maxY, n._y + h);
+      });
+      if (!isFinite(minX)) return;
+      const pad = 22;
+      const gcolor = g.color || '#8f7fd6';
+      const isSelG = selectedGroupId === g.id;
+      out.push(
+        <rect key={'grp' + gi} x={minX - pad} y={minY - pad}
+          width={(maxX - minX) + pad * 2} height={(maxY - minY) + pad * 2}
+          rx="18" className={`group-rect ${isSelG ? 'sel' : ''}`} stroke={gcolor} fill={gcolor}
+          onClick={(ev) => { ev.stopPropagation(); setSelectedGroupId(isSelG ? null : g.id); }} />
+      );
+      out.push(
+        <text key={'grpl' + gi} x={minX - pad + 12} y={minY - pad + 19}
+          className="group-label" fill={gcolor}
+          onClick={(ev) => { ev.stopPropagation(); setSelectedGroupId(g.id); }}>{g.label || '그룹'}</text>
+      );
+    });
+    return out;
+  }, [tree, selectedGroupId]);
+
+  const boundaryEls = useMemo(() => {
+    const bs = (tree && tree.boundaries) || [];
+    if (!tree || !bs.length) return null;
+    const visibleIds = new Set();
+    walkVisible(tree, n => visibleIds.add(n.id));
+    const out = [];
+    bs.forEach((b, i) => {
+      const anchor = findNode(tree, b.nodeId);
+      if (!anchor || !visibleIds.has(anchor.id)) return;
+      const nodes = [];
+      (function rec(n) { nodes.push(n); if (!n.collapsed && n.children) n.children.forEach(rec); })(anchor);
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach(n => {
+        const w = n._w || NODE_W, h = n._h || nodeHeight(n);
+        minX = Math.min(minX, n._x); minY = Math.min(minY, n._y);
+        maxX = Math.max(maxX, n._x + w); maxY = Math.max(maxY, n._y + h);
+      });
+      if (!isFinite(minX)) return;
+      // 중첩(부모·자식 둘 다 경계)·인접 박스의 점선이 겹쳐 보이지 않게, 안쪽일수록 여백을 줄여 단계적으로 들여쓴다.
+      // depth = 이 경계의 앵커가 다른 경계 앵커의 자손인 횟수 → 깊을수록 pad 작게.
+      let depth = 0;
+      bs.forEach(other => {
+        if (other === b || other.nodeId === b.nodeId) return;
+        const oa = findNode(tree, other.nodeId);
+        if (oa && oa !== anchor && findNode(oa, b.nodeId)) depth++;   // b의 앵커가 other 앵커의 하위면
+      });
+      // 가로 여백(padX)은 넉넉히, 세로 여백(padY)은 작게 — 위·아래로 인접한 다른 그룹 박스끼리 점선이 겹치지 않게.
+      // (형제 노드 세로 간격보다 padY*2가 작아야 인접 그룹이 안 겹침). 중첩 깊이일수록 더 줄임.
+      const padX = Math.max(2, 13 - depth * 10);
+      const padY = Math.max(2, 8 - depth * 6);
+      const color = COLORS[anchor.color || 'slate']?.bg || '#647396';
+      out.push(
+        <rect key={'bd' + i} x={minX - padX} y={minY - padY}
+          width={(maxX - minX) + padX * 2} height={(maxY - minY) + padY * 2}
+          rx="13" className="boundary-rect" stroke={color} fill={color} />
+      );
+    });
+    return out;
+  }, [tree]);
+
+  const connectorEls = useMemo(() => {
+    if (!tree) return null;
+    const lines = [];
+    walkVisible(tree, n => {
+      if (!n.children) return;
+      if (n !== tree && n.collapsed === true) return;
+      const nw = n._w || NODE_W;
+      const nh = n._h || nodeHeight(n);
+      n.children.forEach(c => {
+        const isLeft = c._side === 'left';
+        const fromX = isLeft ? n._x : n._x + nw;
+        const fromY = n._y + nh / 2;
+        const toX = isLeft ? c._x + (c._w || NODE_W) : c._x;
+        const toY = c._y + (c._h || nodeHeight(c)) / 2;
+        const cx1 = fromX + (toX - fromX) * 0.5;
+        const cx2 = fromX + (toX - fromX) * 0.5;
+        const color = COLORS[c.color || 'slate']?.bg || '#647396';
+        lines.push(
+          <path
+            key={`${n.id}-${c.id}`}
+            d={`M ${fromX} ${fromY} C ${cx1} ${fromY}, ${cx2} ${toY}, ${toX} ${toY}`}
+            stroke={color}
+            strokeWidth="2"
+            fill="none"
+            opacity="0.7"
+          />
+        );
+      });
+    });
+    return lines;
+  }, [tree]);
+
+  // 노드별 할 일 진행률 맵(done/total) — 트리가 바뀔 때만 재계산해 맵·아웃라인이 공유
+  // (예전엔 nodeEls가 클릭·드래그·검색 등 모든 상호작용마다 O(n) 재순회했다)
+  const outlineTaskMap = useMemo(() => (tree ? computeTaskProgress(tree) : new Map()), [tree]);
+
+  const nodeEls = useMemo(() => {
+    if (!tree) return null;
+    const els = [];
+    const rootChildIds = new Set((tree.children || []).map(c => c.id));
+    const taskMap = outlineTaskMap;              // 노드별 하위 작업 완료/전체 (진행률 표시용)
+    walkVisible(tree, n => {
+      const isRoot = n.id === tree.id;
+      const isRootChild = rootChildIds.has(n.id);
+      const isSelected = selectedId === n.id;
+      const isDropTarget = dropTargetId === n.id;
+      const isEditing = editingId === n.id;
+      const color = COLORS[n.color || 'navy']?.bg || '#3a6ea5';
+      const isSearchMatch = searchOpen && searchMatchIds.includes(n.id);
+      const isSearchFocus = searchOpen && searchMatchIds[searchPos] === n.id;
+      const isDimmed = (focusIds !== null && !focusIds.has(n.id)) || (tagVisibleIds !== null && !tagVisibleIds.has(n.id)) || (iconVisibleIds !== null && !iconVisibleIds.has(n.id));
+      const tp = taskMap.get(n.id) || { done: 0, total: 0 };
+      els.push(
+        <NodeView
+          key={n.id}
+          node={n}
+          nx={n._x} ny={n._y} nw={n._w} nside={n._side}
+          isRoot={isRoot}
+          isRootChild={isRootChild}
+          isSelected={isSelected}
+          isGroupSel={groupSelectIds.includes(n.id)}
+          isDropTarget={isDropTarget}
+          isEditing={isEditing}
+          color={color}
+          settings={settings}
+          isSearchMatch={isSearchMatch}
+          isSearchFocus={isSearchFocus}
+          isDimmed={isDimmed}
+          isTask={n.task === true}
+          isDone={n.done === true}
+          taskDone={tp.done}
+          taskTotal={tp.total}
+          onToggleDone={() => nodeActionsRef.current.updateNode(n.id, nn => { nn.done = !nn.done; }, { label: '완료 토글' })}
+          onSelect={(e) => {
+            const A = nodeActionsRef.current;
+            if (A.linkSourceId) { A.addLink(A.linkSourceId, n.id); return; }
+            if (e && e.shiftKey) { A.toggleGroupSelectNode(n.id); return; }
+            if (A.viewMode === 'immerse') { A.setImmerseFocusId(n.id); A.setSelectedId(n.id); return; }
+            A.setGroupSelectIds([]);
+            A.setSelectedId(n.id); A.setEditingId(null);
+          }}
+          onStartEdit={() => {
+            const A = nodeActionsRef.current;
+            if (A.viewMode === 'immerse') return;
+            A.setEditingId(n.id);
+          }}
+          onFinishEdit={(newLabel, keepAuto) => {
+            const A = nodeActionsRef.current;
+            A.setEditingId(null);
+            // keepAuto: 자동(샘플) 라벨을 그대로 둠 — 트리 변경 없이 편집만 종료(★샘플★ 표시 유지)
+            if (keepAuto) return;
+            A.updateNode(n.id, nn => { nn.label = newLabel; delete nn._autoLabel; }, { label: '라벨 변경' });
+          }}
+          onCancelEmpty={() => {
+            const A = nodeActionsRef.current;
+            A.setEditingId(null);
+            A.cancelNewNode(n.id);
+          }}
+          onAddChild={() => nodeActionsRef.current.addChild(n.id, { label: '', startEditing: true })}
+          onDelete={() => nodeActionsRef.current.deleteNode(n.id)}
+          onToggleIcon={(ic) => nodeActionsRef.current.toggleNodeIcon(n.id, ic)}
+          onSetSide={(side) => nodeActionsRef.current.setNodeSide(n.id, side)}
+          onToggleCollapse={() => nodeActionsRef.current.toggleCollapse(n.id)}
+          onDragStart={(e) => nodeActionsRef.current.handleDragStart(e, n.id)}
+          onDragOver={(e) => nodeActionsRef.current.handleDragOver(e, n.id)}
+          onDrop={(e) => nodeActionsRef.current.handleDrop(e, n.id)}
+          onDragEnd={() => { const A = nodeActionsRef.current; A.setDragInfo(null); A.setDropTargetId(null); }}
+          onResizeStart={(e) => nodeActionsRef.current.startNodeResize(e, n.id)}
+          onResizeReset={() => nodeActionsRef.current.resetNodeWidth(n.id)}
+        />
+      );
+    });
+    return els;
+  }, [tree, selectedId, dropTargetId, editingId, searchOpen, searchMatchIds, searchPos, focusIds, tagVisibleIds, iconVisibleIds, groupSelectIds, settings, outlineTaskMap]);
+
+  // 더 이상 맵에 없는 아이콘은 필터에서 자동 제거
+  useEffect(() => {
+    setIconFilter(prev => {
+      const next = prev.filter(ic => allNodeIcons.has(ic));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [allNodeIcons]);
+
+  // 노드 선택이 바뀌면 태그 입력칸 비우기
+  useEffect(() => { setTagInput(''); }, [selectedId]);
+  // 노드 선택을 해제할 때마다 영감 격언을 새로 뽑음 (빈 우측 패널에 표시)
+  useEffect(() => { if (!selectedId) setEmptyQuoteIdx(Math.floor(Math.random() * INSPIRATION_QUOTES.length)); }, [selectedId]);
+  // ── 노드 겹침 자가 감지·복구 (이중 안전장치) ──
+  // 판정은 줌·스크롤과 무관한 '논리 좌표(_x/_y)'로 — 자동맞춤으로 줌이 작아져도 정상 맵을 겹침으로 오판하지 않게.
+  const overlapFixRef = useRef(0);
+  useEffect(() => {
+    if (!tree) return;
+    const t = setTimeout(() => {
+      const xs = [], ys = [];
+      let cnt = 0;
+      walkVisible(tree, n => { cnt++; xs.push(n._x || 0); ys.push(n._y || 0); });
+      if (cnt < 3) return;
+      const spanX = Math.max(...xs) - Math.min(...xs);
+      const spanY = Math.max(...ys) - Math.min(...ys);
+      // 노드 여러 개의 논리 좌표가 60px 이내로 뭉치면 = 진짜 겹침(레이아웃 실패). 정상 맵은 수천 px로 퍼져 있음.
+      if (spanX < 60 && spanY < 60 && overlapFixRef.current < 4) {
+        overlapFixRef.current++;
+        let hasCollapsed = false;
+        walk(tree, n => { if (n.collapsed === true) hasCollapsed = true; });
+        console.warn('[BrainBloom] 노드 겹침 감지 → 자동 복구', { try: overlapFixRef.current, spanX: Math.round(spanX), spanY: Math.round(spanY), zoom: zoomRef.current, layoutW: Math.round(layoutInfo.width), hasCollapsed });
+        if (hasCollapsed) {
+          // 접힘 상태에서 겹침이 생기는 케이스 — '전체 펼치기'가 확실히 정상화시킴(사용자 확인). 자동으로 펼친다.
+          const nt = cloneTree(tree);
+          walk(nt, n => { delete n.collapsed; });
+          syncSourceRef.current = 'tree';
+          setTree(nt);
+          showToast('노드가 겹쳐서 자동으로 모두 펼쳤어요');
+        } else {
+          // 접힘이 없는데도 겹치면 줌·스크롤·배치를 통째로 리셋
+          setZoom(1);
+          const el = canvasScrollRef.current; if (el) { el.scrollTop = 0; el.scrollLeft = 0; }
+          didAutoFitRef.current = false;
+          setTree(prev => prev ? cloneTree(prev) : prev);
+        }
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [tree]);
+  // 관계선 만들기 모드 중 Esc → 취소
+  useEffect(() => {
+    if (!linkSourceId) return;
+    const onKey = (e) => { if (e.key === 'Escape') setLinkSourceId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [linkSourceId]);
+
+  // ─────────── 오늘의 격언 계산 ───────────
+  // 설정의 quoteSource에 따라 샘플/사용자/둘다 중에서 오늘의 격언 하나를 고름
+  const todayQuote = useMemo(() => {
+    const custom = Array.isArray(settings.customQuotes) ? settings.customQuotes.filter(q => q && q.trim()) : [];
+    const src = settings.quoteSource || 'sample';
+    let pool;
+    if (src === 'custom') {
+      // 사용자 격언만. 없으면 샘플로 폴백
+      pool = custom.length > 0 ? custom : SAMPLE_QUOTES;
+    } else if (src === 'both') {
+      pool = [...SAMPLE_QUOTES, ...custom];
+    } else {
+      pool = SAMPLE_QUOTES;
+    }
+    return pickTodayQuote(pool);
+  }, [settings.quoteSource, settings.customQuotes]);
+
+  // ── NodeView 콜백 최신화 (stale closure 차단) ──
+  // NodeView는 React.memo로 감싸져 있고 비교 함수가 콜백을 무시하므로,
+  // 리렌더되지 않은 노드는 "옛 렌더의 콜백"을 계속 들고 있다. 그 콜백이 viewMode·tree 등을
+  // 직접 캡처하면 낡은 값으로 동작한다(예: 몰입 모드 전환 직후 클릭이 옛 편집 모드 로직을 탐,
+  // 옛 tree를 cloneTree해 최근 편집을 날릴 위험). 매 렌더마다 최신 함수/상태를 이 ref에 담고,
+  // 콜백은 ref를 경유해 호출하게 해 — 콜백 객체가 낡아도 항상 최신 로직을 타게 만든다.
+  const nodeActionsRef = useRef({});
+  nodeActionsRef.current = {
+    viewMode, setSelectedId, setEditingId, setImmerseFocusId,
+    updateNode, cancelNewNode, addChild, deleteNode,
+    toggleNodeIcon, setNodeSide, toggleCollapse, startNodeResize, resetNodeWidth,
+    handleDragStart, handleDragOver, handleDrop, setDragInfo, setDropTargetId,
+    linkSourceId, addLink,
+    toggleGroupSelectNode, setGroupSelectIds,
+  };
+
+  return (
+    <>
+      <div className={`header ${settings.minimalHeader ? 'minimal' : ''}`}>
+        {settings.minimalHeader !== true && (
+        <div className="brand">
+          <svg className="brand-logo" viewBox="0 0 96 96" role="img" aria-label="BrainBloom">
+            <defs>
+              <linearGradient id="bbFunnel" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#3a86ff" />
+                <stop offset="1" stopColor="#00b4d8" />
+              </linearGradient>
+            </defs>
+            <rect width="96" height="96" rx="22" fill="url(#bbFunnel)" />
+            <circle cx="32" cy="22" r="3.5" fill="#ffd60a" />
+            <circle cx="44" cy="17" r="3.5" fill="#ff5d8f" />
+            <circle cx="56" cy="20" r="3.5" fill="#06d6a0" />
+            <circle cx="64" cy="25" r="3" fill="#80ed99" />
+            <circle cx="38" cy="27" r="3" fill="#ffb703" />
+            <path d="M24 32h48l-15 22v8H39v-8z" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M48 68l2.5 7 7 .5-5.5 4.5 2 7-6-4-6 4 2-7-5.5-4.5 7-.5z" fill="#fff" />
+          </svg>
+          <div className="brand-mark">Brain<em>Bloom</em></div>
+          <div
+            className="brand-tag"
+            title={`BrainBloom v${APP_VERSION} (빌드: ${APP_BUILD_DATE})\n변경 이력은 CHANGELOG.md 참고`}
+          >
+            v{APP_VERSION}
+          </div>
+        </div>
+        )}
+        {/* 타이머 칩 — brand에서 분리해 헤더 중앙에 독립 배치.
+            미니멀 모드에서도 표시되며, 좌측 패널과 겹치지 않음.
+            시간 클릭으로 시작/일시정지, ↺ 버튼으로 리셋.
+            urgent 클래스: running + 남은 시간 1분 이내 → 빨강↔파랑 점멸로 마감 임박 알림 */}
+        <TimerChip
+          timerState={timerState}
+          timerEndAt={timerEndAt}
+          timerRemainingMs={timerRemainingMs}
+          defaultMs={(settings.timerMinutes || 3) * 60 * 1000}
+          timerFlash={timerFlash}
+          timerMinutes={settings.timerMinutes}
+          onMainClick={handleTimerClick}
+          onReset={resetTimer}
+        />
+        <div className="header-actions">
+          {/* 문서 전환·관리 — 미니멀/모바일에서도 항상 보이게 (doc-switch-btn) */}
+          <button
+            className="btn icon-btn doc-switch-btn"
+            onClick={() => { setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); setDriveDocs(null); setMgrDrivePreview(null); setShowDriveBackups(false); refreshDocList(); setShowDocs(true); }}
+            title="문서 전환 · 새 문서 만들기 (여러 문서를 따로 보관해요)"
+          >
+            📄 <span className="btn-label">{currentDocName.length > 14 ? currentDocName.slice(0, 14) + '…' : currentDocName}</span>
+            {docList.length > 1 && <span className="doc-count">{docList.length}</span>}
+          </button>
+          {/* 맵 ↔ 아웃라인(목록) 전환 — 미니멀/모바일에서도 항상 보이게 (view-toggle-btn) */}
+          <button
+            className="btn icon-btn view-toggle-btn"
+            onClick={() => { setOutlineView(v => !v); setChartView(null); setEditingId(null); }}
+            title={outlineView ? '마인드맵 화면으로 돌아가기' : '아웃라인(목록) 화면으로 보기'}
+          >
+            {outlineView ? <MapGlyph /> : <OutlineGlyph />}
+            <span className="btn-label">{outlineView ? '지도' : '아웃라인'}</span>
+          </button>
+          <button
+            className={`btn icon-btn view-toggle-btn${chartView === 'gantt' ? ' active' : ''}`}
+            onClick={() => { setChartView(v => v === 'gantt' ? null : 'gantt'); setOutlineView(false); setEditingId(null); }}
+            title="간트 차트로 보기 (일정 · G)"
+          >
+            📊 <span className="btn-label">간트</span>
+          </button>
+          <button
+            className={`btn icon-btn view-toggle-btn${chartView === 'timeline' ? ' active' : ''}`}
+            onClick={() => { setChartView(v => v === 'timeline' ? null : 'timeline'); setOutlineView(false); setEditingId(null); }}
+            title="타임라인으로 보기 (일정 · T)"
+          >
+            🕒 <span className="btn-label">타임라인</span>
+          </button>
+          {settings.showToolbarButtons !== false && settings.minimalHeader !== true && (
+          <>
+          <button
+            className="btn icon-btn"
+            onClick={() => setConfirmNewFile(true)}
+            title="모든 내용을 지우고 빈 다이어그램으로 시작합니다"
+          >
+            ✨ <span className="btn-label">새로 시작</span>
+          </button>
+          {settings.showUndoRedo !== false && (
+          <>
+          <div className="header-divider" />
+          <button
+            className="btn icon-btn"
+            onClick={undo}
+            disabled={history.length === 0}
+            title={history.length > 0 ? `실행 취소: ${history[history.length-1].label} (Ctrl+Z)` : '실행 취소할 작업 없음'}
+          >
+            ↶ <span className="btn-label">Undo</span>
+          </button>
+          <button
+            className="btn icon-btn"
+            onClick={redo}
+            disabled={future.length === 0}
+            title={future.length > 0 ? `다시 실행: ${future[future.length-1].label} (Ctrl+Shift+Z)` : '다시 실행할 작업 없음'}
+          >
+            ↷ <span className="btn-label">Redo</span>
+          </button>
+          </>
+          )}
+          </>
+          )}
+          {(() => {
+            // 저장 버튼 메타 (형식 키 → 라벨)
+            const SAVE_BTN_META = {
+              pdf:  { label: 'PDF' },
+              jpg:  { label: 'JPG' },
+              svg:  { label: 'SVG' },
+              csv:  { label: 'CSV' },
+              json: { label: '저장' }, // JSON 백업 저장 — 라벨은 '저장', 형식 설명은 툴팁에
+              md:   { label: 'MD' },
+            };
+            // 그룹 구성: 이미지 / 문서 / 텍스트(불러오기 가능 — JSON 저장 + 📂 열기)
+            const GROUPS = [
+              { cap: '이미지', keys: ['jpg', 'svg'] },
+              { cap: '문서', keys: ['pdf', 'csv', 'md'] },
+              { cap: '', keys: ['json'] }, // 캡션 없이 '저장' 버튼만
+            ];
+            // 미니멀 헤더에선 저장 버튼도 숨김 (캘린더·AI·설정만 남김)
+            if (settings.minimalHeader === true) return null;
+            const vis = settings.visibleSaveButtons || [];
+            const rendered = GROUPS
+              .map(g => ({ ...g, show: g.keys.filter(k => vis.includes(k)) }))
+              .filter(g => g.show.length > 0);
+            if (rendered.length === 0) return null;
+            return (
+              <>
+                <div className="header-divider" />
+                {rendered.map((g, gi) => (
+                  <React.Fragment key={g.cap}>
+                    {gi > 0 && <div className="header-divider" style={{ opacity: 0.45 }} />}
+                    {g.cap && (
+                      <span style={{ fontSize: 10.5, color: 'var(--ink-soft)', letterSpacing: '0.5px', whiteSpace: 'nowrap', margin: '0 2px' }}>{g.cap}</span>
+                    )}
+                    {g.show.map(fmt => (
+                      <button
+                        key={fmt}
+                        className="btn"
+                        onClick={() => saveAll([fmt])}
+                        title={fmt === 'json'
+                          ? 'JSON 백업으로 저장 — 설정의 "📂 JSON 백업 파일 열기"로 다시 불러올 수 있어요'
+                          : `${SAVE_BTN_META[fmt].label} 형식으로 저장`}
+                      >
+                        {SAVE_BTN_META[fmt].label}
+                      </button>
+                    ))}
+                  </React.Fragment>
+                ))}
+                <div className="header-divider" />
+              </>
+            );
+          })()}
+          <button
+            className="btn icon-btn"
+            onClick={() => addToGoogleCalendar()}
+            title="오늘 일정으로 구글 캘린더에 추가 (새 탭)"
+          >
+            📅 <span className="btn-label">캘린더에 추가</span>
+          </button>
+          <button
+            className="btn icon-btn"
+            onClick={() => sendToAI()}
+            title={`${(AI_SERVICES[settings.aiService] || AI_SERVICES.chatgpt).name}으로 요약 요청 (클립보드 복사 + 새 탭)`}
+          >
+            🤖 <span className="btn-label">AI 요약</span>
+          </button>
+          <div className="header-divider" />
+          <button
+            className="btn icon-btn settings-btn"
+            onClick={() => {
+              // 알림 켜짐 + 자동저장 켜짐 + 위험(실패/끊김)이면, 설정 열며 드라이브 섹션으로 스크롤
+              if (settings.driveAlertEnabled && settings.driveAutoSave && (driveAutoFailed || (!driveSignedIn && !driveLinkedPending))) {
+                setScrollToDriveOnOpen(true);
+              }
+              setShowSettings(true);
+            }}
+            title={(() => {
+              // 아래 style의 색 분기와 "정확히 같은 조건"으로 설명을 맞춘다 (조건 불일치 방지)
+              const legend = '— 글자 색 안내 —\n파랑: 드라이브 자동저장 작동 중\n빨강: 연결 문제로 자동저장 멈춤\n기본색: 자동저장 꺼짐';
+              if (!settings.driveAlertEnabled) {
+                return `설정 열기 · 지금: 기본색 (상태 색 알림 꺼짐)\n${legend}`;
+              }
+              if (settings.driveAutoSave && (driveAutoFailed || (!driveSignedIn && !driveLinkedPending))) {
+                return `⚠ 지금: 빨강 — 드라이브 연결 문제로 자동저장이 멈췄어요. 클릭하면 연결 화면으로 이동합니다.\n${legend}`;
+              }
+              if (settings.driveAutoSave && driveSignedIn && !driveAutoFailed) {
+                return `지금: 파랑 — 드라이브 자동저장이 정상 작동 중입니다.\n${legend}`;
+              }
+              return `설정 열기 · 지금: 기본색 (드라이브 자동저장 꺼짐)\n${legend}`;
+            })()}
+            style={
+              // 알림 꺼짐이면 색 변화 없음(평소). 켜짐이면: 위험→빨강 / 정상→파랑 / 그외→평소
+              !settings.driveAlertEnabled
+                ? undefined
+                : (settings.driveAutoSave && (driveAutoFailed || (!driveSignedIn && !driveLinkedPending)))
+                  ? { color: '#e5484d', fontWeight: 800 }
+                  : (settings.driveAutoSave && driveSignedIn && !driveAutoFailed)
+                    ? { color: 'var(--navy)', fontWeight: 600 }
+                    : undefined
+            }
+          >
+            ⚙ <span className="btn-label">설정</span>
+          </button>
+        </div>
+      </div>
+
+      <div className={`layout ${settings.showLeftPanel === false ? 'no-left-panel' : ''} ${!rightPanelVisible ? 'no-right-panel' : ''}`}>
+        {/* ========== 좌측 패널 ========== */}
+        {settings.showLeftPanel !== false && (
+        <div className="left-panel">
+          <div className="panel-header">
+            <div className="panel-title">
+              <span className="num">01</span>
+              <span>아이디어 입력</span>
+              <span className="sync-badge">자동 동기화</span>
+            </div>
+            <div className="panel-sub">
+              텍스트로 적거나, 다이어그램에서 추가하면 양쪽이 자동으로 동기화됩니다.
+            </div>
+          </div>
+          {todayQuote && (
+            <div className="today-quote-wrap">
+              <div className="today-quote" title="오늘의 격언 (설정에서 변경 가능)">
+                <div className="today-quote-label">✨ 오늘의 격언</div>
+                <div className="today-quote-text">{todayQuote}</div>
+              </div>
+            </div>
+          )}
+          <textarea
+            ref={textInputRef}
+            className="text-input"
+            value={inputText}
+            onChange={handleTextChange}
+            onKeyDown={handleTextKeyDown}
+            spellCheck={false}
+            placeholder="예시:&#10;2026년 5월 28일 소중한 것 먼저 하기&#10;  오늘의 할일&#10;  회사에서 할일"
+          />
+          <button
+            className="panel-close-btn bottom"
+            onClick={() => setSettings(s => ({ ...s, showLeftPanel: false }))}
+            title="좌측 패널 숨기기 (설정 > 화면에서 다시 켤 수 있어요)"
+          >✕ 패널 닫기</button>
+        </div>
+        )}
+
+        {/* ========== 중앙 캔버스 ========== */}
+        <div className="canvas-wrap">
+          {searchOpen && (
+            <div className="node-search">
+              <span className="node-search-icon">🔍</span>
+              <input
+                ref={searchInputRef}
+                className="node-search-input"
+                type="text"
+                placeholder="노드 검색…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+                  else if (e.key === 'Enter') { e.preventDefault(); gotoSearchMatch(e.shiftKey ? -1 : 1); }
+                }}
+              />
+              <span className="node-search-count">
+                {searchQuery.trim()
+                  ? (searchMatchIds.length > 0 ? `${searchPos + 1}/${searchMatchIds.length}` : '0')
+                  : ''}
+              </span>
+              <button className="node-search-btn" onClick={() => gotoSearchMatch(-1)} disabled={searchMatchIds.length === 0} title="이전 (Shift+Enter)">↑</button>
+              <button className="node-search-btn" onClick={() => gotoSearchMatch(1)} disabled={searchMatchIds.length === 0} title="다음 (Enter)">↓</button>
+              <button className="node-search-btn" onClick={closeSearch} title="닫기 (Esc)">×</button>
+            </div>
+          )}
+          <div
+            className={`canvas-toolbar ${zoomBarVisible ? 'visible' : ''}`}
+            onMouseEnter={() => { zoomBarHoverRef.current = true; }}
+            onMouseLeave={() => { zoomBarHoverRef.current = false; }}
+          >
+            <button className="toolbar-btn" onClick={() => zoomBy(-0.1)}>−</button>
+            <div className="toolbar-label">{Math.round(zoom * 100)}%</div>
+            <button className="toolbar-btn" onClick={() => zoomBy(0.1)}>+</button>
+            <button className="toolbar-btn" onClick={zoomReset} title="원본 크기">⊙</button>
+            <button className="toolbar-btn" onClick={fitToScreen} title="전체가 보이게 맞춤">⊡</button>
+            <div className="toolbar-sep" />
+            <button className="toolbar-btn" onClick={collapseToFirstLevel} title="1단계만 보기 (큰 가지만)">⊟</button>
+            <button className="toolbar-btn" onClick={expandAll} title="전체 펼치기">⊞</button>
+          </div>
+
+          {settings.showCanvasHint !== false && (
+          <div className="zoom-hint">
+            <kbd>Ctrl</kbd>+휠 확대 · 빈 공간 드래그로 이동
+          </div>
+          )}
+
+          {/* 관계선 만들기 안내 배너 — 시작 노드 지정 후 대상 클릭 대기 */}
+          {linkSourceId && (
+            <div className="link-mode-banner">
+              🔗 관계선: <b>대상 노드를 클릭</b>하세요
+              <button onClick={() => setLinkSourceId(null)} title="취소 (Esc)">✕ 취소</button>
+            </div>
+          )}
+
+          {/* 자유 그룹 — Shift+클릭으로 2개 이상 고르면 "그룹으로 묶기" 배너 */}
+          {groupSelectIds.length >= 2 && (
+            <div className="group-make-banner">
+              <span><b>{groupSelectIds.length}개</b> 노드 선택됨</span>
+              <button className="gmb-make" onClick={createGroup}>🔗 그룹으로 묶기</button>
+              <button className="gmb-clear" onClick={() => setGroupSelectIds([])} title="선택 해제">✕</button>
+            </div>
+          )}
+
+          {/* 자유 그룹 관리 배너 — 그룹 박스를 클릭해 선택했을 때 */}
+          {selectedGroupId && tree && (() => {
+            const g = (tree.groups || []).find(x => x.id === selectedGroupId);
+            if (!g) return null;
+            return (
+              <div className="group-edit-banner">
+                <span className="leb-label">▢ 그룹</span>
+                <input className="geb-name" value={g.label || ''} placeholder="그룹 이름"
+                  onChange={(e) => updateGroup(g.id, { label: e.target.value })} />
+                <span className="geb-colors">
+                  {GROUP_COLORS.map(c => (
+                    <button key={c} className={`geb-color ${g.color === c ? 'on' : ''}`} style={{ background: c }}
+                      onClick={() => updateGroup(g.id, { color: c })} title="그룹 색" />
+                  ))}
+                </span>
+                <button className="geb-del" onClick={() => removeGroup(g.id)}>해제</button>
+                <button className="leb-close" onClick={() => setSelectedGroupId(null)} title="닫기">✕</button>
+              </div>
+            );
+          })()}
+
+          {/* 관계선 종류 선택 배너 — 관계선을 클릭해 선택했을 때 (만들기 모드 아닐 때만) */}
+          {selectedLinkKey && !linkSourceId && tree && (() => {
+            const [f, t] = selectedLinkKey.split('|');
+            const lk = (tree.links || []).find(l => l.from === f && l.to === t);
+            if (!lk) return null;
+            const ct = lk.type || 'curve';
+            return (
+              <div className="link-edit-banner">
+                <span className="leb-label">🔗 관계선</span>
+                <button className={ct === 'curve' ? 'on' : ''} onClick={() => setLinkType(f, t, 'curve')} title="곡선 (노드에 걸치면 자동으로 피함)">곡선</button>
+                <button className={ct === 'straight' ? 'on' : ''} onClick={() => setLinkType(f, t, 'straight')} title="직선">직선</button>
+                <button className={ct === 'elbow' ? 'on' : ''} onClick={() => setLinkType(f, t, 'elbow')} title="직각선(꺾은선)">직각</button>
+                <span className="leb-sep" />
+                <button className="leb-del" onClick={() => { removeLink(f, t); setSelectedLinkKey(null); }} title="관계선 삭제">삭제</button>
+                <button className="leb-close" onClick={() => setSelectedLinkKey(null)} title="닫기">✕</button>
+              </div>
+            );
+          })()}
+
+          {/* 하단 모아보기 — 아이콘 바 + 태그 바를 한 줄(가로)에 나란히. 화면 폭을 넘치면 자동 줄바꿈 */}
+          {(iconFilterChips.length > 0 || allTags.length > 0) && (
+            <div className="bottom-bars" ref={bottomBarsRef}>
+              {/* 아이콘 모아보기 — 맵에 아이콘이 있을 때만. 누르면 해당 아이콘 노드(+조상)만 또렷 */}
+              {iconFilterChips.length > 0 && (
+                <div className="icon-filter-bar">
+                  <span className="icon-filter-label">🎨 Icons</span>
+                  {iconFilterChips.map(ic => (
+                    <button
+                      key={ic}
+                      className={`icon-filter-chip ${iconFilter.includes(ic) ? 'on' : ''}`}
+                      onClick={() => setIconFilter(prev => prev.includes(ic) ? prev.filter(x => x !== ic) : [...prev, ic])}
+                      title={iconFilter.includes(ic) ? '선택 해제' : '이 아이콘만 보기'}
+                    >{ic}</button>
+                  ))}
+                  {iconFilter.length > 0 && (
+                    <button className="icon-filter-clear" onClick={() => setIconFilter([])} title="선택 해제">✕ 선택 해제</button>
+                  )}
+                </div>
+              )}
+              {/* 태그 필터 바 — 맵에 태그가 있을 때만. 누르면 해당 태그 노드(+조상)만 또렷 */}
+              {allTags.length > 0 && (
+                <div className="tag-filter-bar">
+                  <span className="tag-filter-label">🏷 Tags</span>
+                  {allTags.map(t => (
+                    <button
+                      key={t}
+                      className={`tag-chip ${tagFilter.includes(t) ? 'on' : ''}`}
+                      onClick={() => setTagFilter(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                      title={tagFilter.includes(t) ? '선택 해제' : '이 태그만 보기'}
+                    >#{t}</button>
+                  ))}
+                  {tagFilter.length > 0 && (
+                    <button className="tag-chip clear" onClick={() => setTagFilter([])} title="선택 해제">✕ 선택 해제</button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className={`canvas-scroll ${isPanning ? 'panning' : ''}`} ref={canvasScrollRef}>
+            <div
+              className="canvas-inner"
+              style={{
+                // 맵의 실제(줌 적용) 크기 + 여백, 단 최소 뷰포트 크기 보장
+                minWidth: '100%',
+                minHeight: '100%',
+                width: 'max-content',
+                height: 'max-content',
+              }}
+              onClick={() => {
+                setSelectedId(null);
+                setEditingId(null);
+                setSelectedLinkKey(null);   // 관계선 선택(핸들) 해제
+                setSelectedGroupId(null);   // 그룹 선택 해제
+                setGroupSelectIds([]);      // 다중 선택 해제
+                // 바탕 클릭 → "노드 세부 정보"로 임시로 연 우측 패널은 닫는다.
+                // (설정 '우측 패널 표시'로 켜 둔 영구 표시는 그대로 유지 — rightPanelVisible이 설정값으로 계속 true)
+                setPanelTempOpen(false);
+                // 몰입 모드에서 빈 공간 클릭 → 강조 해제
+                if (viewMode === 'immerse') setImmerseFocusId(null);
+              }}
+              onDoubleClick={(e) => {
+                // 노드 위가 아닌 곳(빈 공간·연결선·맵 여백 어디든)을 더블클릭하면 루트를 화면 중앙으로.
+                // 노드 안에서의 더블클릭은 편집이므로 제외 (closest로 노드 내부인지 확인).
+                if (tree && !e.target.closest('.node')) {
+                  centerNode(tree.id);
+                }
+              }}
+              onContextMenu={(e) => {
+                // 캔버스 어디서 우클릭하든(빈 공간·노드 위 모두) 커스텀 메뉴 표시.
+                // 노드 위에서 우클릭하면 그 노드 id를 담아 "노드 세부 정보" 항목을 추가로 보여준다.
+                e.preventDefault();
+                const nodeEl = e.target.closest('.node');
+                const nodeId = nodeEl ? nodeEl.getAttribute('data-node-id') : null;
+                setBgMenu({ x: e.clientX, y: e.clientY, nodeId });
+              }}
+            >
+              {!tree && (
+                <div className="canvas-empty">
+                  <h2>아직 비어 있어요</h2>
+                  <p>왼쪽 패널에 아이디어를 입력하면 자동으로 다이어그램이 만들어집니다.</p>
+                </div>
+              )}
+
+              {tree && (
+                <div
+                  className="map-wrapper"
+                  ref={mapWrapperRef}
+                  style={{
+                    // scale 적용 후 실제 차지하는 크기를 명시 → 중앙 정렬이 정확해짐
+                    width: layoutInfo.width * zoom,
+                    height: layoutInfo.height * zoom,
+                  }}
+                >
+                <div
+                  style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: '0 0',
+                    position: 'relative',
+                    width: layoutInfo.width,
+                    height: layoutInfo.height,
+                  }}
+                >
+                  <svg className="connections" ref={linkSvgRef} width={layoutInfo.width} height={layoutInfo.height}>
+                    <defs>
+                      <marker id="bb-link-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M0,0 L10,5 L0,10 z" fill="#8f7fd6" />
+                      </marker>
+                    </defs>
+                    {groupEls}
+                    {boundaryEls}
+                    {connectorEls}
+                    {crossLinkEls.base}
+                  </svg>
+
+                  {/* 아웃라인 뷰가 켜져 있으면 맵 노드를 렌더하지 않는다.
+                      (맵 노드도 editingId에 반응해 입력창을 만들고 포커스를 가져가, 아웃라인 입력창의
+                       포커스를 빼앗아 편집이 즉시 끊기던 문제 방지 + 가려진 맵을 안 그려 성능도 이득) */}
+                  {!outlineView && !chartView && nodeEls}
+                  {/* 선택된 관계선(선+핸들)을 노드 위 레이어로 — 노드에 가려지지 않게. 해제 시 base로 원복 */}
+                  {crossLinkEls.overlay && crossLinkEls.overlay.length > 0 && (
+                    <svg className="connections-overlay" width={layoutInfo.width} height={layoutInfo.height}>
+                      {crossLinkEls.overlay}
+                    </svg>
+                  )}
+                </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ===== 아웃라인 뷰 — 맵을 덮는 들여쓰기 목록 ===== */}
+          {outlineView && (
+            <div className="outline-view" onClick={() => { setSelectedId(null); setEditingId(null); }}>
+              <div className="outline-scroll">
+                <div className="outline-head" onClick={(e) => e.stopPropagation()}>
+                  <span className="outline-title">🗂 아웃라인</span>
+                  <span className="outline-sub">행 클릭=선택 · 더블클릭/F2=편집 · Enter=형제 · Tab=자식 · ↑↓=이동 · →펼치기 ←접기 · Del=삭제</span>
+                </div>
+                {tree ? (
+                  <div className="outline-tree">
+                  <OutlineRow
+                    node={tree}
+                    depth={0}
+                    ctx={{
+                      selectedId,
+                      editingId,
+                      taskMap: outlineTaskMap,
+                      selectedGroupId: outlineSelectedGroupId,
+                      actions: {
+                        isRoot: (id) => tree.id === id,
+                        select: (id) => { setGroupSelectIds([]); setSelectedId(id); setEditingId(null); },
+                        startEdit: (id) => setEditingId(id),
+                        stopEdit: () => setEditingId(null),
+                        toggleCollapse: (id) => toggleCollapse(id),
+                        toggleDone: (id) => updateNode(id, nn => { nn.done = !nn.done; }, { label: '완료 토글' }),
+                        commitLabel: (id, label) => { updateNode(id, nn => { nn.label = label; delete nn._autoLabel; }, { label: '라벨 변경' }); setEditingId(null); },
+                        cancelEmpty: (id) => { setEditingId(null); cancelNewNode(id); },
+                        addChild: (id) => addChild(id, { label: '', startEditing: true }),
+                        del: (id) => deleteNode(id),
+                        // Tab: 라벨 확정 후 자식을 만들고 바로 편집
+                        tabAddChild: (id, label) => {
+                          commitNodeLabelSilent(id, label);
+                          addChild(id, { label: '', startEditing: true });
+                        },
+                      },
+                    }}
+                  />
+                  </div>
+                ) : (
+                  <div className="outline-empty">아직 비어 있어요 — 왼쪽 패널에 아이디어를 입력하면 여기에 목록으로 보여요.</div>
+                )}
+              </div>
+            </div>
+          )}
+          {chartView === 'gantt' && tree && (
+            <GanttView tree={tree} schedule={schedule} selectedId={selectedId} actions={chartActions} />
+          )}
+          {chartView === 'timeline' && tree && (
+            <TimelineView tree={tree} schedule={schedule} selectedId={selectedId} actions={chartActions} />
+          )}
+        </div>
+
+        {/* 아웃라인 그룹 경계 안내 팝업 — 그룹 끝/처음에서 한 번 눌렀을 때 */}
+        {outlineHint && (
+          <div style={{
+            position: 'fixed', left: '50%', bottom: 40, transform: 'translateX(-50%)', zIndex: 1300,
+            background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 12,
+            boxShadow: '0 10px 32px rgba(0,0,0,0.24)', padding: '14px 18px', maxWidth: 380,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)', marginBottom: 5 }}>
+              {outlineHint.dir === 'down' ? '현재 그룹의 마지막 노드입니다' : '현재 그룹의 첫 노드입니다'}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+              {outlineHint.dir === 'down'
+                ? '여기서 ↓ 키를 빠르게 두 번 누르면 다음 그룹으로 이동합니다.'
+                : '여기서 ↑ 키를 빠르게 두 번 누르면 이전 그룹으로 이동합니다.'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-soft)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.hideOutlineGroupHint === true}
+                  onChange={(e) => { setSettings(s => ({ ...s, hideOutlineGroupHint: e.target.checked })); if (e.target.checked) setOutlineHint(null); }}
+                />
+                다음부터 보지 않기
+              </label>
+              <button className="btn" style={{ padding: '5px 14px' }} onClick={() => setOutlineHint(null)}>확인</button>
+            </div>
+          </div>
+        )}
+
+        {/* ========== 우측 패널 ========== */}
+        {rightPanelVisible && (
+        <div className="right-panel">
+          <button className="panel-close-btn top" onClick={() => { setPanelTempOpen(false); setSettings(s => ({ ...s, showRightPanel: false })); }} title="우측 패널 숨기기">✕ 패널 닫기</button>
+
+          <div className="panel-content">
+            {!selectedNode && (
+              <div className="inspector-empty">
+                <div className="inspire-quote">“{INSPIRATION_QUOTES[emptyQuoteIdx] || INSPIRATION_QUOTES[0]}”</div>
+                <p className="inspire-hint">다이어그램의 노드를 클릭하면<br/>색상, 메타데이터를 편집할 수 있어요.</p>
+              </div>
+            )}
+
+            {selectedNode && (
+              <>
+                <div className="field">
+                  <label className="field-label">라벨</label>
+                  <input
+                    className="field-input"
+                    value={selectedNode.label || ''}
+                    onChange={e => updateNode(selectedNode.id, n => { n.label = e.target.value; }, { label: '라벨 변경', coalesceKey: `label-${selectedNode.id}` })}
+                  />
+                </div>
+
+                <div className="divider"><span>색상</span></div>
+                <div className="color-grid">
+                  {COLOR_KEYS.map(key => (
+                    <div
+                      key={key}
+                      className={`color-swatch ${selectedNode.color === key ? 'active' : ''}`}
+                      style={{ background: COLORS[key].bg }}
+                      title={COLORS[key].name}
+                      onClick={() => {
+                        if ((selectedNode.children || []).length > 0) {
+                          // 하위 노드가 있으면 "하위 전체 / 이 노드만"을 물어본다
+                          let desc = 0; walk(selectedNode, () => { desc++; }); desc -= 1; // 자기 자신 제외
+                          setColorCascade({ nodeId: selectedNode.id, colorKey: key, count: desc });
+                        } else {
+                          updateNode(selectedNode.id, n => { n.color = key; }, { label: '색상 변경' });
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="divider"><span>태그</span></div>
+                {(selectedNode.tags || []).length > 0 && (
+                  <div className="panel-tags">
+                    {(selectedNode.tags || []).map((t, i) => (
+                      <span
+                        key={i}
+                        className="panel-tag"
+                        title="클릭해서 제거"
+                        onClick={() => updateNode(selectedNode.id, n => {
+                          n.tags = (n.tags || []).filter(x => x !== t);
+                          if (n.tags.length === 0) delete n.tags;
+                        }, { label: '태그 제거' })}
+                      >#{t} <span className="x">✕</span></span>
+                    ))}
+                  </div>
+                )}
+                <input
+                  key={selectedNode.id}
+                  className="field-input"
+                  placeholder="태그 입력 후 Enter (예: 아이디어)"
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key !== 'Enter') return;
+                    if (e.isComposing || e.keyCode === 229) return; // 한글 IME 조합 중 Enter는 무시(조합 확정용) — "가나다"+"다" 중복 입력 방지
+                    e.preventDefault();
+                    const t = tagInput.trim().slice(0, 24);
+                    if (t) updateNode(selectedNode.id, n => {
+                      n.tags = n.tags || [];
+                      if (!n.tags.includes(t)) n.tags.push(t);
+                    }, { label: '태그 추가' });
+                    setTagInput('');
+                  }}
+                />
+                <div className="settings-desc" style={{ marginTop: 6, fontSize: 11.5 }}>
+                  태그로 묶고, 위쪽 캔버스의 <b>🏷 태그 필터</b>에서 원하는 태그만 또렷하게 볼 수 있어요.
+                </div>
+
+                <div className="divider"><span>아이콘</span></div>
+                {(selectedNode.icons || []).length > 0 && (
+                  <div className="selected-icons">
+                    {(selectedNode.icons || []).map((ic, i) => (
+                      <span key={i} className="selected-icon" title="클릭해서 제거" onClick={() => toggleNodeIcon(selectedNode.id, ic)}>{ic}</span>
+                    ))}
+                  </div>
+                )}
+                {(settings.iconRows || []).some(r => (r || []).length > 0) ? (
+                  (settings.iconRows || []).map((row, ri) => (
+                    (row || []).length > 0 && (
+                      <div className="panel-icon-grid" key={ri} style={{ marginTop: ri > 0 ? 3 : 0 }}>
+                        {row.map(ic => (
+                          <span
+                            key={ic}
+                            className={`panel-icon-item ${(selectedNode.icons || []).includes(ic) ? 'active' : ''}`}
+                            onClick={() => toggleNodeIcon(selectedNode.id, ic)}
+                          >{ic}</span>
+                        ))}
+                      </div>
+                    )
+                  ))
+                ) : (
+                  <div className="settings-desc" style={{ fontSize: 11.5 }}>
+                    표시할 아이콘이 없어요. <b>설정 → 아이콘</b>에서 줄에 넣을 아이콘을 골라 주세요.
+                  </div>
+                )}
+
+                {settings.showMetaPanel !== false && (<>
+                <div className="divider"><span>메타데이터</span></div>
+                <div className="field">
+                  <label className="field-label">날짜</label>
+                  <input
+                    className="field-input"
+                    placeholder="예: 6/21 - 8/18"
+                    value={selectedNode.meta?.date || ''}
+                    onChange={e => updateNode(selectedNode.id, n => { n.meta = n.meta || {}; n.meta.date = e.target.value; }, { label: '날짜 변경', coalesceKey: `date-${selectedNode.id}` })}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label">작업량</label>
+                  <input
+                    className="field-input"
+                    placeholder="예: 37 workday(s)"
+                    value={selectedNode.meta?.effort || ''}
+                    onChange={e => updateNode(selectedNode.id, n => { n.meta = n.meta || {}; n.meta.effort = e.target.value; }, { label: '작업량 변경', coalesceKey: `effort-${selectedNode.id}` })}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label">비용</label>
+                  <input
+                    className="field-input"
+                    placeholder="예: ₩20,000,000"
+                    value={selectedNode.meta?.cost || ''}
+                    onChange={e => updateNode(selectedNode.id, n => { n.meta = n.meta || {}; n.meta.cost = e.target.value; }, { label: '비용 변경', coalesceKey: `cost-${selectedNode.id}` })}
+                  />
+                </div>
+                </>)}
+
+                <div className="divider"><span>일정 (간트·타임라인)</span></div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="field" style={{ flex: 1, marginBottom: 6 }}>
+                    <label className="field-label">시작일</label>
+                    <input
+                      type="date"
+                      className="field-input"
+                      value={selectedNode.meta?.start || ''}
+                      onChange={e => updateNode(selectedNode.id, n => { n.meta = n.meta || {}; if (e.target.value) n.meta.start = e.target.value; else { delete n.meta.start; delete n.meta.end; } }, { label: '시작일 변경' })}
+                    />
+                  </div>
+                  <div className="field" style={{ flex: 1, marginBottom: 6 }}>
+                    <label className="field-label">종료일</label>
+                    <input
+                      type="date"
+                      className="field-input"
+                      value={selectedNode.meta?.end || ''}
+                      min={selectedNode.meta?.start || undefined}
+                      disabled={selectedNode.meta?.milestone === true || !selectedNode.meta?.start}
+                      onChange={e => updateNode(selectedNode.id, n => { n.meta = n.meta || {}; if (e.target.value) n.meta.end = e.target.value; else delete n.meta.end; }, { label: '종료일 변경' })}
+                    />
+                  </div>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '2px 2px 4px' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedNode.meta?.milestone === true}
+                    onChange={e => updateNode(selectedNode.id, n => { n.meta = n.meta || {}; if (e.target.checked) { n.meta.milestone = true; delete n.meta.end; } else delete n.meta.milestone; }, { label: '마일스톤 토글' })}
+                  />
+                  마일스톤(◆) — 기간 없는 시점으로 표시
+                </label>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-soft)', lineHeight: 1.6, padding: '0 2px 4px' }}>
+                  시작일을 넣으면 간트·타임라인에 막대로 나타나요. 종료일을 비우면 하루로 잡혀요. (📊 간트 / 🕒 타임라인 버튼·G·T)
+                </div>
+
+                {(selectedNode.createdAt || selectedNode.updatedAt) && (
+                  <>
+                    <div className="divider"><span>기록</span></div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)', lineHeight: 1.75, padding: '0 2px 2px' }}>
+                      {selectedNode.createdAt && (
+                        <div title="이 노드를 처음 만든 시각 — 자동 기록이라 바꿀 수 없어요">🟢 생성 {fmtTimestamp(selectedNode.createdAt)}</div>
+                      )}
+                      {selectedNode.updatedAt && selectedNode.updatedAt !== selectedNode.createdAt && (
+                        <div title="마지막으로 내용을 바꾼 시각 — 자동 기록이라 바꿀 수 없어요">✏️ 수정 {fmtTimestamp(selectedNode.updatedAt)}</div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div className="divider"><span>모양</span></div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                  {[['', '둥근'], ['rect', '각짐'], ['pill', '알약'], ['ellipse', '타원']].map(([sh, name]) => {
+                    const active = (selectedNode.shape || '') === sh;
+                    return (
+                      <button key={sh || 'r'} type="button"
+                        onClick={() => updateNode(selectedNode.id, n => { if (sh) n.shape = sh; else delete n.shape; }, { label: '모양 변경' })}
+                        style={{ cursor: 'pointer', fontSize: 12.5, padding: '6px 12px', font: 'inherit',
+                          border: `2px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
+                          borderRadius: (sh === 'pill' || sh === 'ellipse') ? 999 : sh === 'rect' ? 3 : 9,
+                          background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: active ? 700 : 500 }}>
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="divider"><span>할 일</span></div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '2px 2px 4px' }}>
+                  <input type="checkbox" checked={selectedNode.task === true}
+                    onChange={(e) => updateNode(selectedNode.id, n => { if (e.target.checked) n.task = true; else { delete n.task; delete n.done; } }, { label: '할 일 표시' })} />
+                  이 노드를 할 일(체크박스)로 표시
+                </label>
+                {selectedNode.task === true && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, padding: '2px 2px 6px', color: 'var(--ink-soft)' }}>
+                    <input type="checkbox" checked={selectedNode.done === true}
+                      onChange={(e) => updateNode(selectedNode.id, n => { n.done = e.target.checked; }, { label: '완료 토글' })} />
+                    완료함 (지도의 ☑로도 토글)
+                  </label>
+                )}
+
+                <div className="divider"><span>노트</span></div>
+                <textarea
+                  className="field-input"
+                  style={{ minHeight: 70, resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}
+                  placeholder="이 노드에 대한 긴 메모… (지도에는 📝 표시만, 내용은 여기서)"
+                  value={selectedNode.note || ''}
+                  onChange={e => updateNode(selectedNode.id, n => {
+                    const v = e.target.value;
+                    if (v) n.note = v; else delete n.note;
+                  }, { label: '노트 변경', coalesceKey: `note-${selectedNode.id}` })}
+                />
+
+                <div className="divider"><span>관계선</span></div>
+                {(() => {
+                  const myLinks = (tree && tree.links ? tree.links : []).filter(l => l.from === selectedNode.id || l.to === selectedNode.id);
+                  return (
+                    <>
+                      {myLinks.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                          {myLinks.map((l, i) => {
+                            const otherId = l.from === selectedNode.id ? l.to : l.from;
+                            const other = findNode(tree, otherId);
+                            return (
+                              <div key={i} className="panel-link-row">
+                                <span className="panel-link-name">🔗 {other ? (other.label || '(이름 없음)') : '(삭제됨)'}</span>
+                                <button className="panel-link-del" title="관계선 삭제" onClick={() => removeLink(l.from, l.to)}>✕</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <button className="btn" style={{ width: '100%' }} onClick={() => setLinkSourceId(selectedNode.id)}>
+                        🔗 관계선 시작 (대상 노드 클릭)
+                      </button>
+                      <div className="settings-desc" style={{ marginTop: 6, fontSize: 11.5 }}>
+                        부모-자식이 아닌 두 노드를 점선 화살표로 연결합니다. 노드 우클릭 메뉴로도 시작할 수 있어요.
+                      </div>
+                    </>
+                  );
+                })()}
+
+                <div className="divider"><span>경계 / 그룹</span></div>
+                <button className="btn" style={{ width: '100%' }} onClick={() => toggleBoundary(selectedNode.id)}>
+                  🔲 {hasBoundary(selectedNode.id) ? '경계 해제' : '이 노드 하위를 경계로 묶기'}
+                </button>
+                <div className="settings-desc" style={{ marginTop: 6, fontSize: 11.5 }}>
+                  이 노드와 그 아래 묶음을 둥근 박스로 감싸 시각적으로 그룹화합니다. 노드 우클릭 메뉴로도 가능해요.
+                </div>
+
+                <div className="divider"><span>순서 / 구조</span></div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <button className="btn" style={{flex:1}} onClick={() => moveSibling(selectedNode.id, -1)}>↑ 위로</button>
+                  <button className="btn" style={{flex:1}} onClick={() => moveSibling(selectedNode.id, 1)}>↓ 아래로</button>
+                </div>
+                {/* 좌/우 이동 — 루트의 직계 자식에게만 의미 있음 */}
+                {tree && findParent(tree, selectedNode.id) === tree && (
+                  <>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                      <button
+                        className="btn"
+                        style={{flex:1, ...(selectedNode.pinnedSide === 'left' ? { background: 'var(--bg-2)', borderColor: 'var(--ink)' } : {})}}
+                        onClick={() => setNodeSide(selectedNode.id, 'left')}
+                        title="이 노드를 왼쪽에 고정 (자동 분배 무시)"
+                      >← 왼쪽</button>
+                      <button
+                        className="btn"
+                        style={{flex:1, ...(selectedNode.pinnedSide === 'right' ? { background: 'var(--bg-2)', borderColor: 'var(--ink)' } : {})}}
+                        onClick={() => setNodeSide(selectedNode.id, 'right')}
+                        title="이 노드를 오른쪽에 고정 (자동 분배 무시)"
+                      >오른쪽 →</button>
+                    </div>
+                    {selectedNode.pinnedSide && (
+                      <button
+                        className="btn"
+                        style={{ width: '100%', marginBottom: 8, fontSize: 11, color: 'var(--ink-soft)' }}
+                        onClick={() => setNodeSide(selectedNode.id, null)}
+                        title="자동 분배로 되돌리기"
+                      >
+                        ↺ 자동 분배로 되돌리기
+                      </button>
+                    )}
+                  </>
+                )}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <button className="btn" style={{flex:1}} onClick={() => addChild(selectedNode.id, { label: '', startEditing: true })}>+ 자식</button>
+                  <button className="btn" style={{flex:1}} onClick={() => selectedNode.id !== tree?.id && addSibling(selectedNode.id, { label: '', startEditing: true })}>+ 형제</button>
+                </div>
+                {selectedNode.id !== tree?.id && (
+                  <button className="btn danger" style={{width: '100%'}} onClick={() => deleteNode(selectedNode.id)}>
+                    이 노드 삭제
+                  </button>
+                )}
+
+                <div className="divider"><span>단축키</span></div>
+                <div style={{fontFamily:'JetBrains Mono, monospace', fontSize:11, color:'var(--ink-soft)', lineHeight:1.8}}>
+                  <div><b>Tab</b> — 자식 추가 + 즉시 입력</div>
+                  <div><b>Enter</b> — 형제 추가 + 즉시 입력</div>
+                  <div><b>← → ↑ ↓</b> — 노드 사이 이동</div>
+                  <div><b>F2</b> — 라벨 편집</div>
+                  <div><b>Delete</b> — 삭제</div>
+                  <div><b>Space</b> — 자식 접기/펼치기</div>
+                  <div><b>Alt + ↑↓</b> — 순서 이동 (위/아래 형제와 교환)</div>
+                  <div><b>Alt + ←</b> — 한 단계 바깥으로 (부모의 형제로)</div>
+                  <div><b>Alt + →</b> — 한 단계 안쪽으로 (이전 형제의 자식으로)</div>
+                  <div><b>Ctrl/⌘ + Z</b> — 실행 취소</div>
+                  <div><b>Ctrl/⌘ + Shift + Z</b> — 다시 실행</div>
+                  <div><b>Ctrl + 휠</b> — 확대 / 축소</div>
+                  <div><b>빈 공간 드래그</b> — 화면 이동</div>
+                  <div><b>Esc</b> — 선택 해제</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="stats">
+            <div className="stat-row"><span>노드 수</span><b>{stats.nodes}</b></div>
+            <div className="stat-row"><span>최대 깊이</span><b>{stats.depth}</b></div>
+            <div className="stat-row"><span>리프 노드</span><b>{stats.leaves}</b></div>
+            <div className="stat-row"><span>그룹 수</span><b>{stats.groups}</b></div>
+            <div className="stat-row"><span>경계 수</span><b>{stats.boundaries}</b></div>
+          </div>
+          <button className="panel-close-btn bottom" onClick={() => { setPanelTempOpen(false); setSettings(s => ({ ...s, showRightPanel: false })); }} title="우측 패널 숨기기">✕ 패널 닫기</button>
+        </div>
+        )}
+      </div>
+
+      {/* 하단 모아보기 바(아이콘/태그)가 있으면, 그 바 높이만큼 토스트를 위로 올려 겹치지 않게 함 */}
+      {toast && <div className="toast" style={bottomBarsH > 0 ? { bottom: bottomBarsH + 28 } : undefined}>{toast}</div>}
+
+      {/* 아침 명언 배너 */}
+      {/* 타이머 마일스톤 팝업 — 정중앙 반투명, 자동 소멸, 클릭 통과 */}
+      {timerPopup && (
+        <div className="timer-popup" key={timerPopup.key}>{timerPopup.text}</div>
+      )}
+
+      {/* 이스터에그 — 코나미 코드(꽃잎)·타이머 11연속 클릭(하트). pointer-events:none 이라 작업을 막지 않음 */}
+      {easterEgg && (
+        <div className={`egg-overlay egg-${easterEgg}`} key={eggKey} aria-hidden="true">
+          {eggParticles.map((p) => (
+            <span
+              key={p.id}
+              className="egg-particle"
+              style={{
+                left: p.left,
+                fontSize: p.size,
+                animationDelay: p.delay,
+                animationDuration: p.dur,
+                '--egg-drift': p.drift,
+              }}
+            >{p.emoji}</span>
+          ))}
+          <div className="egg-msg">
+            {easterEgg === 'love' ? (
+              <>
+                <div className="egg-msg-emoji">❤️</div>
+                <div className="egg-msg-title">아들! 사랑해!</div>
+                <div className="egg-msg-sub">아빠는 언제나 아들 편! 💙</div>
+              </>
+            ) : (
+              <>
+                <div className="egg-msg-emoji">🌸</div>
+                <div className="egg-msg-title">생각이 활짝 피어났어요!</div>
+                <div className="egg-msg-sub">made with 🌱 by JunHo · BrainBloom</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {morningQuote && (
+        <div className="quote-banner" onClick={() => setMorningQuote('')}>
+          <div className="quote-greeting">오늘의 한마디</div>
+          <div className="quote-text">{morningQuote}</div>
+          <div className="quote-dismiss">클릭해서 닫기</div>
+        </div>
+      )}
+
+      {/* 첫 실행 환영 — 격언 팝업 */}
+      {welcomeQuote && (
+        <div className="modal-backdrop" onClick={() => setWelcomeQuote('')}>
+          <div className="modal" style={{ maxWidth: 440, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-body" style={{ padding: '30px 26px 24px' }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-soft)', letterSpacing: '0.5px', marginBottom: 12 }}>✨ 오늘의 격언</div>
+              <div style={{ fontSize: 17.5, fontWeight: 700, lineHeight: 1.75, marginBottom: 20, wordBreak: 'keep-all' }}>
+                {welcomeQuote}
+              </div>
+              <button className="btn primary" style={{ minWidth: 140 }} onClick={() => setWelcomeQuote('')}>
+                🌱 시작하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 설정 모달 */}
+      {/* JSON 열기용 숨김 파일 입력 — 설정 모달·미니멀 헤더와 무관하게 항상 마운트 */}
+      <input
+        ref={jsonFileInputRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: 'none' }}
+        onChange={handleJsonFileSelected}
+      />
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onSettingsChange={(s) => setSettings(s)}
+          onClose={() => { setShowSettings(false); setSettingsToChangelog(false); }}
+          startChangelog={settingsToChangelog}
+          driveSignedIn={driveSignedIn}
+          driveLinkedPending={driveLinkedPending}
+          driveBusy={driveBusy}
+          driveStatus={driveStatus}
+          driveAutoStatus={driveAutoStatus}
+          scrollToDrive={scrollToDriveOnOpen}
+          onScrollToDriveDone={() => setScrollToDriveOnOpen(false)}
+          driveFiles={driveFiles}
+          onDriveSignIn={handleDriveSignIn}
+          onDriveSaveSettings={handleDriveSaveSettings}
+          onDriveLoadSettings={handleDriveLoadSettings}
+          drivePreview={drivePreview}
+          onDrivePreviewFile={handleDrivePreviewFile}
+          onDrivePreviewClose={() => setDrivePreview(null)}
+          onOpenJsonFile={handleOpenJsonClick}
+          onDriveSignOut={handleDriveSignOut}
+          onDriveSave={handleDriveSave}
+          onDriveListFiles={handleDriveListFiles}
+          onDriveLoadFile={handleDriveLoadFile}
+        />
+      )}
+
+      {/* 시작 다이얼로그 */}
+      {startupDialog && (
+        <StartupDialog
+          info={startupDialog}
+          onRestore={() => {
+            const txt = startupDialog.lastInputText || '';
+            restoreWork({
+              tree: startupDialog.lastTree,
+              inputText: startupDialog.lastInputText,
+            });
+            setStartupDialog(null);
+            showToast('마지막 작업을 불러왔습니다');
+            focusTextInputAtSecondLine(txt);
+          }}
+          onNew={() => {
+            startFreshInNewDoc(); // 기존 문서를 덮지 않고 새 문서 슬롯에서 새로 시작
+            setStartupDialog(null);
+            focusTextInputAtSecondLine(inputText);
+          }}
+          onSetDefaultBehavior={(behavior) => {
+            setSettings(s => ({ ...s, startupBehavior: behavior }));
+          }}
+        />
+      )}
+
+      {/* 새로 시작 확인 다이얼로그 */}
+      {confirmNewFile && (
+        <div className="modal-backdrop" onClick={() => setConfirmNewFile(false)}>
+          <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">새로 시작할까요?</div>
+                <div className="modal-subtitle">
+                  현재 작업 중인 내용 ({stats.nodes}개 노드)이 모두 사라집니다
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setConfirmNewFile(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="warning-note" style={{ marginTop: 0 }}>
+                💡 실수로 눌렀다면 새로 시작 후에도 <b>Ctrl+Z</b>로 되돌릴 수 있어요.
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={() => setConfirmNewFile(false)}>
+                취소 <span style={{ opacity: 0.5, fontSize: 10, marginLeft: 4 }}>Esc</span>
+              </button>
+              <button
+                className="btn primary"
+                onClick={() => {
+                  resetToNewFile();
+                  setConfirmNewFile(false);
+                }}
+              >
+                ✨ 새로 시작 <span style={{ opacity: 0.6, fontSize: 10, marginLeft: 4 }}>Enter</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 문서 관리자 — 폴더·검색·정렬·카드·복제·즐겨찾기·가져오기 */}
+      {showDocs && (() => {
+        const closeMgr = () => { setShowDocs(false); setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); };
+        const folderName = (id) => { const f = docFolders.find(x => x.id === id); return f ? f.name : '미분류'; };
+        const counts = {
+          all: docList.length,
+          fav: docList.filter(d => d.pinned).length,
+          unfiled: docList.filter(d => !d.folderId).length,
+        };
+        return (
+        <div className="modal-backdrop" onClick={closeMgr}>
+          <div className="modal" style={{ maxWidth: 860, width: '94vw' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">문서 관리자</div>
+                <div className="modal-subtitle">폴더로 정리하고 검색·복제·즐겨찾기할 수 있어요 (총 {docList.length}개)</div>
+              </div>
+              <button className="modal-close" onClick={closeMgr}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="docmgr">
+                {/* 폴더 레일 */}
+                <div className="docmgr-rail">
+                  <button className={`docmgr-folder ${docFolderView === 'all' ? 'active' : ''}`} onClick={() => setDocFolderView('all')}>
+                    <span>🗂 전체 문서</span><span className="cnt">{counts.all}</span>
+                  </button>
+                  <button className={`docmgr-folder ${docFolderView === 'fav' ? 'active' : ''}`} onClick={() => setDocFolderView('fav')}>
+                    <span>★ 즐겨찾기</span><span className="cnt">{counts.fav}</span>
+                  </button>
+                  <button className={`docmgr-folder ${docFolderView === 'unfiled' ? 'active' : ''}`} onClick={() => setDocFolderView('unfiled')}>
+                    <span>📄 미분류</span><span className="cnt">{counts.unfiled}</span>
+                  </button>
+                  <div className="docmgr-railsep" />
+                  {docFolders.map(f => (
+                    renamingFolderId === f.id ? (
+                      <input key={f.id} className="doc-rename-input" autoFocus value={folderNameDraft}
+                        onChange={(e) => setFolderNameDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitFolderRename(f.id, folderNameDraft); else if (e.key === 'Escape') setRenamingFolderId(null); }}
+                        onBlur={() => commitFolderRename(f.id, folderNameDraft)} maxLength={40} placeholder="폴더 이름" />
+                    ) : (
+                      <button key={f.id} className={`docmgr-folder ${docFolderView === f.id ? 'active' : ''}`} onClick={() => setDocFolderView(f.id)}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📁 {f.name}</span>
+                        <span className="cnt">{docList.filter(d => d.folderId === f.id).length}</span>
+                        <span className="fx" title="이름 바꾸기" onClick={(e) => { e.stopPropagation(); setRenamingFolderId(f.id); setFolderNameDraft(f.name); }}>✎</span>
+                        <span className="fx" title="폴더 삭제(문서는 미분류로)" onClick={(e) => { e.stopPropagation(); if (window.confirm(`"${f.name}" 폴더를 삭제할까요? 안의 문서는 미분류로 이동해요.`)) deleteFolder(f.id); }}>🗑</span>
+                      </button>
+                    )
+                  ))}
+                  <button className="docmgr-folder docmgr-addfolder" onClick={() => createFolder()}>＋ 폴더 추가</button>
+                  <div className="docmgr-railsep" />
+                  <button className={`docmgr-folder ${docFolderView === 'drive' ? 'active' : ''}`} onClick={() => setDocFolderView('drive')} title="구글 드라이브에서 읽어오기">
+                    <span>☁ Google Drive</span>
+                    {driveSignedIn && Array.isArray(driveDocs) && <span className="cnt">{driveDocs.filter(f => showDriveBackups || !f._backup).length}</span>}
+                  </button>
+                </div>
+                {/* 본문 */}
+                <div className="docmgr-main">
+                  {docFolderView === 'drive' ? (
+                    <div className="docmgr-drive">
+                      <div className="docmgr-toolbar">
+                        <input className="docmgr-search" value={docSearch} onChange={(e) => setDocSearch(e.target.value)} placeholder="🔍 드라이브 파일 검색" />
+                        <select className="docmgr-sort" value={driveSort} onChange={(e) => setDriveSort(e.target.value)} title="정렬">
+                          <option value="recent">최신순</option>
+                          <option value="oldest">오래된순</option>
+                          <option value="name">이름순</option>
+                          <option value="size">크기순</option>
+                        </select>
+                        <button className={`btn ${showDriveBackups ? 'primary' : ''}`} onClick={() => setShowDriveBackups(v => !v)} title="Backup 폴더의 이전 버전까지 함께 보기">🗂 백업 {showDriveBackups ? '숨기기' : '보기'}</button>
+                        <button className="btn" disabled={!driveSignedIn || driveDocs === 'loading'} onClick={() => loadDriveDocs()} title="목록 새로고침">🔄 새로고침</button>
+                        <span className="docmgr-note" style={{ marginLeft: 'auto' }}>☁ 내 드라이브의 BrainBloom 저장본</span>
+                      </div>
+                      {!driveSignedIn ? (
+                        <div className="docmgr-drive-conn">
+                          <div style={{ fontSize: 36, lineHeight: 1 }}>☁️</div>
+                          <div style={{ fontWeight: 700, marginTop: 10 }}>구글 드라이브에 연결하세요</div>
+                          <div className="docmgr-note" style={{ marginTop: 6, maxWidth: 360, marginInline: 'auto' }}>연결하면 드라이브에 저장해 둔 마인드맵을 골라 <b>새 문서로 가져올</b> 수 있어요. (이 앱이 만든 파일만 접근합니다)</div>
+                          <button className="btn primary" style={{ marginTop: 14 }} onClick={() => handleDriveSignIn()}>☁ Google Drive 연결</button>
+                        </div>
+                      ) : driveDocs === 'loading' ? (
+                        <div className="docmgr-empty">드라이브 목록을 불러오는 중…</div>
+                      ) : driveDocs === 'error' ? (
+                        <div className="docmgr-empty">목록을 불러오지 못했어요.<button className="btn" style={{ marginLeft: 10 }} onClick={() => loadDriveDocs()}>다시 시도</button></div>
+                      ) : (() => {
+                        const q = docSearch.trim().toLowerCase();
+                        const all = Array.isArray(driveDocs) ? driveDocs : [];
+                        const files = all
+                          .filter(f => showDriveBackups || !f._backup)   // 기본: 최신본만. '백업 보기' 켜면 Backup 폴더까지
+                          .filter(f => !q || f.name.toLowerCase().includes(q))
+                          .slice().sort((a, b) => {
+                            if (driveSort === 'name') return a.name.localeCompare(b.name, 'ko');
+                            if (driveSort === 'size') return (Number(b.size) || 0) - (Number(a.size) || 0);
+                            const ta = a.modifiedTime ? Date.parse(a.modifiedTime) : 0, tb = b.modifiedTime ? Date.parse(b.modifiedTime) : 0;
+                            return driveSort === 'oldest' ? ta - tb : tb - ta;
+                          });
+                        if (files.length === 0) {
+                          const hiddenBackups = !showDriveBackups && all.some(f => f._backup);
+                          return <div className="docmgr-empty">{q ? '검색 결과가 없어요.' : hiddenBackups ? '최신본만 표시 중이에요. 위 "🗂 백업 보기"를 켜면 이전 버전(백업)도 볼 수 있어요.' : '드라이브에 저장된 마인드맵이 없어요. 먼저 저장(Ctrl+Shift+S)해 보세요.'}</div>;
+                        }
+                        return (
+                          <div className="docmgr-grid">
+                            {files.map(f => {
+                              const nm = f.name.replace(/\.json$/i, '');
+                              const imported = driveImportedIds.includes(f.id);
+                              const pv = (mgrDrivePreview && mgrDrivePreview.fileId === f.id) ? mgrDrivePreview : null;
+                              const importing = driveImportingId === f.id;
+                              return (
+                                <div key={f.id} className="doc-card drive-card" title="클릭=미리보기 · 더블클릭=열기"
+                                  onClick={() => previewDriveFileInMgr(f)}
+                                  onDoubleClick={() => importDriveFile(f, true)}>
+                                  <div className="doc-card-top">
+                                    <span className="doc-card-name">☁ {nm}</span>
+                                    {f._backup && <span className="doc-card-badge" style={{ background: 'var(--ink-soft)' }}>백업</span>}
+                                    {imported && <span className="doc-card-badge" style={{ background: 'var(--teal)' }}>가져옴</span>}
+                                  </div>
+                                  <div className="doc-card-meta">
+                                    <span>🕒 {f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : '—'}</span>
+                                    {f.size ? <span>· {Math.max(1, Math.round(Number(f.size) / 1024))} KB</span> : null}
+                                  </div>
+                                  {pv && (
+                                    <div className="drive-pv" onClick={(e) => e.stopPropagation()}>
+                                      {pv.loading ? <span className="docmgr-note">미리보기 불러오는 중…</span>
+                                        : pv.error ? <span className="docmgr-note">미리보기를 불러오지 못했어요</span>
+                                        : (<>
+                                            <div className="docmgr-note">📌 {pv.nodeCount}개 · 중심: <b>{pv.rootLabel}</b></div>
+                                            {pv.branches.length > 0 && (
+                                              <div className="doc-card-branches" style={{ marginTop: 4 }}>
+                                                {pv.branches.map((b, i) => <span key={i} className="doc-chip">{b}</span>)}
+                                                {pv.branchesMore > 0 && <span className="doc-chip">+{pv.branchesMore}</span>}
+                                              </div>
+                                            )}
+                                            <pre className="drive-pv-text">{pv.textPreview}{pv.textMore > 0 ? `\n… 외 ${pv.textMore}줄` : ''}</pre>
+                                          </>)}
+                                    </div>
+                                  )}
+                                  <div className="doc-card-foot" onClick={(e) => e.stopPropagation()}>
+                                    <button className="btn primary" style={{ fontSize: 12, padding: '5px 10px' }} disabled={importing} onClick={() => importDriveFile(f, true)}>📂 열기</button>
+                                    <button className="btn" style={{ fontSize: 12, padding: '5px 10px' }} disabled={importing} onClick={() => importDriveFile(f, false)}>{importing ? '…' : '📥 가져오기'}</button>
+                                    <button className="doc-card-btn" title="미리보기" onClick={() => previewDriveFileInMgr(f)}>👁</button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (<>
+                  <div className="docmgr-toolbar">
+                    <input className="docmgr-search" value={docSearch} onChange={(e) => setDocSearch(e.target.value)} placeholder="🔍 이름·가지 검색" />
+                    <select className="docmgr-sort" value={docSort} onChange={(e) => setDocSort(e.target.value)}>
+                      <option value="recent">최근 수정순</option>
+                      <option value="created">생성일순</option>
+                      <option value="name">이름순</option>
+                    </select>
+                    <button className="btn primary" onClick={() => createDoc()}>＋ 새 문서</button>
+                    <button className="btn" title="JSON 백업을 새 문서로 가져오기" onClick={() => { setDocImportMsg(''); if (docImportInputRef.current) docImportInputRef.current.click(); }}>📥 가져오기</button>
+                    <input ref={docImportInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+                      onChange={(e) => { const f = e.target.files && e.target.files[0]; importDocFromFile(f); e.target.value = ''; }} />
+                  </div>
+                  {docImportMsg && <div className="docmgr-note">📥 {docImportMsg}</div>}
+                  {visibleDocs.length === 0 ? (
+                    <div className="docmgr-empty">{docSearch ? '검색 결과가 없어요.' : '이 위치에 문서가 없어요. "＋ 새 문서"로 시작하세요.'}</div>
+                  ) : (
+                    <div className="docmgr-grid">
+                      {visibleDocs.map(d => {
+                        const isCur = d.id === currentDocId;
+                        const dispName = docDisplayName(d);
+                        // 현재 문서는 살아있는 트리에서 통계를 그려, 관리자 연 채 편집해도 카드가 최신을 보임
+                        const liveStats = isCur ? docStatsOf(tree) : null;
+                        const cardNodes = liveStats ? liveStats.nodeCount : (d.nodeCount || 0);
+                        const cardBranches = liveStats ? liveStats.branches : (d.branches || []);
+                        return (
+                          <div key={d.id} className={`doc-card ${isCur ? 'current' : ''}`} title="클릭하면 이 문서를 열어요"
+                            onClick={() => { if (renamingDocId !== d.id && editingMetaDocId !== d.id) switchDoc(d.id); }}>
+                            <div className="doc-card-top">
+                              {renamingDocId === d.id ? (
+                                <input className="doc-rename-input" autoFocus value={renameDraft} onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => setRenameDraft(e.target.value)}
+                                  onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commitRename(d.id, renameDraft); else if (e.key === 'Escape') setRenamingDocId(null); }}
+                                  onBlur={() => commitRename(d.id, renameDraft)} maxLength={60} placeholder="문서 이름" />
+                              ) : (
+                                <span className="doc-card-name">{dispName}</span>
+                              )}
+                              <button className={`doc-card-pin ${d.pinned ? 'on' : ''}`} title={d.pinned ? '고정 해제' : '즐겨찾기 고정'}
+                                onClick={(e) => { e.stopPropagation(); togglePinDoc(d.id); }}>{d.pinned ? '★' : '☆'}</button>
+                            </div>
+                            {isCur && <span className="doc-card-badge">지금 편집 중</span>}
+                            <div className="doc-card-branches">
+                              {(cardBranches && cardBranches.length)
+                                ? cardBranches.map((b, i) => <span key={i} className="doc-chip">{b}</span>)
+                                : <span className="doc-chip" style={{ opacity: 0.5 }}>가지 없음</span>}
+                            </div>
+                            <div className="doc-card-meta">
+                              <span>📌 {cardNodes}개</span>
+                              <span>· {fmtDocWhen(d.savedAt)}</span>
+                              {d.folderId && <span>· 📁 {folderName(d.folderId)}</span>}
+                            </div>
+                            {(d.tags && d.tags.length > 0) && editingMetaDocId !== d.id && (
+                              <div className="doc-card-tags" onClick={(e) => e.stopPropagation()}>
+                                {d.tags.map((t, i) => (
+                                  <span key={i} className="doc-tag" title={`"${t}" 태그로 검색`}
+                                    onClick={() => { setDocFolderView('all'); setDocSearch(t); }}>#{t}</span>
+                                ))}
+                              </div>
+                            )}
+                            {d.memo && editingMetaDocId !== d.id && (
+                              <div className="doc-card-memo" title={d.memo}>📝 {d.memo}</div>
+                            )}
+                            {editingMetaDocId === d.id && (
+                              <div className="doc-meta-edit" onClick={(e) => e.stopPropagation()}>
+                                <div className="doc-tag-input">
+                                  {(d.tags || []).map((t, i) => (
+                                    <span key={i} className="doc-tag">#{t}<button className="doc-tag-x" title="태그 삭제" onClick={() => removeDocTag(d.id, t)}>×</button></span>
+                                  ))}
+                                  <input className="doc-tag-field" value={tagDraft} maxLength={24}
+                                    placeholder={(d.tags && d.tags.length) ? '태그 추가' : '태그 입력 후 Enter'}
+                                    onChange={(e) => setTagDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addDocTag(d.id, tagDraft); setTagDraft(''); }
+                                      else if (e.key === 'Backspace' && !tagDraft && (d.tags || []).length) { removeDocTag(d.id, d.tags[d.tags.length - 1]); }
+                                    }}
+                                    onBlur={() => { if (tagDraft.trim()) { addDocTag(d.id, tagDraft); setTagDraft(''); } }} />
+                                </div>
+                                <textarea className="doc-memo-field" value={memoDraft} rows={3} maxLength={500}
+                                  placeholder="메모 — 이 문서 설명·다음 할 일 등"
+                                  onChange={(e) => setMemoDraft(e.target.value)}
+                                  onBlur={() => patchDocItem(d.id, { memo: memoDraft.trim() })} />
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                                  <button className="btn primary" style={{ fontSize: 12, padding: '5px 12px' }}
+                                    onClick={() => { if (tagDraft.trim()) addDocTag(d.id, tagDraft); setTagDraft(''); patchDocItem(d.id, { memo: memoDraft.trim() }); setEditingMetaDocId(null); }}>완료</button>
+                                </div>
+                              </div>
+                            )}
+                            <div className="doc-card-foot" onClick={(e) => e.stopPropagation()}>
+                              <button className="doc-card-btn" title="이름 바꾸기"
+                                onClick={() => { setRenamingDocId(d.id); setRenameDraft(d.auto === false ? (d.name || '') : dispName); }}>✎</button>
+                              <button className="doc-card-btn" title="복제" onClick={() => duplicateDoc(d.id)}>⧉</button>
+                              <button className={`doc-card-btn ${editingMetaDocId === d.id ? 'active' : ''}`} title="태그·메모"
+                                onClick={() => { if (editingMetaDocId === d.id) { if (tagDraft.trim()) addDocTag(d.id, tagDraft); setTagDraft(''); patchDocItem(d.id, { memo: memoDraft.trim() }); setEditingMetaDocId(null); } else { setEditingMetaDocId(d.id); setTagDraft(''); setMemoDraft(d.memo || ''); } }}>🏷</button>
+                              <button className="doc-card-btn" title={docList.length <= 1 ? '마지막 문서는 삭제할 수 없어요' : '삭제'} disabled={docList.length <= 1}
+                                onClick={() => { if (window.confirm(`"${dispName}" 문서를 삭제할까요?\n(되돌릴 수 없어요)`)) deleteDoc(d.id); }}>🗑</button>
+                              <select className="doc-folder-select" title="폴더로 이동" value={d.folderId || ''} onChange={(e) => moveDocToFolder(d.id, e.target.value)}>
+                                <option value="">미분류</option>
+                                {docFolders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  </>)}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" onClick={closeMgr}>닫기</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* 다른 기기에서 더 새 버전이 올라왔을 때 안내 */}
+      {/* 몰입 모드 배지: 화면 하단 중앙. 클릭하면 편집 모드로 복귀 */}
+      {viewMode === 'immerse' && (
+        <button
+          onClick={() => { setViewMode('edit'); setImmerseFocusId(null); }}
+          title="클릭하면 편집 모드로 돌아갑니다"
+          style={{
+            position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 900, background: 'var(--accent)', color: '#fff', border: 'none',
+            borderRadius: 100, padding: '8px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.22)', display: 'flex', alignItems: 'center', gap: 8,
+          }}
+        >
+          <span>🎯 몰입 모드</span>
+          <span style={{ opacity: 0.8, fontWeight: 400, fontSize: 12 }}>· 편집하려면 클릭</span>
+        </button>
+      )}
+
+      {/* 색상 변경 — 하위 노드도 함께 바꿀지 확인 */}
+      {colorCascade && (
+        <div className="modal-backdrop" onClick={() => setColorCascade(null)}>
+          <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">하위 노드 색상도 바꿀까요?</div>
+                <div className="modal-subtitle">이 노드 아래 {colorCascade.count}개의 하위 노드가 있어요.</div>
+              </div>
+              <button className="modal-close" onClick={() => setColorCascade(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="settings-desc" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                <span style={{ width: 16, height: 16, borderRadius: 4, flex: '0 0 auto', background: COLORS[colorCascade.colorKey].bg, border: '1px solid var(--line)' }} />
+                <span>선택한 색: <b>{COLORS[colorCascade.colorKey].name}</b></span>
+              </div>
+              <div className="settings-desc" style={{ marginTop: 8, fontSize: 12.5 }}>
+                "하위 전체 변경"을 누르면 이 노드와 그 아래 모든 노드가 같은 색이 됩니다. (Ctrl+Z로 되돌릴 수 있어요)
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn"
+                onClick={() => {
+                  updateNode(colorCascade.nodeId, n => { n.color = colorCascade.colorKey; }, { label: '색상 변경' });
+                  setColorCascade(null);
+                }}
+              >
+                이 노드만
+              </button>
+              <button
+                className="btn primary"
+                onClick={() => {
+                  updateNode(colorCascade.nodeId, n => { walk(n, c => { c.color = colorCascade.colorKey; }); }, { label: '색상 변경(하위 포함)' });
+                  setColorCascade(null);
+                }}
+              >
+                하위 전체 변경
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 빈 공간 우클릭 메뉴: 편집 모드 / 몰입 모드 전환 */}
+      {/* 관계선 우클릭 메뉴 — 모양·선(점선/실선)·두께 */}
+      {linkMenu && tree && (() => {
+        const lk = (tree.links || []).find(l => l.from === linkMenu.from && l.to === linkMenu.to);
+        if (!lk) return null;
+        const ctype = lk.type || 'curve';
+        const cdash = lk.dash === 'solid' ? 'solid' : 'dashed';
+        const cwidth = lk.width || 2;
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1199 }}
+              onClick={() => setLinkMenu(null)} onContextMenu={(e) => { e.preventDefault(); setLinkMenu(null); }} />
+            <div className="link-menu" style={{ left: Math.min(linkMenu.x, window.innerWidth - 210), top: Math.min(linkMenu.y, window.innerHeight - 250) }}>
+              <div className="link-menu-sec">모양</div>
+              <div className="link-menu-row">
+                {[['curve', '곡선'], ['straight', '직선'], ['elbow', '직각']].map(([v, lab]) => (
+                  <button key={v} className={`link-menu-opt ${ctype === v ? 'on' : ''}`} onClick={() => updateLinkStyle(linkMenu.from, linkMenu.to, { type: v })}>{lab}</button>
+                ))}
+              </div>
+              <div className="link-menu-sec">선</div>
+              <div className="link-menu-row">
+                {[['dashed', '┄ 점선'], ['solid', '─ 실선']].map(([v, lab]) => (
+                  <button key={v} className={`link-menu-opt ${cdash === v ? 'on' : ''}`} onClick={() => updateLinkStyle(linkMenu.from, linkMenu.to, { dash: v })}>{lab}</button>
+                ))}
+              </div>
+              <div className="link-menu-sec">두께</div>
+              <div className="link-menu-row">
+                {[[1, '가늘게'], [2, '보통'], [3.5, '굵게']].map(([v, lab]) => (
+                  <button key={String(v)} className={`link-menu-opt ${cwidth === v ? 'on' : ''}`} onClick={() => updateLinkStyle(linkMenu.from, linkMenu.to, { width: v })}>{lab}</button>
+                ))}
+              </div>
+              <div style={{ height: 1, background: 'var(--line)', margin: '4px 6px' }} />
+              <button className="link-menu-del" onClick={() => { removeLink(linkMenu.from, linkMenu.to); setLinkMenu(null); }}>🗑 관계선 삭제</button>
+            </div>
+          </>
+        );
+      })()}
+
+      {bgMenu && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 1199 }}
+            onClick={() => setBgMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setBgMenu(null); }}
+          />
+          <div style={{
+            position: 'fixed', left: Math.min(bgMenu.x, window.innerWidth - 220), top: Math.min(bgMenu.y, window.innerHeight - (bgMenu.nodeId ? 348 : 288)),
+            zIndex: 1200, background: 'var(--panel)', border: '1px solid var(--line)',
+            borderRadius: 10, boxShadow: '0 8px 28px rgba(0,0,0,0.22)', padding: 6, minWidth: 200,
+          }}>
+            {bgMenu.nodeId && (
+              <>
+                <button
+                  onClick={() => {
+                    setSelectedId(bgMenu.nodeId);
+                    setPanelTempOpen(true); // 임시로 열기(영구 설정은 안 바꿈 → 바탕 클릭으로 닫힘)
+                    setBgMenu(null);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                    cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                    padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span>🔍</span><span>노드 세부 정보</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setLinkSourceId(bgMenu.nodeId); // 관계선 시작 → 대상 노드 클릭 대기
+                    setBgMenu(null);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                    cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                    padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span>🔗</span><span>관계선 시작</span>
+                </button>
+                <button
+                  onClick={() => { toggleBoundary(bgMenu.nodeId); setBgMenu(null); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                    cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                    padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span>🔲</span><span>{hasBoundary(bgMenu.nodeId) ? '경계 해제' : '경계로 묶기'}</span>
+                </button>
+                <div style={{ height: 1, background: 'var(--line)', margin: '2px 6px 6px' }} />
+              </>
+            )}
+            <div style={{ fontSize: 11, color: 'var(--ink-soft)', padding: '4px 10px 6px' }}>배율</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 4px 6px' }}>
+              <button className="toolbar-btn" onClick={() => zoomBy(-0.1)} title="축소">−</button>
+              <div className="toolbar-label" style={{ minWidth: 46, textAlign: 'center' }}>{Math.round(zoom * 100)}%</div>
+              <button className="toolbar-btn" onClick={() => zoomBy(0.1)} title="확대">+</button>
+              <button className="toolbar-btn" onClick={zoomReset} title="100%">⊙</button>
+              <button className="toolbar-btn" onClick={fitToScreen} title="전체가 보이게 맞춤">⊡</button>
+            </div>
+            <div style={{ height: 1, background: 'var(--line)', margin: '2px 6px 6px' }} />
+            <div style={{ fontSize: 11, color: 'var(--ink-soft)', padding: '4px 10px 6px' }}>보기 모드</div>
+            {[
+              { key: 'edit', label: '편집 모드', desc: '노드를 자유롭게 편집' },
+              { key: 'immerse', label: '몰입 모드', desc: '편집 잠금 · 클릭한 줄기만 강조' },
+            ].map(opt => {
+              const active = viewMode === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    setViewMode(opt.key);
+                    if (opt.key === 'edit') setImmerseFocusId(null); // 편집 모드로 가면 강조 해제
+                    setBgMenu(null);
+                  }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+                    background: active ? 'var(--accent-soft)' : 'transparent', border: 'none',
+                    borderRadius: 7, padding: '8px 10px', color: 'var(--ink)',
+                  }}
+                >
+                  <div style={{ fontSize: 13.5, fontWeight: active ? 700 : 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {active && <span style={{ color: 'var(--accent)' }}>✓</span>}
+                    <span style={{ marginLeft: active ? 0 : 18 }}>{opt.label}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginLeft: 18, marginTop: 1 }}>{opt.desc}</div>
+                </button>
+              );
+            })}
+            {/* 화면 전환 — 마인드맵 ↔ 아웃라인 (성격이 달라 맨 아래, 위와 구분선) */}
+            <div style={{ height: 1, background: 'var(--line)', margin: '6px 6px 4px' }} />
+            <button
+              onClick={() => { setOutlineView(v => !v); setChartView(null); setEditingId(null); setBgMenu(null); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span>{outlineView ? '🗺' : '🗂'}</span>
+              <span>{outlineView ? '지도(마인드맵)로 보기' : '아웃라인으로 보기'}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-soft)', fontWeight: 700 }}>F</span>
+            </button>
+            <button
+              onClick={() => { setChartView('gantt'); setOutlineView(false); setEditingId(null); setBgMenu(null); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span>📊</span><span>간트 차트로 보기</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-soft)', fontWeight: 700 }}>G</span>
+            </button>
+            <button
+              onClick={() => { setChartView('timeline'); setOutlineView(false); setEditingId(null); setBgMenu(null); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span>🕒</span><span>타임라인으로 보기</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--ink-soft)', fontWeight: 700 }}>T</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* 같은 브라우저 중복 탭 경고 배너 (새로 연 탭에만 표시, 닫기 전까지 유지) */}
+      {duplicateTab && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
+          background: '#d29922', color: '#1a1206',
+          padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.18)', fontSize: 14,
+        }}>
+          <span style={{ fontSize: 17 }}>⚠️</span>
+          <div style={{ flex: 1, lineHeight: 1.5 }}>
+            <b>이미 다른 탭에서 BrainBloom이 열려 있어요.</b>{' '}
+            같은 내용을 두 탭에서 편집하면 한쪽 작업이 덮어써질 수 있습니다. 한 탭만 사용하시길 권합니다.
+          </div>
+          <button
+            onClick={() => setDuplicateTab(false)}
+            style={{
+              flexShrink: 0, background: 'rgba(0,0,0,0.15)', border: 'none', color: '#1a1206',
+              borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            }}
+          >확인</button>
+        </div>
+      )}
+
+      {/* 새 버전 업데이트 소개 — 화면을 가리지 않는 알림 카드(비차단).
+          예전엔 전체화면 modal-backdrop(블러+딤+클릭차단)이라 첫 접속 때 "지도가 가운데 뭉쳐 멈춘 것처럼" 보였음 → 카드로 변경.
+          startupDialog(어제 작업 묻기)가 떠 있으면 그게 닫힌 뒤 표시. */}
+      {showUpdate && !startupDialog && (() => {
+        const rel = RECENT_CHANGES.find(r => r.version === APP_VERSION) || RECENT_CHANGES[0];
+        return (
+          <div
+            className="modal"
+            role="dialog"
+            aria-label="업데이트 소개"
+            style={{
+              position: 'fixed', left: '50%', top: 72, transform: 'translateX(-50%)',
+              zIndex: 1500, width: 'min(460px, calc(100vw - 24px))', maxWidth: 'none',
+              maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 14px 44px rgba(0,0,0,0.30)',
+            }}
+          >
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">✨ 새 버전으로 업데이트되었어요</div>
+                <div className="modal-subtitle">
+                  BrainBloom v{APP_VERSION}{rel && rel.date ? ` · ${rel.date}` : ''}
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setShowUpdate(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto' }}>
+              {rel ? (
+                <div className="changelog-release" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 0 }}>
+                  {rel.groups.map((g, gi) => (
+                    <div key={gi} className="changelog-group">
+                      <div className="changelog-group-label">{g.label}</div>
+                      <ul className="changelog-list">
+                        {g.items.map((it, ii) => <li key={ii}>{it}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="settings-desc">이번 버전이 적용되었습니다.</div>
+              )}
+              <div className="changelog-footer" style={{ marginTop: 12 }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setShowUpdate(false); setSettingsToChangelog(true); setShowSettings(true); }}>
+                  전체 변경 이력 보기
+                </a>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={settings.updateNotify === false}
+                  onChange={(e) => setSettings(s => ({ ...s, updateNotify: !e.target.checked }))}
+                />
+                <span>다음부터 업데이트 보지 않기</span>
+              </label>
+              <button className="btn primary" onClick={() => setShowUpdate(false)}>확인</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {remoteNewer && (
+        <div className="modal-backdrop" onClick={() => setRemoteNewer(null)}>
+          <div className="modal cmp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">🔄 저장본 비교 — 어느 쪽을 쓸지 골라 주세요</div>
+                <div className="modal-subtitle">드라이브에 더 최신 작업본이 있어요. 두 맵을 펼쳐 비교한 뒤 아래에서 선택하세요. (선택 전엔 아무것도 바뀌지 않아요)</div>
+              </div>
+              <button className="modal-close" onClick={() => setRemoteNewer(null)}>×</button>
+            </div>
+            <div className="modal-body cmp-body">
+              {/* 요약 카드: 이 기기 / 드라이브 최신본 */}
+              <div className="cmp-summary">
+                <div className="cmp-filecard">
+                  <div className="t">💻 이 기기(현재 화면)</div>
+                  <div className="m">{remoteCompare && remoteCompare.diff ? `노드 ${remoteCompare.diff.localCount}개` : '현재 화면'}</div>
+                </div>
+                <div className="cmp-filecard remote">
+                  <div className="t">☁️ 드라이브 최신본 <span className="cmp-newer">더 최신 ▲</span></div>
+                  <div className="m">
+                    {remoteCompare && remoteCompare.diff ? `노드 ${remoteCompare.diff.remoteCount}개` : ''}
+                    {remoteNewer.file && remoteNewer.file.modifiedTime ? `${remoteCompare && remoteCompare.diff ? ' · ' : ''}마지막 수정 ${new Date(remoteNewer.file.modifiedTime).toLocaleString()}` : ''}
+                  </div>
+                </div>
+              </div>
+              {/* 차이 요약 배지 */}
+              {remoteCompare && remoteCompare.diff && (
+                <div className="cmp-diffbar">
+                  <span className="lg"><span className="dot add"></span>추가 {remoteCompare.diff.added.length}</span>
+                  <span className="lg"><span className="dot del"></span>삭제 {remoteCompare.diff.removed.length}</span>
+                  <span className="lg"><span className="dot chg"></span>변경 {remoteCompare.diff.changed.length}</span>
+                </div>
+              )}
+              {/* 좌우 2분할 아웃라인 비교 */}
+              {(!remoteCompare || remoteCompare.loading) ? (
+                <div className="cmp-loading">최신본 내용을 내려받아 비교하는 중…</div>
+              ) : remoteCompare.error ? (
+                <div className="cmp-loading">비교 내용을 불러오지 못했어요 — 그래도 아래의 불러오기·무시·삭제는 쓸 수 있어요.</div>
+              ) : (
+                <div className="cmp-panes">
+                  <div className="cmp-pane">
+                    <div className="cmp-ph">💻 이 기기</div>
+                    <div className="cmp-panebody"><CompareOutline root={tree} statusMap={remoteCmpStatus && remoteCmpStatus.local} /></div>
+                  </div>
+                  <div className="cmp-pane">
+                    <div className="cmp-ph">☁️ 드라이브 최신본</div>
+                    <div className="cmp-panebody"><CompareOutline root={remoteCompare.remoteTree} statusMap={remoteCmpStatus && remoteCmpStatus.remote} /></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="cmp-note">
+              • <b>현재 유지 · 무시</b>: 드라이브 것은 안 가져오고 지금 화면 그대로 작업 계속 (이번 세션 동안 다시 안 물어봄)<br />
+              • <b>드라이브 것 불러오기</b>: 지금 화면을 드라이브 최신본으로 교체 (Ctrl+Z로 되돌릴 수 있어요)<br />
+              • <b>둘 합치기(Merge)</b>: 현재 맵은 그대로 두고 루트 아래 "복원" 가지로 최신본 전체를 붙임 (안전 — 아무것도 안 지움)<br />
+              • <b>Google Drive 저장 파일 삭제</b>: 드라이브의 저장 파일을 삭제(한 번 더 확인) — 현재 화면은 유지
+            </div>
+            <div className="modal-footer cmp-foot">
+              <button
+                className="btn"
+                onClick={() => {
+                  // 무시하고 계속: 기준 시각을 현재 최신본 시각으로 올려, 다시 묻지 않게 함.
+                  if (remoteNewer.file && remoteNewer.file.modifiedTime) setSyncedTime(remoteNewer.file.modifiedTime);
+                  setRemoteNewer(null);
+                  showToast('현재 내용을 유지합니다');
+                }}
+              >
+                현재 유지 · 무시
+              </button>
+              <button
+                className="btn navy"
+                onClick={() => {
+                  const f = remoteNewer.file;
+                  setRemoteNewer(null);
+                  if (f) handleDriveLoadFile(f.id, f.name, f.modifiedTime);
+                }}
+              >
+                ☁️ 드라이브 것 불러오기
+              </button>
+              <button
+                className="btn primary"
+                disabled={!(remoteCompare && remoteCompare.remoteTree)}
+                title={remoteCompare && remoteCompare.error
+                  ? '최신본을 내려받지 못해 합치기를 쓸 수 없어요'
+                  : '루트 아래 "복원" 가지를 만들어 최신본 전체를 그 밑에 붙입니다 — 지금 화면은 그대로'}
+                onClick={handleMergeRemote}
+              >
+                🔀 둘 합치기(Merge)
+              </button>
+              <div className="cmp-foot-spacer"></div>
+              <button className="btn cmp-del" onClick={handleDeleteRemote}>🗑 Google Drive 저장 파일 삭제…</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+   ★ SettingsModal
+   ============================================================ */
+// 설정 종류(탭) — 사용자가 정한 순서: 정보 → 화면 → 타이머 → 작업·콘텐츠 → 저장·드라이브 → 연동
+const SETTINGS_CATS = [
+  { k: 'info', ic: 'ℹ️', name: '정보' },
+  { k: 'disp', ic: '🖥', name: '화면' },
+  { k: 'timer', ic: '⏱', name: '타이머' },
+  { k: 'work', ic: '✍️', name: '작업·콘텐츠' },
+  { k: 'save', ic: '☁️', name: '저장·드라이브' },
+  { k: 'link', ic: '🔗', name: '연동' },
+];
+function SettingsModal({ settings, onSettingsChange, onClose, startChangelog, driveSignedIn, driveLinkedPending, driveBusy, driveStatus, driveAutoStatus, scrollToDrive, onScrollToDriveDone, driveFiles, onDriveSignIn, onDriveSignOut, onDriveSave, onDriveListFiles, onDriveLoadFile, onDriveSaveSettings, onDriveLoadSettings, drivePreview, onDrivePreviewFile, onDrivePreviewClose, onOpenJsonFile }) {
+  const update = (patch) => onSettingsChange({ ...settings, ...patch });
+  // 설정 화면 ↔ 변경 이력 화면 전환 (별도 모달 중첩 없이 같은 모달 안에서 전환)
+  const [showChangelog, setShowChangelog] = React.useState(!!startChangelog);   // 업데이트 팝업 '전체 변경 이력 보기'로 열면 바로 변경이력 화면
+  const [cat, setCat] = React.useState('disp');   // 설정 종류(탭): info/disp/timer/work/save/link — 기본은 '화면'
+  const [clVisible, setClVisible] = React.useState(50);   // 변경 이력: 처음 50개, '더 읽기'로 50개씩 더
+  React.useEffect(() => { if (showChangelog) setClVisible(50); }, [showChangelog]);   // 이력 열 때마다 50개로 초기화
+  const [showAbout, setShowAbout] = React.useState(false);   // About(공지·개발자의 말) 오버레이
+  const [aboutNonce, setAboutNonce] = React.useState(0);     // 열 때마다 최신본 받도록 캐시버스트
+  // ─── 아이콘 줄(행) 편집 ───
+  const [iconRowSel, setIconRowSel] = React.useState(0);   // 아이콘을 추가할 '선택된 줄' 인덱스
+  const iconRows = Array.isArray(settings.iconRows) ? settings.iconRows : [];
+  const setIconRows = (rows) => update({ iconRows: rows });
+  const addIconRow = () => { setIconRows([...iconRows, []]); setIconRowSel(iconRows.length); };
+  const removeIconRow = (i) => {
+    const next = iconRows.filter((_, idx) => idx !== i);
+    setIconRows(next.length ? next : [[]]);              // 최소 1줄 유지
+    setIconRowSel(s => Math.max(0, Math.min(s, (next.length || 1) - 1)));
+  };
+  const clearIconRow = (i) => setIconRows(iconRows.map((r, idx) => idx === i ? [] : r));
+  const removeIconFromRows = (ic) => setIconRows(iconRows.map(r => r.filter(x => x !== ic)));
+  // 팔레트 아이콘 클릭 → 선택한 줄에서 토글. 다른 줄에 있으면 이 줄로 옮김(중복 방지).
+  const toggleIconInSelRow = (ic) => {
+    const sel = Math.max(0, Math.min(iconRowSel, iconRows.length - 1));
+    const inSel = (iconRows[sel] || []).includes(ic);
+    const stripped = iconRows.map(r => r.filter(x => x !== ic));
+    if (!inSel) stripped[sel] = [...stripped[sel], ic];
+    setIconRows(stripped);
+  };
+  // 자동저장 실패 시 설정을 열면 드라이브 섹션으로 스크롤
+  const driveSectionRef = React.useRef(null);
+  React.useEffect(() => {
+    if (scrollToDrive && driveSectionRef.current) {
+      // 모달 렌더 후 스크롤 (약간의 지연으로 레이아웃 안정 후)
+      const t = setTimeout(() => {
+        try { driveSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+        if (onScrollToDriveDone) onScrollToDriveDone();
+      }, 100);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line
+  }, [scrollToDrive]);
+  // 이메일 복사 피드백 (복사 직후 잠깐 "복사됨!" 표시)
+  const [mailCopied, setMailCopied] = React.useState(false);
+  const DEV_EMAIL = 'redmirnet@naver.com';
+  const copyDevEmail = async () => {
+    try {
+      // 최신 브라우저: Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(DEV_EMAIL);
+      } else {
+        // 폴백: 임시 textarea + execCommand (구형/비보안 컨텍스트)
+        const ta = document.createElement('textarea');
+        ta.value = DEV_EMAIL;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setMailCopied(true);
+      setTimeout(() => setMailCopied(false), 1600);
+    } catch (e) {
+      console.warn('이메일 복사 실패', e);
+    }
+  };
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          {showChangelog ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  className="changelog-back-btn"
+                  onClick={() => setShowChangelog(false)}
+                  title="설정으로 돌아가기"
+                >←</button>
+                <div>
+                  <div className="modal-title">변경 이력</div>
+                  <div className="modal-subtitle">최근 업데이트된 내용입니다</div>
+                </div>
+              </div>
+              <button className="modal-close" onClick={onClose}>×</button>
+            </>
+          ) : (
+            <>
+              <div>
+                <div className="modal-title">설정</div>
+                <div className="modal-subtitle">저장 형식과 시작 동작을 설정합니다</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="changelog-open-btn"
+                  onClick={() => setShowChangelog(true)}
+                  title="프로그램 변경 내용 보기"
+                >
+                  🆕 <span>변경 내용</span>
+                </button>
+                <button className="modal-close" onClick={onClose}>×</button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {showChangelog ? (
+          <div className="modal-body">
+            {RECENT_CHANGES.slice(0, clVisible).map((rel) => (
+              <div key={rel.version} className="changelog-release">
+                <div className="changelog-version-row">
+                  <span className="changelog-version">v{rel.version}</span>
+                  <span className="changelog-date">{rel.date}</span>
+                  {rel.version === APP_VERSION && (
+                    <span className="changelog-current">현재 버전</span>
+                  )}
+                </div>
+                {rel.groups.map((g, gi) => (
+                  <div key={gi} className="changelog-group">
+                    <div className="changelog-group-label">{g.label}</div>
+                    <ul className="changelog-list">
+                      {g.items.map((it, ii) => (
+                        <li key={ii}>{it}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div className="changelog-footer">
+              {clVisible < RECENT_CHANGES.length ? (
+                <button
+                  type="button"
+                  onClick={() => setClVisible(c => c + 50)}
+                  style={{ display: 'block', width: '100%', padding: '11px 14px', marginBottom: 10, cursor: 'pointer',
+                    border: '1px solid var(--line)', borderRadius: 10, background: 'var(--bg-2)', color: 'var(--ink)', fontSize: 13.5, fontWeight: 700, font: 'inherit' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+                >
+                  ↓ 더 읽기 ({RECENT_CHANGES.length - clVisible}개 더)
+                </button>
+              ) : (
+                <a href={CHANGELOG_URL} target="_blank" rel="noopener noreferrer">
+                  그 이전 버전의 전체 변경 이력 보기
+                </a>
+              )}
+            </div>
+          </div>
+        ) : (
+        <div className="modal-body settings-catbody" data-cat={cat}>
+          {/* 설정 종류 탭 (정보 → 화면 → 타이머 → 작업·콘텐츠 → 저장·드라이브 → 연동) */}
+          <div className="settings-tabs">
+            {SETTINGS_CATS.map(c => (
+              <button key={c.k} type="button" className={`settings-tab ${cat === c.k ? 'on' : ''}`} onClick={() => setCat(c.k)}>
+                <span style={{ fontSize: 15 }}>{c.ic}</span>{c.name}
+              </button>
+            ))}
+          </div>
+
+          {/* 문서 바로가기 (정보 탭) */}
+          {cat === 'info' && (
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <a
+              href="https://www.redmir.net/BrainBloom_UserGuide.html"
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+                border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px',
+                background: 'var(--bg-2)', color: 'var(--ink)', transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+            >
+              <span style={{ fontSize: 10 }}>📖</span>
+              <span>
+                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700 }}>사용 설명서</span>
+                <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-soft)' }}>처음이라면 여기부터</span>
+              </span>
+            </a>
+            <a
+              href="https://www.redmir.net/BrainBloom_TechDoc.html"
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+                border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px',
+                background: 'var(--bg-2)', color: 'var(--ink)', transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+            >
+              <span style={{ fontSize: 10 }}>🛠️</span>
+              <span>
+                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700 }}>기술 문서</span>
+                <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-soft)' }}>설계와 구현 이야기</span>
+              </span>
+            </a>
+            <button
+              type="button"
+              onClick={() => { setAboutNonce(Date.now()); setShowAbout(true); }}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer',
+                border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px',
+                background: 'var(--bg-2)', color: 'var(--ink)', transition: 'border-color 0.15s', font: 'inherit',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+            >
+              <span style={{ fontSize: 10 }}>📣</span>
+              <span>
+                <span style={{ display: 'block', fontSize: 13.5, fontWeight: 700 }}>About</span>
+                <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-soft)' }}>공지 · 개발자의 말</span>
+              </span>
+            </button>
+          </div>
+          )}
+
+          {/* About 오버레이 — www.redmir.net/about 를 iframe으로 불러와 보여줌(개발자가 about.html만 고치면 즉시 반영) */}
+          {showAbout && (
+            <div
+              onClick={() => setShowAbout(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ width: 'min(960px, 94vw)', height: '88vh', background: 'var(--panel)', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 18px 60px rgba(0,0,0,0.35)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+                  <strong style={{ fontSize: 15 }}>📣 About — 공지 · 개발자의 말</strong>
+                  <button onClick={() => setShowAbout(false)} title="닫기"
+                    style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer', color: 'var(--ink-soft)', lineHeight: 1, padding: 4 }}>✕</button>
+                </div>
+                <iframe title="About" src={`https://www.redmir.net/about.html?t=${aboutNonce}`}
+                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  referrerPolicy="no-referrer"
+                  style={{ flex: 1, width: '100%', border: 'none', background: '#fff' }} />
+              </div>
+            </div>
+          )}
+
+          {/* 화면 표시 */}
+          <div className="settings-section is-card cat-disp">
+            <div className="settings-section-title">화면 표시</div>
+            <div className="settings-desc" style={{ marginBottom: 12 }}>
+              패널을 숨기면 마인드맵 캔버스를 더 넓게 쓸 수 있습니다.
+              좌측은 텍스트 입력, 우측은 속성 편집 + 통계 패널입니다.
+              우측을 숨겨도 노드 더블클릭이나 F2로 이름은 편집할 수 있습니다 (색상·메타데이터 편집은 패널 필요).
+            </div>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                checked={settings.autoFitMap !== false}
+                onChange={(e) => update({ autoFitMap: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>지도 자동 맞춤 — 처음 열 때·창 크기 변경 시 화면에 맞게 축소 (편집·노드 추가 중엔 배율 고정, ⊡·우클릭 메뉴로 수동 맞춤)</span>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 14 }}>노드 간격</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[['compact', '촘촘'], ['normal', '보통'], ['wide', '넓게']].map(([v, name]) => {
+                  const active = (settings.layoutSpacing || 'normal') === v;
+                  return (
+                    <button key={v} type="button"
+                      onClick={() => update({ layoutSpacing: v })}
+                      style={{ cursor: 'pointer', fontSize: 13, padding: '5px 14px', font: 'inherit', borderRadius: 8,
+                        border: `2px solid ${active ? 'var(--accent)' : 'var(--line)'}`, background: 'var(--bg-2)', color: 'var(--ink)', fontWeight: active ? 700 : 500 }}>
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* 자주 쓰는 화면 토글 — 배경 점·미니멀 상단바를 위로 */}
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={settings.bgDots !== false}
+                onChange={(e) => update({ bgDots: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>배경 점 패턴 표시</span>
+            </label>
+            <div className="settings-desc" style={{ marginBottom: 10, fontSize: 12 }}>
+              배경에 깔린 점 격자를 켜고 끕니다. 끄면 더 깔끔한 단색 배경이 됩니다.
+            </div>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={settings.minimalHeader === true}
+                onChange={(e) => update({ minimalHeader: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>미니멀 상단바 (캘린더·AI·설정만)</span>
+            </label>
+            <div className="settings-desc" style={{ marginBottom: 12 }}>
+              켜면 로고·버전·새로 시작·Undo·Redo와 상단 경계선을 숨기고, 타이머·캘린더·AI·설정만 남깁니다. (Undo·Redo는 단축키로 계속 동작합니다.)
+            </div>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                checked={settings.showLeftPanel !== false}
+                onChange={(e) => update({ showLeftPanel: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>좌측 패널 표시 (텍스트 입력)</span>
+            </label>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={settings.showRightPanel !== false}
+                onChange={(e) => update({ showRightPanel: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>우측 패널 표시 (속성 편집 + 통계)</span>
+            </label>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={settings.showCanvasHint !== false}
+                onChange={(e) => update({ showCanvasHint: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>캔버스 안내 힌트 표시 (Ctrl+휠 · 드래그)</span>
+            </label>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={settings.showUndoRedo !== false}
+                onChange={(e) => update({ showUndoRedo: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>Undo · Redo 버튼 표시</span>
+            </label>
+            <div className="settings-desc" style={{ marginTop: 6 }}>
+              끄면 상단바에서 Undo·Redo 버튼이 사라집니다. 단축키(Ctrl+Z / Ctrl+Shift+Z)로는 계속 쓸 수 있습니다.
+            </div>
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginTop: 12 }}>
+              <input
+                type="checkbox"
+                checked={settings.focusModeOnEdit === true}
+                onChange={(e) => update({ focusModeOnEdit: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>편집 중 집중 모드</span>
+            </label>
+            <div className="settings-desc" style={{ marginTop: 6 }}>
+              켜면 노드를 편집하거나 새로 추가할 때, 그 노드까지의 경로와 바로 아래 자식만 또렷하게 보이고 나머지는 흐려집니다.
+              편집을 끝내면 원래대로 돌아옵니다. (색이 실제로 바뀌는 건 아니라 저장에는 영향이 없습니다.)
+            </div>
+            {settings.focusModeOnEdit && (
+              <div style={{ marginTop: 10, marginLeft: 28 }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 6 }}>흐림 정도</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { key: 'soft', label: '약하게' },
+                    { key: 'medium', label: '보통' },
+                    { key: 'strong', label: '강하게' },
+                  ].map(opt => {
+                    const active = (settings.focusDimLevel || 'medium') === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => update({ focusDimLevel: opt.key })}
+                        style={{
+                          flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+                          border: active ? '1px solid var(--accent)' : '1px solid var(--line, #ddd)',
+                          background: active ? 'var(--accent)' : 'transparent',
+                          color: active ? '#fff' : 'var(--ink, #333)',
+                          fontWeight: active ? 700 : 400,
+                          transition: 'all 0.15s',
+                        }}
+                      >{opt.label}</button>
+                    );
+                  })}
+                </div>
+                <div className="settings-desc" style={{ marginTop: 6, fontSize: 12 }}>
+                  나머지 노드를 얼마나 흐리게 할지 정합니다. "강하게"일수록 거의 안 보이게 됩니다.
+                </div>
+              </div>
+            )}
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginTop: 12 }}>
+              <input
+                type="checkbox"
+                checked={settings.duplicateTabAlert !== false}
+                onChange={(e) => update({ duplicateTabAlert: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>중복 탭 알림</span>
+            </label>
+            <div className="settings-desc" style={{ marginTop: 6 }}>
+              같은 브라우저에서 BrainBloom을 이미 다른 탭에 열어 둔 채 새 탭으로 또 열면, 새 탭 상단에 경고를 표시합니다.
+              두 탭에서 같은 내용을 편집하면 한쪽 작업이 덮어써질 수 있어 알려 주는 것입니다. (다른 브라우저나 다른 기기와는 무관합니다.)
+            </div>
+
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginTop: 12 }}>
+              <input
+                type="checkbox"
+                checked={settings.updateNotify !== false}
+                onChange={(e) => update({ updateNotify: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>업데이트 알림 사용하기</span>
+            </label>
+            <div className="settings-desc" style={{ marginTop: 6 }}>
+              새 버전으로 올라오면 접속할 때 이번 버전의 변경점을 소개하는 팝업을 한 번 보여 줍니다.
+              팝업의 "다음부터 업데이트 보지 않기"를 체크하거나 이 옵션을 꺼도 더 이상 표시되지 않습니다.
+            </div>
+
+            <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginTop: 12 }}>
+              <input
+                type="checkbox"
+                checked={settings.showMetaPanel !== false}
+                onChange={(e) => update({ showMetaPanel: e.target.checked })}
+              />
+              <span style={{ fontSize: 14 }}>노드 메타데이터(날짜·작업량·비용) 표시</span>
+            </label>
+            <div className="settings-desc" style={{ marginTop: 6 }}>
+              끄면 우측 속성 패널의 "메타데이터" 입력 칸이 숨겨집니다.
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>아이콘 (줄 구성)</div>
+              <div className="settings-desc" style={{ marginBottom: 8 }}>
+                노드에 붙일 아이콘을 <b>줄(행)</b>로 나눠 정리하세요. 우측 속성 패널의 아이콘 피커와 화면 하단 <b>아이콘 모아보기</b>가 이 줄 구성을 그대로 따릅니다.
+                먼저 아래에서 줄을 고른 뒤, 팔레트에서 아이콘을 누르면 그 줄에 들어갑니다.
+              </div>
+              {/* 줄 목록 — 줄을 누르면 '선택한 줄'이 됨(팔레트 아이콘이 그 줄로 들어감) */}
+              {iconRows.map((row, i) => {
+                const sel = Math.max(0, Math.min(iconRowSel, iconRows.length - 1));
+                return (
+                  <div key={i} className={`icon-row-edit ${sel === i ? 'sel' : ''}`} onClick={() => setIconRowSel(i)}>
+                    <span className="icon-row-tag">줄 {i + 1}</span>
+                    <div className="icon-row-icons">
+                      {(row || []).length === 0
+                        ? <span className="icon-row-empty">비어 있음 — 팔레트에서 골라 넣으세요</span>
+                        : row.map(ic => (
+                            <span key={ic} className="icon-row-chip" title="이 줄에서 제거"
+                              onClick={(e) => { e.stopPropagation(); removeIconFromRows(ic); }}>{ic}</span>
+                          ))}
+                    </div>
+                    <div className="icon-row-ctrls">
+                      {(row || []).length > 0 && (
+                        <button onClick={(e) => { e.stopPropagation(); clearIconRow(i); }}>비우기</button>
+                      )}
+                      {iconRows.length > 1 && (
+                        <button onClick={(e) => { e.stopPropagation(); removeIconRow(i); }}>줄 삭제</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <button className="icon-row-add" onClick={addIconRow}>+ 줄 추가</button>
+              {/* 팔레트 — 누르면 '선택한 줄'에 추가/이동/제거 */}
+              <div className="settings-desc" style={{ margin: '12px 0 6px' }}>
+                <b>줄 {Math.max(0, Math.min(iconRowSel, iconRows.length - 1)) + 1}</b>에 넣을 아이콘 — 누르면 추가(다른 줄에 있으면 이 줄로 이동), 한 번 더 누르면 제거
+              </div>
+              {ICON_CATEGORIES.map(cat => {
+                const sel = Math.max(0, Math.min(iconRowSel, iconRows.length - 1));
+                const selRow = iconRows[sel] || [];
+                return (
+                  <div key={cat.name} style={{ marginBottom: 8 }}>
+                    <div className="icon-cat-name">{cat.name}</div>
+                    <div className="icon-pick-grid">
+                      {cat.icons.map(ic => {
+                        const inSel = selRow.includes(ic);
+                        const inOther = !inSel && iconRows.some(r => (r || []).includes(ic));
+                        return (
+                          <span
+                            key={ic}
+                            className={`icon-pick-item ${inSel ? 'on' : ''} ${inOther ? 'other' : ''}`}
+                            title={inOther ? '다른 줄에 있음 — 누르면 이 줄로 이동' : ''}
+                            onClick={() => toggleIconInSelRow(ic)}
+                          >{ic}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 배경 테마 팔레트 */}
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>배경 색</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {[
+                  { key: 'default', label: '기본', swatch: '#f4f6f9', dark: false },
+                  { key: 'ivory', label: '샌드', swatch: '#f0e6d2', dark: false },
+                  { key: 'mint', label: '세이지', swatch: '#e4ece0', dark: false },
+                  { key: 'gray', label: '스카이', swatch: '#e2ebf5', dark: false },
+                  { key: 'charcoal', label: '차콜', swatch: '#1c1c1e', dark: true },
+                  { key: 'navy', label: '미드나잇', swatch: '#15213a', dark: true },
+                  { key: 'softdark', label: '포레스트', swatch: '#1a2a22', dark: true },
+                ].map(opt => {
+                  const active = (settings.bgTheme || 'default') === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => update({ bgTheme: opt.key })}
+                      title={opt.label}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                      }}
+                    >
+                      <span style={{
+                        width: 40, height: 40, borderRadius: 10, background: opt.swatch,
+                        border: active ? '3px solid var(--accent)' : '1px solid var(--line)',
+                        boxShadow: active ? '0 0 0 2px var(--accent-soft)' : 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.15s',
+                      }}>
+                        {active && <span style={{ color: opt.dark ? '#fff' : 'var(--accent)', fontSize: 16, fontWeight: 700 }}>✓</span>}
+                      </span>
+                      <span style={{ fontSize: 11, color: active ? 'var(--accent)' : 'var(--ink-soft)', fontWeight: active ? 700 : 400 }}>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="settings-desc" style={{ marginTop: 8, fontSize: 12 }}>
+                오래 봐도 눈이 편한 배경을 고르세요. 차콜·네이비·소프트다크는 어두운 화면(다크 모드)입니다.
+              </div>
+            </div>
+          </div>
+
+          {/* 노드 길이 */}
+          <div className="settings-section is-card cat-disp">
+            <div className="settings-section-title">노드 길이</div>
+            <div className="settings-desc" style={{ marginBottom: 10 }}>
+              노드 라벨이 길어질 때 어디까지 보여줄지 정합니다. 잘린 경우 마우스를 올리면 전체 내용이 툴팁으로 표시됩니다.
+            </div>
+
+            <div className="settings-label" style={{ marginBottom: 6 }}>외부 링크 최대 표시 길이</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+              {[
+                { v: 1, label: '1줄' },
+                { v: 2, label: '2줄' },
+              ].map(opt => (
+                <button
+                  key={opt.v}
+                  className={`btn ${(settings.urlLabelLines || 1) === opt.v ? 'primary' : ''}`}
+                  onClick={() => update({ urlLabelLines: opt.v })}
+                  style={{ minWidth: 64 }}
+                >{opt.label}</button>
+              ))}
+            </div>
+
+            <div className="settings-label" style={{ marginBottom: 6 }}>일반 텍스트 최대 표시 길이</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { v: 1, label: '1줄' },
+                { v: 2, label: '2줄' },
+                { v: 'all', label: '모두 보여주기' },
+              ].map(opt => (
+                <button
+                  key={String(opt.v)}
+                  className={`btn ${(settings.plainLabelLines ?? 'all') === opt.v ? 'primary' : ''}`}
+                  onClick={() => update({ plainLabelLines: opt.v })}
+                  style={{ minWidth: 64 }}
+                >{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 노드 폰트 */}
+          <div className="settings-section is-card cat-disp">
+            <div className="settings-section-title">노드 폰트</div>
+            <div className="settings-desc" style={{ marginBottom: 10 }}>
+              마인드맵 노드 글씨체를 고릅니다. 시스템 기본은 이 화면과 비슷한 느낌입니다. 컴퓨터에 설치된 폰트만 적용되며, 없으면 기본 글씨체로 보입니다.
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              {NODE_FONT_OPTIONS.map(opt => (
+                <button
+                  key={opt.id}
+                  className={`btn ${(settings.nodeFont || 'system') === opt.id ? 'primary' : ''}`}
+                  onClick={() => update({ nodeFont: opt.id })}
+                  style={{ fontFamily: opt.value }}
+                  title={opt.label}
+                >{opt.label}</button>
+              ))}
+              <button
+                className={`btn ${settings.nodeFont === 'custom' ? 'primary' : ''}`}
+                onClick={() => update({ nodeFont: 'custom' })}
+              >직접 입력</button>
+            </div>
+            {settings.nodeFont === 'custom' && (
+              <input
+                type="text"
+                className="text-input"
+                placeholder="폰트 이름 입력 (예: 맑은 고딕, Arial)"
+                value={settings.nodeFontCustom || ''}
+                onChange={(e) => update({ nodeFontCustom: e.target.value })}
+                style={{ width: '100%', marginBottom: 10 }}
+              />
+            )}
+            {/* 미리보기 */}
+            <div style={{
+              padding: '12px 14px',
+              border: '1px solid var(--line)',
+              borderRadius: 8,
+              background: 'var(--bg-2)',
+              fontFamily: resolveNodeFont(settings.nodeFont, settings.nodeFontCustom),
+              fontWeight: 700,
+              fontSize: 16,
+              color: 'var(--ink)',
+            }}>
+              가나다라마 ABCDabcd 123 — 미리보기
+            </div>
+          </div>
+
+          {/* 타이머 */}
+          <div className="settings-section is-card cat-timer">
+            <div className="settings-section-title">타이머</div>
+            <div className="settings-desc" style={{ marginBottom: 10 }}>
+              헤더의 타이머 칩에서 시작/일시정지할 수 있습니다. 진행 상황은 화면 가운데 반투명 알림으로 알려드려요 —
+              시작할 때, 아래에서 정한 간격마다, 그리고 마지막 3·2·1분 전에. 시간이 다 되면 종료 알림이 뜹니다.
+            </div>
+            <div className="settings-row" style={{ marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">경과 알림 간격 (분)</div>
+                <div className="settings-desc">진행 중 몇 분마다 "N분 지났어요"를 띄울까요? 0이면 끕니다 (3·2·1분 전 알림은 항상 유지).</div>
+              </div>
+              <input
+                type="number"
+                className="text-field"
+                style={{ width: 100 }}
+                min="0"
+                max="60"
+                value={settings.timerNotifyMinutes}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= 0 && v <= 60) {
+                    update({ timerNotifyMinutes: v });
+                  }
+                }}
+              />
+            </div>
+            <div className="settings-label" style={{ marginBottom: 6 }}>기본 시간 (분)</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+              {[5, 10, 15, 25, 30].map(min => (
+                <button
+                  key={min}
+                  className={`btn ${settings.timerMinutes === min ? 'primary' : ''}`}
+                  style={{ padding: '6px 14px', fontSize: 13 }}
+                  onClick={() => update({ timerMinutes: min })}
+                >
+                  {min}분
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="number"
+                className="text-field"
+                style={{ width: 100 }}
+                min="1"
+                max="120"
+                value={settings.timerMinutes}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= 1 && v <= 120) {
+                    update({ timerMinutes: v });
+                  }
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>분 (1~120 직접 입력)</span>
+            </div>
+          </div>
+
+          {/* 저장 옵션 */}
+          <div className="settings-section is-card cat-save">
+            <div className="settings-section-title">저장 옵션</div>
+
+            <div className="settings-row" style={{ alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">헤더에 표시할 저장 버튼</div>
+                <div className="settings-desc">선택한 형식만 상단에 버튼으로 나타납니다</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', maxWidth: 280 }}>
+                {[
+                  { cap: '이미지', items: [{ v: 'jpg', t: 'JPG' }, { v: 'svg', t: 'SVG' }] },
+                  { cap: '문서', items: [{ v: 'pdf', t: 'PDF' }, { v: 'csv', t: 'CSV' }, { v: 'md', t: 'MD' }] },
+                  { cap: '텍스트(불러오기 가능)', items: [{ v: 'json', t: 'JSON' }] },
+                ].map(group => (
+                  <div key={group.cap} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>{group.cap}</span>
+                    <div className="format-chips" style={{ justifyContent: 'flex-end' }}>
+                      {group.items.map(opt => {
+                        const list = settings.visibleSaveButtons || [];
+                        const active = list.includes(opt.v);
+                        return (
+                          <div
+                            key={opt.v}
+                            className={`format-chip ${active ? 'active' : ''}`}
+                            onClick={() => {
+                              if (active) update({ visibleSaveButtons: list.filter(f => f !== opt.v) });
+                              else update({ visibleSaveButtons: [...list, opt.v] });
+                            }}
+                          >
+                            {opt.t}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">📂 JSON 백업 파일 열기</div>
+                <div className="settings-desc">내 컴퓨터에 저장해 둔 BrainBloom JSON을 불러옵니다. 현재 작업은 Ctrl+Z로 되돌릴 수 있어요.</div>
+              </div>
+              <button
+                className="text-input"
+                style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700, maxWidth: 120 }}
+                onClick={onOpenJsonFile}
+              >
+                📂 열기
+              </button>
+            </div>
+
+            <div className="settings-row">
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">파일명 접두사</div>
+                <div className="settings-desc">내보내기 파일명은 문서 이름으로 시작해요 (예: 문서이름_2026-05-28T...json). 이 접두사는 문서 이름을 쓸 수 없을 때 대신 사용됩니다.</div>
+              </div>
+              <input
+                className="text-field"
+                style={{ maxWidth: 180 }}
+                value={settings.filenameBase}
+                onChange={(e) => update({ filenameBase: e.target.value || 'brainbloom' })}
+              />
+            </div>
+          </div>
+
+          {/* 구글 캘린더 */}
+          <div className="settings-section is-card cat-link">
+            <div className="settings-section-title">구글 캘린더</div>
+            <div className="settings-row">
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">일정 제목</div>
+                <div className="settings-desc">
+                  "📅 캘린더에 추가" 버튼을 누를 때 사용할 일정 이름입니다.
+                  비워두면 기본값 "브레인스토밍"이 적용됩니다.
+                </div>
+              </div>
+              <input
+                className="text-field"
+                style={{ maxWidth: 180 }}
+                placeholder="브레인스토밍"
+                value={settings.calendarEventTitle || ''}
+                onChange={(e) => update({ calendarEventTitle: e.target.value })}
+                onBlur={(e) => {
+                  // 포커스 잃을 때 빈 값이면 기본값으로 복구
+                  if (!e.target.value.trim()) update({ calendarEventTitle: '브레인스토밍' });
+                }}
+              />
+            </div>
+
+            {/* 일정 방식 선택 */}
+            <div className="settings-label" style={{ marginTop: 4, marginBottom: 6 }}>일정 방식</div>
+            <div className="radio-list">
+              {[
+                {
+                  v: 'allday',
+                  t: '하루 종일 일정',
+                  d: `제목 뒤에 시각이 붙습니다 (예: "${(settings.calendarEventTitle || '브레인스토밍')} 18:00"). 종일 일정으로 등록.`
+                },
+                {
+                  v: 'timed',
+                  t: '시간 일정',
+                  d: `제목은 그대로, 지금 시각부터 타이머 시간(${settings.timerMinutes || 3}분)만큼 시간 블록으로 등록.`
+                },
+              ].map(opt => (
+                <div
+                  key={opt.v}
+                  className={`radio-option ${(settings.calendarMode || 'allday') === opt.v ? 'active' : ''}`}
+                  onClick={() => update({ calendarMode: opt.v })}
+                >
+                  <div className="radio-dot" />
+                  <div className="radio-content">
+                    <div className="radio-title">{opt.t}</div>
+                    <div className="radio-desc">{opt.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI 요약 */}
+          <div className="settings-section is-card cat-link">
+            <div className="settings-section-title">🤖 AI 요약</div>
+            <div className="settings-row">
+              <div style={{ flex: 1 }}>
+                <div className="settings-label">사용할 AI 서비스</div>
+                <div className="settings-desc">
+                  "🤖 AI 요약" 버튼을 누르면 마인드맵을 클립보드에 복사하고 선택한 AI 채팅 창을 새 탭으로 엽니다.
+                </div>
+              </div>
+              <select
+                className="text-field"
+                style={{ maxWidth: 180 }}
+                value={settings.aiService || 'chatgpt'}
+                onChange={(e) => update({ aiService: e.target.value })}
+              >
+                {Object.entries(AI_SERVICES).map(([key, svc]) => (
+                  <option key={key} value={key}>{svc.icon} {svc.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div className="settings-label">프롬프트 템플릿</div>
+              <div className="settings-desc" style={{ marginBottom: 6 }}>
+                <code>{'{tree}'}</code> 자리에 마인드맵이 들어갑니다. 비우면 기본 프롬프트가 사용됩니다.
+              </div>
+              <textarea
+                className="text-field"
+                style={{ width: '100%', minHeight: 140, fontFamily: 'inherit', fontSize: 12, lineHeight: 1.5, resize: 'vertical' }}
+                placeholder={DEFAULT_AI_PROMPT}
+                value={settings.aiPrompt || ''}
+                onChange={(e) => update({ aiPrompt: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  // 포커스 잃을 때 빈 값이면 기본 프롬프트로 복구
+                  if (!e.target.value.trim()) update({ aiPrompt: DEFAULT_AI_PROMPT });
+                }}
+              />
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button
+                  className="btn"
+                  style={{ fontSize: 11 }}
+                  onClick={() => update({ aiPrompt: DEFAULT_AI_PROMPT })}
+                  title="프롬프트를 기본값으로 되돌리기"
+                >↺ 기본 프롬프트로 되돌리기</button>
+              </div>
+            </div>
+          </div>
+
+          {/* 시작 시 동작 */}
+          <div className="settings-section is-card cat-work">
+            <div className="settings-section-title">시작 시 동작 (어제 이전에 작업한 것이 있을 때)</div>
+            <div className="radio-list">
+              {[
+                { v: 'ask', t: '매번 물어보기', d: '시작할 때마다 새 파일/이어 작업 선택 창을 띄웁니다' },
+                { v: 'restore', t: '자동으로 이어서 작업', d: '마지막 작업을 자동으로 불러옵니다' },
+                { v: 'new', t: '항상 새 파일로 시작', d: '하루를 시작하는 명언과 함께 새 파일을 엽니다' },
+              ].map(opt => (
+                <div
+                  key={opt.v}
+                  className={`radio-option ${settings.startupBehavior === opt.v ? 'active' : ''}`}
+                  onClick={() => update({ startupBehavior: opt.v })}
+                >
+                  <div className="radio-dot" />
+                  <div className="radio-content">
+                    <div className="radio-title">{opt.t}</div>
+                    <div className="radio-desc">{opt.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 오늘의 격언 */}
+          <div className="settings-section is-card cat-work">
+            <div className="settings-section-title">오늘의 격언</div>
+            <div className="radio-list" style={{ marginBottom: 12 }}>
+              {[
+                { v: 'sample', t: '기본 격언 (200개)', d: '엄선된 위인·고전 명언 중에서 매일 하나' },
+                { v: 'custom', t: '내가 입력한 격언만', d: '아래에 직접 추가한 격언만 표시 (없으면 기본 격언)' },
+                { v: 'both', t: '기본 + 내 격언 함께', d: '기본 격언과 내 격언을 모두 섞어서' },
+              ].map(opt => (
+                <div
+                  key={opt.v}
+                  className={`radio-option ${(settings.quoteSource || 'sample') === opt.v ? 'active' : ''}`}
+                  onClick={() => update({ quoteSource: opt.v })}
+                >
+                  <div className="radio-dot" />
+                  <div className="radio-content">
+                    <div className="radio-title">{opt.t}</div>
+                    <div className="radio-desc">{opt.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <QuoteEditor
+              quotes={settings.customQuotes || []}
+              onChange={(list) => update({ customQuotes: list })}
+            />
+          </div>
+
+          {/* 새 노드 트렌디 단어 */}
+          <div className="settings-section is-card cat-work">
+            <div className="settings-section-title">새 노드 단어 (Tab/Enter로 추가될 때)</div>
+            <div className="settings-desc" style={{ marginBottom: 10 }}>
+              Tab이나 Enter로 새 노드를 만들 때 자동으로 채워질 영감 단어들입니다.
+              그대로 두고 Enter 누르면 그 단어로 저장되고, 입력하면 새 내용으로 대체됩니다.
+            </div>
+            <div className="radio-list" style={{ marginBottom: 12 }}>
+              {[
+                { v: 'sample', t: '기본 단어 (200개)', d: '엄선된 영감·트렌디 단어 중에서 매번 다른 하나' },
+                { v: 'custom', t: '내가 입력한 단어만', d: '아래에 직접 추가한 단어만 사용 (없으면 기본)' },
+                { v: 'both', t: '기본 + 내 단어 함께', d: '기본 단어와 내 단어를 모두 섞어서' },
+              ].map(opt => (
+                <div
+                  key={opt.v}
+                  className={`radio-option ${(settings.ideaWordSource || 'sample') === opt.v ? 'active' : ''}`}
+                  onClick={() => update({ ideaWordSource: opt.v })}
+                >
+                  <div className="radio-dot" />
+                  <div className="radio-content">
+                    <div className="radio-title">{opt.t}</div>
+                    <div className="radio-desc">{opt.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <QuoteEditor
+              quotes={settings.customIdeaWords || []}
+              onChange={(list) => update({ customIdeaWords: list })}
+              label="내 단어 추가"
+              placeholder="예: 오늘의 발견 / 작은 도약 / 멋진 시도"
+              emptyText="아직 추가한 단어가 없습니다. 영감을 주는 단어를 적어보세요."
+            />
+          </div>
+
+          {/* 구글 드라이브 연동 — 설정 맨 아래 */}
+          <div className="settings-section is-card cat-save" ref={driveSectionRef}>
+            <div className="settings-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span>구글 드라이브 연동</span>
+              <span className={`drive-status-badge${(driveSignedIn || driveLinkedPending) ? ' on' : ''}`} title={(driveSignedIn || driveLinkedPending) ? '구글 드라이브에 연결되어 있습니다' : '구글 드라이브에 연결되어 있지 않습니다'}>
+                <span className="drive-status-dot" />
+                {(driveSignedIn || driveLinkedPending) ? '연결됨' : '연결 안 됨'}
+              </span>
+            </div>
+            {settings.driveAutoSave && !driveSignedIn && !driveLinkedPending && (
+              <div style={{
+                background: 'rgba(229,72,77,0.1)', border: '1px solid #e5484d', borderRadius: 8,
+                padding: '10px 12px', marginBottom: 10, color: '#e5484d', fontWeight: 700, fontSize: 13,
+              }}>
+                ⚠️ 구글 드라이브 연결이 끊겨 자동저장이 멈췄습니다. 아래에서 다시 연결해 주세요.
+              </div>
+            )}
+            <div className="settings-desc" style={{ marginBottom: 10 }}>
+              마인드맵을 내 구글 드라이브의 <b>BrainBloom</b> 폴더에 저장하고, 다른 기기(회사·집)에서 불러올 수 있습니다.
+              이 앱이 만든 파일에만 접근하며, 드라이브의 다른 파일은 보지 않습니다.
+            </div>
+            {!driveSignedIn ? (
+              <>
+                <button
+                  className="text-input"
+                  style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700 }}
+                  onClick={onDriveSignIn}
+                >
+                  구글 드라이브에 연결
+                </button>
+                <div className="settings-desc" style={{ marginTop: 8, fontSize: 12, padding: '8px 10px', background: 'var(--bg-2)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                  🔒 코드가 변경된 사본은 해킹 위험이 있어, 구글 드라이브 연결은{' '}
+                  <a href="https://www.redmir.net" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>www.redmir.net</a>
+                  {' '}주소로 접속했을 때만 동작합니다. 다른 주소나 내려받은 파일에서 연결하면 구글의 차단 화면이 뜹니다(앱 고장이 아닙니다).
+                  <br />
+                  🧪 <b>베타 안내</b> — 구글 검증 절차가 진행 중이라, 현재는 <b>등록된 테스트 사용자만</b> 연결할 수 있어요.
+                  드라이브 없이도 모든 기능은 정상 동작하며, 작업물은 이 브라우저에 자동 보관됩니다.
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="settings-desc" style={{ fontSize: 12 }}>
+                  저장하면 "오늘 날짜 + 이름 + 두 자리 번호" (예: 2026-06-04_발리_00) 형식으로 저장됩니다. 번호는 첫 저장부터 00, 01, 02 … 로 붙습니다. 수동 저장과 자동저장이 같은 규칙을 씁니다.
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="text-input" style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700, opacity: driveBusy ? 0.6 : 1 }} disabled={driveBusy} onClick={onDriveSave}>⬆ 지금 저장</button>
+                  <button className="text-input" style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700, opacity: driveBusy ? 0.6 : 1 }} disabled={driveBusy} onClick={onDriveListFiles}>⬇ 불러오기 목록</button>
+                </div>
+
+                {/* 불러오기 파일 목록 */}
+                {driveFiles && driveFiles.length > 0 && (
+                  <div>
+                    <div className="settings-desc" style={{ fontSize: 12, marginBottom: 4 }}>
+                      📄 <b>드라이브의 마인드맵 파일</b> — 클릭하면 미리보기가 떠요
+                    </div>
+                  <div style={{ border: '1px solid var(--line)', borderRadius: 8, maxHeight: 200, overflowY: 'auto' }}>
+                    {driveFiles.map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => onDrivePreviewFile(f)}
+                        disabled={driveBusy}
+                        title="클릭하면 내용을 미리 봅니다 (바로 불러오지 않음)"
+                        style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                          width: '100%', padding: '8px 12px', border: 'none', borderBottom: '1px solid var(--line)',
+                          background: drivePreview && drivePreview.file.id === f.id ? 'var(--accent-soft)' : 'transparent',
+                          cursor: 'pointer', textAlign: 'left', fontSize: 13, color: 'var(--ink)',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name.replace(/\.json$/i, '')}</span>
+                        <span style={{ fontSize: 11, color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>
+                          {f.modifiedTime ? new Date(f.modifiedTime).toLocaleString() : ''}
+                          {f.size ? ` · ${Math.max(1, Math.round(Number(f.size) / 1024))} KB` : ''}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  </div>
+                )}
+
+                {/* 미리보기 카드: 파일을 누르면 요약을 먼저 보여주고, 확인 후 불러온다 */}
+                {drivePreview && (
+                  <div style={{ border: '1.5px solid var(--accent)', borderRadius: 10, padding: '10px 12px', background: 'var(--bg-2)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+                      📄 {drivePreview.file.name.replace(/\.json$/i, '')}
+                    </div>
+                    <div className="settings-desc" style={{ fontSize: 12, marginBottom: 6 }}>
+                      수정: {drivePreview.file.modifiedTime ? new Date(drivePreview.file.modifiedTime).toLocaleString() : '알 수 없음'}
+                      {drivePreview.file.size ? ` · 크기: ${Math.max(1, Math.round(Number(drivePreview.file.size) / 1024))} KB` : ''}
+                      {` · 노드 ${drivePreview.nodeCount}개 · 깊이 ${drivePreview.depth}단계`}
+                      <br />
+                      중심: <b>{drivePreview.rootLabel}</b>
+                      {drivePreview.branches.length > 0 && (
+                        <> · 가지: {drivePreview.branches.join(', ')}{drivePreview.branchesMore > 0 ? ` 외 ${drivePreview.branchesMore}개` : ''}</>
+                      )}
+                    </div>
+                    <pre style={{
+                      margin: '0 0 8px', padding: '8px 10px', background: 'var(--panel)', border: '1px solid var(--line)',
+                      borderRadius: 8, fontSize: 11.5, lineHeight: 1.5, maxHeight: 140, overflowY: 'auto',
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--ink)',
+                    }}>{drivePreview.textPreview}{drivePreview.textMore > 0 ? `\n… 외 ${drivePreview.textMore}줄` : ''}</pre>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="text-input"
+                        style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700, opacity: driveBusy ? 0.6 : 1 }}
+                        disabled={driveBusy}
+                        onClick={() => onDriveLoadFile(drivePreview.file.id, drivePreview.file.name, drivePreview.file.modifiedTime)}
+                      >
+                        ⬇ 이 파일 불러오기
+                      </button>
+                      <button
+                        className="text-input"
+                        style={{ cursor: 'pointer', textAlign: 'center', opacity: driveBusy ? 0.6 : 1 }}
+                        disabled={driveBusy}
+                        onClick={onDrivePreviewClose}
+                      >
+                        닫기
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 설정 백업 (수동 전용) — 마인드맵과 별개 파일(BrainBloom_settings.json) 하나로 유지 */}
+                <div style={{ borderTop: '1px dashed var(--line)', paddingTop: 10, marginTop: 2 }}>
+                  <div className="settings-desc" style={{ fontSize: 12, marginBottom: 8 }}>
+                    ⚙️ <b>설정 백업</b> — 배경 색·버튼 구성 같은 앱 설정을 드라이브에 저장해 두면, 다른 컴퓨터에서 그대로 불러올 수 있어요. 버튼을 누를 때만 저장됩니다(자동 아님).
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="text-input" style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700, opacity: driveBusy ? 0.6 : 1 }} disabled={driveBusy} onClick={onDriveSaveSettings}>⚙️⬆ 설정 저장</button>
+                    <button className="text-input" style={{ cursor: 'pointer', textAlign: 'center', fontWeight: 700, opacity: driveBusy ? 0.6 : 1 }} disabled={driveBusy} onClick={onDriveLoadSettings}>⚙️⬇ 설정 불러오기</button>
+                  </div>
+                </div>
+
+                {/* ── 자동저장 설정 ── */}
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={settings.driveAutoSave}
+                      onChange={(e) => update({ driveAutoSave: e.target.checked, autoSaveSetByUser: true })}
+                    />
+                    <span style={{ fontWeight: 700 }}>자동저장 사용</span>
+                  </label>
+                  <div className="settings-desc" style={{ fontSize: 12, marginTop: -4 }}>
+                    켜면 일정 간격마다 드라이브에 자동으로 저장합니다. 하루에 최신 5개 버전까지 보관하고(예: 2026-06-02.1 … .5),
+                    날짜가 바뀌면 전날 것은 가장 최신 1개만 날짜 이름으로 남기고 정리합니다.
+                  </div>
+
+                  {/* 간격 */}
+                  <div>
+                    <div className="settings-label" style={{ marginBottom: 4 }}>자동저장 간격 (분)</div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="120"
+                      className="text-input"
+                      style={{ maxWidth: 120 }}
+                      value={settings.driveAutoSaveMinutes}
+                      onChange={(e) => {
+                        let v = parseInt(e.target.value, 10);
+                        if (isNaN(v) || v < 1) v = 1;
+                        if (v > 120) v = 120;
+                        update({ driveAutoSaveMinutes: v });
+                      }}
+                    />
+                  </div>
+
+                  {/* prefix */}
+                  <div>
+                    <div className="settings-label" style={{ marginBottom: 4 }} title="다른 브라우저의 중복저장 방지">파일 이름 (필수)</div>
+                    <input
+                      type="text"
+                      className="text-input"
+                      value={(settings.drivePrefix || '').replace(/_+$/, '')}
+                      readOnly
+                      style={{ cursor: 'default' }}
+                      title="이 브라우저에 고정 배정된 이름 — 변경할 수 없습니다"
+                    />
+                    <div className="settings-desc" style={{ marginTop: 4, fontSize: 12 }}>
+                      자동저장 파일 이름에 들어가는, <b>이 브라우저에 고정 배정된 이름</b>입니다. 파일은 <b>날짜_이름_번호(두 자리)</b> 형식(예: <b>2026-06-02_발리_00</b>)으로 저장됩니다. 번호는 첫 저장부터 00, 01 … 로 붙습니다.
+                      브라우저마다 다르게 배정돼 <b>다른 브라우저·기기의 저장본과 섞이지 않게</b> 해주며, <b>변경할 수 없습니다</b>.
+                    </div>
+                  </div>
+
+                  {/* 오늘 버전 보관 개수 (수동·자동 저장 공통 규칙) */}
+                  <div>
+                    <div className="settings-label" style={{ marginBottom: 4 }}>오늘 버전 보관 개수 (1~100)</div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      className="text-input"
+                      style={{ maxWidth: 120 }}
+                      value={settings.driveKeepCount}
+                      onChange={(e) => {
+                        let v = parseInt(e.target.value, 10);
+                        if (isNaN(v) || v < 1) v = 1;
+                        if (v > 100) v = 100;
+                        update({ driveKeepCount: v });
+                      }}
+                    />
+                    <div className="settings-desc" style={{ marginTop: 4, fontSize: 12 }}>
+                      <b>오늘 날짜</b>의 저장 버전을 드라이브에 몇 개까지 둘지 정합니다(수동·자동 저장 공통).
+                      초과분은 오래된 것부터 자동 정리되고, <b>지난 날짜는 마지막 1개만</b> 남습니다.
+                    </div>
+                  </div>
+
+                  {driveAutoStatus && (
+                    <div className="settings-desc" style={{ fontSize: 12, color: 'var(--accent)' }}>{driveAutoStatus}</div>
+                  )}
+                </div>
+
+                <button className="text-input" style={{ cursor: 'pointer', textAlign: 'center', fontSize: 13, color: 'var(--ink-soft)' }} onClick={onDriveSignOut}>연결 해제</button>
+              </div>
+            )}
+            {driveStatus && (
+              <div className="settings-desc" style={{ marginTop: 8, color: 'var(--accent)' }}>{driveStatus}</div>
+            )}
+
+            {/* 연결 끊김 알림(설정 글자 색 변화) 사용 여부 — 로그인 여부와 무관하게 항상 표시 */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 12 }}>
+              <input
+                type="checkbox"
+                checked={settings.driveAlertEnabled}
+                onChange={(e) => update({ driveAlertEnabled: e.target.checked })}
+              />
+              <span style={{ fontWeight: 700 }}>연결 끊김 알림 사용</span>
+            </label>
+            <div className="settings-desc" style={{ fontSize: 12, marginTop: 4 }}>
+              켜면 자동저장이 정상일 때 헤더의 "설정" 글자가 파랑, 연결이 끊기거나 저장이 실패하면 빨강으로 표시됩니다.
+              끄면 색이 바뀌지 않습니다. (이 설정과 무관하게, 설정 화면 안의 경고 안내는 계속 표시됩니다.)
+            </div>
+
+            <div className="settings-desc" style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+              ※ 연결은 약 1시간 후 만료되며, 만료되면 다시 연결하면 됩니다. (www.redmir.net 주소에서만 작동)
+            </div>
+          </div>
+
+          {/* 안내 — 데이터 위치·권장 브라우저·피드백 */}
+          <div className="settings-section is-card cat-info">
+            <div className="settings-section-title">안내</div>
+            <div className="settings-desc" style={{ lineHeight: 1.7 }}>
+              <b>내 데이터는 내 것</b> — 마인드맵에 적은 내용은 어느 서버에도 올라가지 않습니다. 이 브라우저 안에 자동 보관되고,
+              원할 때만 내 구글 드라이브에 백업됩니다. 단, 브라우저 데이터를 직접 삭제하면 보관본도 사라지니
+              중요한 작업은 드라이브 백업이나 파일 내려받기를 권합니다.
+              방문 횟수 파악을 위해 구글 애널리틱스(방문 통계)를 사용하지만, 적은 내용과는 무관합니다.
+            </div>
+            <div className="settings-desc" style={{ marginTop: 8, lineHeight: 1.7 }}>
+              <b>권장 환경</b> — 크롬(Chrome)·엣지(Edge)에서 가장 잘 동작합니다. 다른 브라우저에서는 일부 기능이 다르게 보일 수 있습니다.
+            </div>
+            <div className="settings-desc" style={{ marginTop: 8, lineHeight: 1.7 }}>
+              <b>피드백</b> — 버그 제보·기능 제안은{' '}
+              <a href="mailto:redmirnet@naver.com" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                redmirnet@naver.com
+              </a>
+              으로 보내 주세요.
+            </div>
+          </div>
+
+          {/* 개발자에게 연락하기 */}
+          <div className="settings-section contact-section">
+            <div className="contact-card">
+              <div className="contact-icon">✉️</div>
+              <div className="contact-text">
+                <div className="contact-title">개발자에게 연락하기</div>
+                <div className="contact-desc">의견·버그 제보·기능 제안 환영합니다</div>
+              </div>
+              <button
+                type="button"
+                className={`contact-mail ${mailCopied ? 'copied' : ''}`}
+                onClick={copyDevEmail}
+                title="클릭하면 이메일 주소가 복사됩니다"
+              >
+                {mailCopied ? '✓ 복사됨!' : 'redmirnet@naver.com'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', color: 'var(--ink-soft)', fontSize: 11.5, opacity: 0.85, padding: '16px 0 6px' }}>
+            © 2026 BrainBloom · All rights reserved.
+          </div>
+
+        </div>
+        )}
+
+        <div className="modal-footer">
+          <button className="btn primary" onClick={onClose}>완료</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ★ QuoteEditor - 사용자 격언 추가/삭제
+   ============================================================ */
+function QuoteEditor({ quotes, onChange, label, placeholder, emptyText }) {
+  const [draft, setDraft] = useState('');
+
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (quotes.includes(v)) { setDraft(''); return; }
+    onChange([...quotes, v]);
+    setDraft('');
+  };
+  const remove = (idx) => {
+    onChange(quotes.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="quote-editor">
+      <div className="settings-label" style={{ marginBottom: 6 }}>{label || '내 격언 추가'}</div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        <input
+          className="text-field"
+          style={{ flex: 1 }}
+          placeholder={placeholder || '예: 오늘도 한 걸음 — 나'}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            // 모달 전역 Enter 핸들러와 충돌 방지
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); add(); }
+          }}
+        />
+        <button className="btn" onClick={add}>추가</button>
+      </div>
+      {quotes.length > 0 ? (
+        <div className="quote-list">
+          {quotes.map((q, i) => (
+            <div key={i} className="quote-list-item">
+              <span className="quote-list-text">{q}</span>
+              <button className="quote-list-del" title="삭제" onClick={() => remove(i)}>×</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="quote-empty">{emptyText || '아직 추가한 격언이 없습니다. 좋아하는 문구를 적어보세요.'}</div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ★ StartupDialog - 어제 작업이 있을 때 띄우는 선택 창
+   ============================================================ */
+function StartupDialog({ info, onRestore, onNew, onSetDefaultBehavior }) {
+  const [remember, setRemember] = useState(false);
+  const date = new Date(info.savedAt);
+  const formatted = date.toLocaleString('ko-KR', {
+    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  const handle = (choice) => {
+    if (remember) onSetDefaultBehavior(choice === 'restore' ? 'restore' : 'new');
+    if (choice === 'restore') onRestore();
+    else onNew();
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal" style={{ maxWidth: 460 }} role="dialog" aria-modal="true" aria-label="다시 오셨네요 — 시작 방식 선택">
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">다시 오셨네요</div>
+            <div className="modal-subtitle">{formatted}에 작업하신 내용이 있어요</div>
+          </div>
+        </div>
+        <div className="modal-body">
+          <div className="radio-list" role="radiogroup" aria-label="시작 방식">
+            <div className="radio-option" role="radio" aria-checked="false" tabIndex={0}
+              onClick={() => handle('restore')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handle('restore'); } }}>
+              <div className="radio-dot" />
+              <div className="radio-content">
+                <div className="radio-title">📂 마지막 작업 이어서 하기</div>
+                <div className="radio-desc">
+                  어제 마지막으로 편집하던 다이어그램을 불러옵니다
+                </div>
+              </div>
+            </div>
+            <div className="radio-option" role="radio" aria-checked="false" tabIndex={0}
+              onClick={() => handle('new')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handle('new'); } }}>
+              <div className="radio-dot" />
+              <div className="radio-content">
+                <div className="radio-title">✨ 새 파일로 시작하기</div>
+                <div className="radio-desc">
+                  하루를 시작하는 명언과 함께 빈 다이어그램을 엽니다
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            marginTop: 18, padding: '10px 12px',
+            background: 'var(--bg-2)', borderRadius: 8,
+            cursor: 'pointer', fontSize: 12, color: 'var(--ink-soft)'
+          }}>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              style={{ width: 14, height: 14 }}
+            />
+            앞으로 자동으로 위 선택대로 진행 (설정에서 변경 가능)
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ★ NodeView — 인라인 편집 가능한 노드 컴포넌트
+   ============================================================ */
+function NodeViewBase({
+  node, isRoot, isRootChild, isSelected, isGroupSel, isDropTarget, isEditing, color, settings,
+  isSearchMatch, isSearchFocus, isDimmed,
+  isTask, isDone, taskDone, taskTotal,
+  onSelect, onStartEdit, onFinishEdit, onCancelEmpty, onToggleDone,
+  onAddChild, onDelete, onToggleIcon, onSetSide, onToggleCollapse,
+  onDragStart, onDragOver, onDrop, onDragEnd, onResizeStart, onResizeReset
+}) {
+  const [editValue, setEditValue] = useState(node.label || '');
+  const inputRef = useRef(null);
+
+  // 편집 시작 시 입력창 포커스 + 값 초기화
+  useLayoutEffect(() => {
+    if (isEditing) {
+      setEditValue(node.label || '');
+      // setTimeout으로 다음 틱에 포커스 (DOM 마운트 보장)
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 10);
+    }
+  }, [isEditing, node.id]);
+
+  const finish = () => {
+    const trimmed = editValue.trim();
+    const originalLabel = (node.label || '').trim();
+    // 자동(샘플) 라벨을 한 글자도 안 바꾸고 끝낸 경우: 라벨·_autoLabel을 그대로 두어 ★샘플★ 표시 유지
+    // → 엔터를 연타해도 "내가 입력한 노드"와 "자동 채움 노드"가 시각적으로 구분된다.
+    if (node._autoLabel === true && trimmed === originalLabel) {
+      onFinishEdit(node.label || '', true);   // keepAuto: 트리 변경 없이 편집만 종료
+      return;
+    }
+    onFinishEdit(trimmed || '새 항목');
+  };
+
+  // ESC 처리: 새로 만들어진 노드라면 노드 자체를 취소(삭제), 아니면 편집만 취소
+  // "새로 만든 노드"의 판정:
+  //   - 라벨이 비어 있음 (예전 동작 보존)
+  //   - 또는 _autoLabel 플래그가 있음 (자동 생성 "새로운 아이디어 NN" 노드를 한 번도 안 건드림)
+  const cancelEdit = () => {
+    const originalLabel = (node.label || '').trim();
+    const isNewNode = (originalLabel === '') || node._autoLabel === true;
+    if (isNewNode && typeof onCancelEmpty === 'function') {
+      onCancelEmpty();
+    } else {
+      // 기존 노드 — 라벨을 원래대로 유지하고 편집만 종료
+      onFinishEdit(node.label || '새 항목');
+    }
+  };
+
+  // 포커스를 잃을 때(다른 곳 클릭 등):
+  //   - 입력값을 안 바꿨고 자동 생성 라벨인 경우 → 취소(삭제) (사용자가 의도적으로 안 만진 것)
+  //   - 입력값이 있으면 finish (사용자가 새 텍스트를 친 것)
+  //   - 빈 입력 + 빈 원본 → 취소
+  const handleBlur = () => {
+    const trimmedInput = editValue.trim();
+    const originalLabel = (node.label || '').trim();
+    const unchangedAutoLabel = (node._autoLabel === true && trimmedInput === originalLabel);
+    const bothEmpty = (trimmedInput === '' && originalLabel === '');
+    if ((bothEmpty || unchangedAutoLabel) && typeof onCancelEmpty === 'function') {
+      onCancelEmpty();
+    } else {
+      finish();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    e.stopPropagation();
+    // 한글 IME 조합 중 Enter는 조합 종료용. 편집 종료로 처리하면 사용자가 두 번 Enter를 쳐야 함.
+    // 보통은 한 번 Enter로 조합 종료 + 편집 종료가 되어야 자연스러우니, 조합 중 Enter는 무시하고
+    // 다음 Enter(또는 keyup)에서 finish 시키도록 한다.
+    if (e.isComposing || e.keyCode === 229) {
+      // IME 조합 중 — 기본 동작(조합 종료)에 맡기고 우리는 아무것도 하지 않음
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finish();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      finish();
+      // 부모에게 Tab 신호를 전달하지 않고 그냥 편집만 종료
+    }
+  };
+
+  const icons = node.icons || [];
+
+  return (
+    <div
+      data-node-id={node.id}
+      className={`node ${isRoot ? 'root' : ''} ${isSelected ? 'selected' : ''} ${isGroupSel ? 'group-sel' : ''} ${isEditing ? 'editing' : ''} ${isDropTarget ? 'drop-target' : ''} ${isSearchMatch ? 'search-match' : ''} ${isSearchFocus ? 'search-focus' : ''} ${isDimmed ? 'dimmed dim-' + (settings.focusDimLevel || 'medium') : ''}`}
+      style={{
+        left: node._x,
+        top: node._y,
+        // 편집 중에도 노드 폭을 원래대로 고정 — 가로로 늘어나 옆/자식 노드를 침범(겹침)하지 않게. 긴 글은 입력칸 안에서 가로 스크롤됨.
+        width: node._w || NODE_W,
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!isEditing) onSelect(e);
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onStartEdit();
+      }}
+      draggable={!isRoot && !isEditing}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
+      <div className="node-body" style={{ '--bg-color': color,
+        // 모양: 실제로 보이는 배경·모서리는 .node-body라서 여기서 borderRadius를 덮어써야 적용됨
+        // (기본 '둥근'은 .node-body CSS의 14px 유지 / 선택·편집 강조 링도 box-shadow라 이 모양을 따라감)
+        ...(node.shape === 'rect' ? { borderRadius: 3 }
+          : node.shape === 'pill' ? { borderRadius: 999 }
+          : node.shape === 'ellipse' ? { borderRadius: '50%' }
+          : null) }}>
+        {node.note && !isEditing && (
+          <span className="node-note-badge" title={node.note.length > 140 ? node.note.slice(0, 140) + '…' : node.note}>📝</span>
+        )}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            className="node-input"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              // 노드 폭에 맞춰 꽉 채움(노드 폭이 고정이라 가로로 안 넘침). 긴 글은 입력칸 안에서 가로 스크롤.
+              width: '100%',
+            }}
+          />
+        ) : (() => {
+            const { display, url } = resolveLabelLink(node.label);
+            // 줄 수 결정: URL 노드는 urlLabelLines(1|2), 일반 노드는 plainLabelLines(1|2|'all')
+            const linesSetting = url
+              ? (settings?.urlLabelLines || 1)
+              : (settings?.plainLabelLines ?? 'all');
+            const clampLines = (linesSetting === 'all') ? null : linesSetting;
+            // 라벨 스타일: clampLines 있으면 -webkit-line-clamp으로 잘라냄
+            const labelStyle = clampLines
+              ? {
+                  display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical',
+                  WebkitLineClamp: clampLines,
+                  overflow: 'hidden',
+                }
+              : undefined;
+            // 잘릴 가능성이 있으면 호버 시 전체 표시(title)
+            const labelTitle = clampLines ? (display || '') : undefined;
+            return (
+              <div className="node-label-row">
+                {isTask && (
+                  <span className={`node-check${isDone ? ' done' : ''}`} role="checkbox" aria-checked={isDone}
+                    title={isDone ? '완료됨 — 클릭하면 해제' : '할 일 — 클릭하면 완료'}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onToggleDone(); }}>{isDone ? '☑' : '☐'}</span>
+                )}
+                <div className={`node-label${isDone ? ' done' : ''}`} style={labelStyle} title={labelTitle}>
+                  {node._autoLabel
+                    ? <span className="auto-sample" style={{ opacity: 0.7 }}>★ <i>{display}</i> ★</span>
+                    : (display || '(이름 없음)')}
+                </div>
+                {url && (
+                  <a
+                    className="node-link-icon"
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`링크 열기: ${url}`}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                  >🔗</a>
+                )}
+              </div>
+            );
+          })()}
+        {/* 하위 할 일 진행률(0/1) — 라벨 아래 줄에 배치해 긴 이름이 잘리지 않게 */}
+        {taskTotal > 0 && node.children && node.children.length > 0 && !isEditing && (
+          <div className="node-progress-row">
+            <span className="node-progress" title={`하위 할 일 ${taskDone}/${taskTotal} 완료`}>{taskDone}/{taskTotal}</span>
+          </div>
+        )}
+        {(node.meta?.date || node.meta?.effort || node.meta?.cost) && !isEditing && (
+          <div className="node-meta">
+            {node.meta.date && <div className="node-meta-row">📅 {node.meta.date}</div>}
+            {node.meta.effort && <div className="node-meta-row">⚡ {node.meta.effort}</div>}
+            {node.meta.cost && <div className="node-meta-row">💰 {node.meta.cost}</div>}
+          </div>
+        )}
+        {(node.tags && node.tags.length > 0) && !isEditing && (
+          <div className="node-tags">
+            {node.tags.map((t, i) => <span key={i} className="node-tag">#{t}</span>)}
+          </div>
+        )}
+        {(node.icons && node.icons.length > 0) && !isEditing && (
+          <div className="node-icons">
+            {node.icons.map((ic, i) => <span key={i} className="node-icon">{ic}</span>)}
+          </div>
+        )}
+      </div>
+      {!isEditing && (
+        <div className="node-actions">
+          <button className="node-action add" title="자식 추가"
+            onClick={(e) => { e.stopPropagation(); onAddChild(); }}>+</button>
+          {!isRoot && (
+            <button className="node-action del" title="삭제"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}>×</button>
+          )}
+        </div>
+      )}
+      {/* 루트 자식만: 좌/우 방향 지정 버튼 (호버 시 노드 양 옆 바깥에 표시) */}
+      {!isEditing && isRootChild && (
+        <>
+          <button
+            className={`node-side-btn left ${node.pinnedSide === 'left' ? 'active' : ''}`}
+            title={node.pinnedSide === 'left' ? '왼쪽 고정 해제' : '왼쪽으로 이동'}
+            draggable={false}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              // 이미 왼쪽 고정이면 해제, 아니면 왼쪽으로 고정
+              onSetSide(node.pinnedSide === 'left' ? null : 'left');
+            }}
+          >‹</button>
+          <button
+            className={`node-side-btn right ${node.pinnedSide === 'right' ? 'active' : ''}`}
+            title={node.pinnedSide === 'right' ? '오른쪽 고정 해제' : '오른쪽으로 이동'}
+            draggable={false}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetSide(node.pinnedSide === 'right' ? null : 'right');
+            }}
+          >›</button>
+        </>
+      )}
+      {/* 접힘/펼침 토글 — 자식이 있고 루트가 아닌 노드. 자식이 뻗는 방향의 면 바깥에 배치 */}
+      {!isEditing && !isRoot && node.children && node.children.length > 0 && (
+        <button
+          className={`node-collapse-btn ${node._side === 'left' ? 'left' : 'right'} ${node.collapsed ? 'collapsed' : ''}`}
+          title={
+            node.collapsed
+              ? `펼치기 (${node.children.length}개 숨김)`
+              : '자식 접기'
+          }
+          draggable={false}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapse();
+          }}
+        >
+          {node.collapsed
+            ? (node.children.length > 9 ? '9+' : node.children.length)
+            : '−'
+          }
+        </button>
+      )}
+      {/* 우측 폭 조절 핸들 — 좌우로 끌어 노드 폭 조절, 더블클릭하면 자동 폭으로 */}
+      {!isEditing && (
+        <div
+          className="node-resize-handle"
+          title="좌우로 끌어 노드 폭 조절 · 더블클릭하면 자동 폭"
+          onPointerDown={onResizeStart}
+          onDoubleClick={(e) => { e.stopPropagation(); onResizeReset && onResizeReset(); }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── 성능: NodeView를 React.memo로 감싸 불필요한 리렌더 방지 ──
+// 콜백 props는 부모에서 매 렌더마다 새로 생성되는 인라인 함수라 비교에서 제외(무시)한다.
+// 대신 화면 출력에 실제로 영향을 주는 값만 비교한다. 여기 빠뜨린 값이 있으면
+// "바뀌었는데 화면이 안 변하는" 버그가 나므로, NodeViewBase가 렌더에 쓰는 값을 모두 포함했다.
+function nodeViewPropsEqual(prev, next) {
+  // 좌표는 값 prop으로 비교 — layoutTree가 node 객체를 in-place로 좌표만 바꿔치기(참조 동일)하므로,
+  // node 참조만 보면(아래 a===b) 위치 변화를 놓쳐 노드가 옛 좌표(겹침)에 멈춘다. 값으로 강제 감지.
+  if (
+    prev.nx !== next.nx || prev.ny !== next.ny || prev.nw !== next.nw || prev.nside !== next.nside
+  ) return false;
+  // 개별 boolean/원시 props (선택·편집·검색·드롭·색 등)
+  if (
+    prev.isRoot !== next.isRoot ||
+    prev.isRootChild !== next.isRootChild ||
+    prev.isSelected !== next.isSelected ||
+    prev.isGroupSel !== next.isGroupSel ||
+    prev.isDropTarget !== next.isDropTarget ||
+    prev.isEditing !== next.isEditing ||
+    prev.isSearchMatch !== next.isSearchMatch ||
+    prev.isSearchFocus !== next.isSearchFocus ||
+    prev.isDimmed !== next.isDimmed ||
+    prev.isTask !== next.isTask ||
+    prev.isDone !== next.isDone ||
+    prev.taskDone !== next.taskDone ||
+    prev.taskTotal !== next.taskTotal ||
+    prev.color !== next.color
+  ) return false;
+
+  // settings: 라벨 줄 수·폰트가 노드 표시에 영향. 참조가 같으면 통과(설정은 자주 안 바뀜),
+  // 다르면 관련 필드만 비교해 불필요한 리렌더를 줄인다.
+  const ps = prev.settings || {}, ns = next.settings || {};
+  if (ps !== ns) {
+    if (
+      ps.urlLabelLines !== ns.urlLabelLines ||
+      ps.plainLabelLines !== ns.plainLabelLines ||
+      ps.nodeFont !== ns.nodeFont ||
+      ps.nodeFontCustom !== ns.nodeFontCustom ||
+      ps.focusDimLevel !== ns.focusDimLevel
+    ) return false;
+  }
+
+  // node: 같은 객체면 즉시 통과. 다르면 렌더에 쓰는 필드만 비교.
+  const a = prev.node, b = next.node;
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (
+    a.id !== b.id ||
+    a.label !== b.label ||
+    a._x !== b._x || a._y !== b._y || a._w !== b._w ||
+    a._side !== b._side ||
+    a.pinnedSide !== b.pinnedSide ||
+    a.collapsed !== b.collapsed ||
+    a.shape !== b.shape ||
+    a._autoLabel !== b._autoLabel ||
+    (a.children ? a.children.length : 0) !== (b.children ? b.children.length : 0)
+  ) return false;
+  // 아이콘 배열 비교 (길이 + 각 항목)
+  const ai = a.icons || [], bi = b.icons || [];
+  if (ai.length !== bi.length) return false;
+  for (let i = 0; i < ai.length; i++) if (ai[i] !== bi[i]) return false;
+  // 메타(날짜·노력·비용) 비교
+  const am = a.meta || {}, bm = b.meta || {};
+  if (am.date !== bm.date || am.effort !== bm.effort || am.cost !== bm.cost) return false;
+  if ((a.note || '') !== (b.note || '')) return false; // 노트 변경 시 📝 배지 갱신
+  // 태그 비교 (길이 + 각 항목)
+  const at = a.tags || [], bt = b.tags || [];
+  if (at.length !== bt.length) return false;
+  for (let i = 0; i < at.length; i++) if (at[i] !== bt[i]) return false;
+
+  return true; // 위 모든 시각 관련 값이 동일 → 리렌더 생략
+}
+
+const NodeView = React.memo(NodeViewBase, nodeViewPropsEqual);
+
+// ── 실행 허용 도메인 잠금 ── 로컬(file://·localhost) 또는 공식 도메인(redmir.net·하위도메인)에서만 실행.
+// 그 외(타인의 웹호스팅 등)에선 앱을 띄우지 않고 공식 주소로 안내. (단일 공개 소스라 클라이언트 측 억제 — 소스 수정으로 우회는 가능)
+(function () {
+  const host = (location.hostname || '').toLowerCase();
+  const isLocal = location.protocol === 'file:' || host === '' || host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0';
+  const isOfficial = host === 'redmir.net' || host.endsWith('.redmir.net');
+  if (!isLocal && !isOfficial) {
+    document.getElementById('root').innerHTML =
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:\'Plus Jakarta Sans\',sans-serif;background:#faf8f3;color:#2b2724;">'
+      + '<div><div style="font-size:46px;line-height:1;">🌱</div>'
+      + '<h1 style="font-size:24px;font-weight:800;margin:14px 0 8px;">BrainBloom</h1>'
+      + '<p style="color:#6b635a;line-height:1.75;font-size:15px;">이 앱은 공식 사이트에서만 이용할 수 있습니다.<br>아래 주소로 접속해 주세요.</p>'
+      + '<p style="margin-top:18px;"><a href="https://www.redmir.net" style="color:#3a7d5d;font-weight:700;font-size:18px;text-decoration:none;">www.redmir.net &rarr;</a></p></div></div>';
+    return;
+  }
+  // 렌더 중 오류가 나도 전체가 빈 화면이 되지 않도록 — 오류 메시지 + 새로고침 제공(작업은 IndexedDB에 보존)
+  class ErrorBoundary extends React.Component {
+    constructor(p) { super(p); this.state = { err: null }; }
+    static getDerivedStateFromError(err) { return { err }; }
+    componentDidCatch(err, info) { try { console.error('[BrainBloom] 렌더 오류', err, info); } catch (e) {} }
+    render() {
+      if (!this.state.err) return this.props.children;
+      const msg = (this.state.err && (this.state.err.message || String(this.state.err))) || '알 수 없는 오류';
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Plus Jakarta Sans', sans-serif", background: '#faf8f3', color: '#2b2724' }}>
+          <div style={{ maxWidth: 560, width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: 42, lineHeight: 1 }}>🌱</div>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: '12px 0 6px' }}>앗, 화면을 그리다 문제가 생겼어요</h1>
+            <p style={{ color: '#6b635a', lineHeight: 1.7, fontSize: 14 }}>작업 내용은 브라우저에 저장돼 있어요. 새로고침하면 대부분 복구됩니다. 계속 그러면 아래 오류 내용을 알려 주세요.</p>
+            <pre style={{ textAlign: 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#fff', border: '1px solid #e7e0d5', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#b4453f', margin: '14px 0', maxHeight: 180, overflow: 'auto' }}>{msg}</pre>
+            <button onClick={() => location.reload()} style={{ cursor: 'pointer', border: 'none', background: '#3a86ff', color: '#fff', fontWeight: 700, fontSize: 15, padding: '11px 22px', borderRadius: 10 }}>새로고침</button>
+          </div>
+        </div>
+      );
+    }
+  }
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<ErrorBoundary><App /></ErrorBoundary>);
+})();

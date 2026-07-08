@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+/* ── 첫 방문자 랜딩 안내 + 모바일 안내 ──
+   ① 랜딩: 앱을 써 본 적 없는 브라우저만 landing.html로.
+      - bb_visited: 랜딩의 "바로 사용하기" 클릭 시 기록 / bb_drive_prefix: 기존 사용자 신호
+      - ?app을 붙이면 랜딩을 건너뛰고 바로 앱 (이후 계속 앱으로)
+   ② 모바일: 폰 화면(짧은 변 600px 미만) + 터치 중심(pointer:coarse)이면 mobile.html로.
+      - ?desktop을 붙이면 이 기기에서 계속 데스크톱 버전(bb_force_desktop) — 모바일 메뉴에서도 선택 가능
+   localStorage 차단 환경(시크릿 모드 등)에서는 그냥 앱을 표시 */
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    // 앱에 머무는 경우 주소창을 도메인만 남김(index.html?app 같은 파일명·쿼리 숨김).
+    // 쿼리는 이 스크립트만 읽으므로 지워도 안전. file:// 개발 사본에서는 건드리지 않음.
+    var clean = function () { try { if (location.protocol === 'http:' || location.protocol === 'https:') history.replaceState(null, '', '/'); } catch (e) {} };
+    if (q.has('desktop')) { localStorage.setItem('bb_force_desktop', '1'); localStorage.setItem('bb_visited', '1'); clean(); return; }
+    if (q.has('app')) { localStorage.setItem('bb_visited', '1'); }
+    else if (!localStorage.getItem('bb_visited') && !localStorage.getItem('bb_drive_prefix')) { location.replace('landing.html'); return; }
+    if (!localStorage.getItem('bb_force_desktop')
+        && window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+        && Math.min(screen.width, screen.height) < 600) {
+      location.replace('mobile.html' + location.search);
+      return;
+    }
+    clean();
+  } catch (e) {}
+})();
+</script>
+<script>
+/* 구글 애널리틱스(방문 통계) — 공식 주소(redmir.net)로 접속했을 때만 로드.
+   file:// 개발 사본·다른 주소의 복사본은 통계에 잡히지 않는다.
+   수집은 기본 페이지뷰뿐이며, 마인드맵 내용은 어디에도 전송되지 않는다.
+   gtag.js는 구글이 수시로 갱신해 SRI(무결성 해시) 고정이 불가능 — 구글 도메인 신뢰에 의존. */
+(function () {
+  var h = location.hostname;
+  if (h !== 'www.redmir.net' && h !== 'redmir.net') return;
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://www.googletagmanager.com/gtag/js?id=G-0VW2H7JDP4';
+  document.head.appendChild(s);
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  window.gtag = gtag;
+  gtag('js', new Date());
+  gtag('config', 'G-0VW2H7JDP4');
+})();
+</script>
+<title>BrainBloom — 브레인스토밍 다이어그램</title>
+
+<!-- Favicon / 앱 아이콘 세트 — BrainBloom 마크(깔때기로 생각을 걸러 핵심 하나만). 서버 등록용 실제 파일.
+     SVG(확대 무손실) 우선 + PNG 폴백 + .ico(구형) + Apple 터치 + PWA 매니페스트. -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#3a86ff" />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- React 18 + Babel for in-browser JSX -->
+<!-- 버전 고정 + SRI(무결성 검증): CDN이 변조돼도 해시 불일치 시 로드 거부 → 공급망 공격 방어 -->
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js" integrity="sha384-x/ilTFv/u/eu6YSmkFDZl5V5Mm/pkxxcVv2cVJOrr1J0rvILhMvRBCy6yA75wYBj"></script>
+
+<!-- jsPDF: PDF 내보낼 때만 동적 로드(초기 로딩을 막지 않음) — 본문 loadJsPDF() 참고 -->
+
+<!-- Google Identity Services (구글 드라이브 연동 로그인/토큰) -->
+<!-- 구글이 버전을 고정하지 않아 SRI 적용 불가(구글 정책). 신뢰 도메인이며 CSP로 출처를 제한하는 것이 정석. -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+
+<!-- 스타일 분리: 원래 <style> 블록 → styles.css -->
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 앱 분리: 원래 인라인 <script type="text/babel"> 블록 → app.jsx
+     ⚠️ Babel standalone은 외부 파일을 fetch로 불러오므로 file:// 더블클릭 실행은 CORS로 막힘.
+        로컬 테스트는 간단한 정적 서버로: 예) python3 -m http.server 8000 → http://localhost:8000 -->
+<script type="text/babel" src="app.jsx" data-presets="env,react"></script>
+</body>
+</html>
