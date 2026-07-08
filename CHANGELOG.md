@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.92.0] - 2026-07-06
+
+### Added
+- **📝 구글폼 피드백 링크** — 로그인 불필요·익명 응답 폼(`forms.gle/Juj2LQ51ZtasjveB7`)을 세 곳에 연결: ① 설정의 "피드백" 안내 문단 + "개발자에게 연락하기" 카드 아래 **1분 피드백 폼 버튼**(`FEEDBACK_FORM_URL` 상수) ② about 페이지 푸터 ③ 모바일 메뉴(⋯)의 "피드백 보내기" 항목(새 탭, noopener).
+
+### Technical Notes
+- 변경 파일: `index.html`(버전·RECENT_CHANGES 포함), `about.html`, `mobile.html`, `seahyun/brainstorm_v3.92.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.91.3] - 2026-07-05
 
 ### Fixed
