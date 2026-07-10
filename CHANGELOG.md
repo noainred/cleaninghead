@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.93.1] - 2026-07-06
+
+### Changed
+- **선택 노드 기준 확대/축소** — `+`/`−` 키·줌 버튼·⊙(100%)이 선택한 노드를 **앵커**로 동작: 노드가 화면에서 있던 자리를 그대로 지킨 채 주변만 확대/축소된다(휠 줌의 커서 앵커와 동일한 방식). 선택이 없으면 뷰포트 중앙 앵커. 예전 방식(`centerNode`로 중앙 점프)은 줌할 때마다 화면이 휙 움직였음.
+
+### Technical Notes
+- `zoomAtAnchor(calcNext)` — 앵커의 화면 위치(sx,sy)와 콘텐츠 좌표(cx,cy)를 잰 뒤 `scroll = c×ratio − s`로 보정(rAF 1회). `zoomBy`/`zoomReset`이 이를 사용. `centerNode`는 더블클릭 중앙 등 기존 4곳 용도로 유지.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.93.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.93.0] - 2026-07-06
 
 ### Added
