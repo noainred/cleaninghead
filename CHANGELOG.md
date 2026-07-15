@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.95.0] - 2026-07-13
+
+### Added
+- **현재 날짜/시간 삽입 단축키** — `Ctrl/⌘+;` = 오늘 날짜(`YYYY-MM-DD`), `Ctrl/⌘+Shift+;` = 현재 시간(`HH:MM`) — Excel과 같은 키 배치(브라우저 예약키 `Ctrl+Shift+T` 등과 충돌 없음).
+  - **입력칸(라벨 편집·텍스트 패널·태그 등)에서는 커서 위치에 삽입** — `document.execCommand('insertText')`로 네이티브 input 이벤트가 발생해 React controlled 입력에도 그대로 반영.
+  - 입력 중이 아니면 **선택한 노드 라벨 끝에** 덧붙임(+토스트). IME 조합 중에는 발동하지 않음.
+  - 설정의 단축키 안내와 README 표에 추가.
+
+### Technical Notes
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.95.0.html`(스냅샷), `CHANGELOG.md`, `README.md`.
+
+---
+
 ## [3.94.1] - 2026-07-13
 
 ### Changed
