@@ -13,6 +13,23 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.95.3] - 2026-07-13
+
+### Security
+전면 재점검 후속 — **하드닝 3건 + 방어 강화**:
+- **클릭재킹 방어(JS 프레임버스팅)** — GitHub Pages는 `X-Frame-Options`/`frame-ancestors` 헤더 불가, meta의 `frame-ancestors`는 무시됨 → index·mobile `<head>` 최상단에서 상위 프레임에 갇히면 최상위로 탈출(실패 시 `<html>` 숨김). 드라이브 파일 삭제 등 되돌리기 불가 동작의 UI-redress 표적화 방지.
+- **부분 CSP** `object-src 'none'; base-uri 'self'`(meta) — `unsafe-eval`(Babel) 없이 얻는 하드닝(플러그인·주입 `<base>` 차단). 엄격 CSP는 여전히 사전컴파일 전환 시 별도 결정.
+- **모바일 구글 연결 해제(revoke)** — 데스크톱만 있던 로그아웃을 모바일 드라이브 시트에도 추가(연결돼 있을 때만 표시, `google.accounts.oauth2.revoke` + 세션 삭제). 데스크톱/모바일 비대칭 해소.
+- **모바일 `sanitizeTree` 화이트리스트 재구성** — `{...n}` 스프레드를 데스크톱 `sanitizeNode`와 동일한 명시 필드 재구성으로 교체(가져온 JSON의 임의/악성 키·원본 meta 통과 차단). 프로토타입 오염 없음은 3축 감사에서 경험적으로 재확인.
+
+### 점검 결과 요약
+3축 병렬 감사(XSS·공급망/CSP·인증/토큰/저장) — 실제 취약점은 v3.95.2의 모바일 XSS 1건뿐, 그 외 **프로토타입 오염·토큰 유출·오픈 리다이렉트·시크릿 노출 없음** 확인. 공급망(SRI 4종·drive.file 최소권한·세션 토큰)·React 렌더(escapeXml·safeLinkUrl·dangerouslySetInnerHTML 0)는 견고. `SECURITY.md` 갱신(최종 점검일·클릭재킹/부분 CSP/모바일 항목 추가).
+
+### Technical Notes
+- 변경 파일: `index.html`, `mobile.html`, `seahyun/brainstorm_v3.95.3.html`(스냅샷), `CHANGELOG.md`, `SECURITY.md`.
+
+---
+
 ## [3.95.2] - 2026-07-13
 
 ### Security

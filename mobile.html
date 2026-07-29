@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'" />
+<script>
+/* 클릭재킹 방어 — 상위 프레임에 갇혔으면 최상위로 탈출(모바일은 no-build라 CSP frame-ancestors 헤더 불가) */
+try { if (window.top !== window.self) { window.top.location = window.self.location.href; } } catch (e) {
+  try { document.documentElement.style.display = 'none'; } catch (_) {}
+}
+</script>
 <title>BrainBloom Mobile — 마인드맵</title>
 <meta name="description" content="BrainBloom 모바일 — 터치에 맞춘 마인드맵·브레인스토밍. 데스크톱과 같은 데이터(브라우저·구글 드라이브)를 씁니다." />
 <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)" />
@@ -261,15 +268,21 @@ const genId = () => 'm' + Date.now().toString(36) + (++idTick).toString(36) + Ma
 function walk(n, fn){ fn(n); if(n.children) n.children.forEach(c=>walk(c,fn)); }
 function findNode(n, id){ if(n.id===id) return n; if(n.children) for(const c of n.children){ const f=findNode(c,id); if(f) return f; } return null; }
 function findParent(root, id){ let res=null; (function go(n){ if(res) return; for(const c of (n.children||[])){ if(c.id===id){ res=n; return; } go(c); } })(root); return res; }
+// 가져온 JSON을 화이트리스트로 '재구성'한다({...n} 스프레드 금지) — 데스크톱 sanitizeNode와 동일 패턴.
+// 임의/악성 키(__proto__ 등)와 원본 meta 객체를 그대로 통과시키지 않아 미래 sink·오염을 원천 차단.
+const NODE_KEEP = ['color','collapsed','done','task','shape','icons','tags','note','pinnedSide','w','createdAt','updatedAt'];
 function sanitizeTree(t){
   if(!t||typeof t!=='object') return null;
   function fix(n){
-    if(!n||typeof n!=='object') return null;
-    const out={...n};
-    out.id = (typeof out.id==='string'&&out.id) ? out.id : genId();
-    out.label = (typeof out.label==='string') ? out.label : '';
-    out.children = Array.isArray(out.children) ? out.children.map(fix).filter(Boolean) : [];
-    out.meta = (out.meta&&typeof out.meta==='object') ? out.meta : {};
+    if(!n||typeof n!=='object'||Array.isArray(n)) return null;
+    const out={
+      id:(typeof n.id==='string'&&n.id)?n.id:genId(),
+      label:(typeof n.label==='string')?n.label:'',
+      meta:(n.meta&&typeof n.meta==='object'&&!Array.isArray(n.meta))?{ ...n.meta }:{},
+      children:Array.isArray(n.children)?n.children.map(fix).filter(Boolean):[],
+    };
+    // 알려진 표시 속성만 타입 무관하게 복사(값 자체는 렌더 시 팔레트 키·배열 등으로 안전 처리됨)
+    for(const k of NODE_KEEP){ if(n[k]!==undefined) out[k]=n[k]; }
     return out;
   }
   return fix(t);
@@ -730,6 +743,12 @@ function saveTok(){ try{ sessionStorage.setItem(DRIVE_TOKEN_KEY,JSON.stringify({
 function loadTok(){ try{ const r=sessionStorage.getItem(DRIVE_TOKEN_KEY); if(!r) return; const o=JSON.parse(r);
   if(o&&o.t&&o.e&&Date.now()<o.e-120000){ _tok=o.t; _exp=o.e; } }catch(e){} }
 loadTok();
+// 구글 연결 해제 — 토큰 폐기(revoke) + 세션 삭제. 데스크톱 handleDriveSignOut과 동등(모바일 비대칭 해소).
+function driveSignOut(){
+  try{ if(_tok&&window.google&&google.accounts&&google.accounts.oauth2) google.accounts.oauth2.revoke(_tok,()=>{}); }catch(e){}
+  _tok=null; _exp=0;
+  try{ sessionStorage.removeItem(DRIVE_TOKEN_KEY); }catch(e){}
+}
 function gisReady(){ return new Promise((res,rej)=>{
   if(window.google&&google.accounts&&google.accounts.oauth2) return res();
   const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.onload=()=>res(); s.onerror=()=>rej(new Error('구글 로그인 스크립트 로드 실패')); document.head.appendChild(s);
@@ -814,14 +833,18 @@ async function driveSaveCurrent(){
   return saved;
 }
 function openDriveSheet(){
+  const connected=!!(_tok&&Date.now()<_exp);
   openSheet('<h3>☁ 구글 드라이브</h3><div class="sh-note" id="dvNote">데스크톱과 같은 BrainBloom 폴더를 씁니다.</div>'+
     '<div class="sh-actions">'+
       '<button class="btn primary" data-v="save">⬆ 현재 문서 저장</button>'+
       '<button class="btn" data-v="list">⬇ 불러오기 목록</button>'+
-    '</div><div id="dvList"></div>');
+    '</div>'+
+    (connected?'<button class="sh-item danger" data-v="signout" style="margin-top:6px"><span class="ic">🚪</span>구글 연결 해제 (이 기기 토큰 삭제)</button>':'')+
+    '<div id="dvList"></div>');
   $('#sheet').onclick=async (e)=>{
     const v=e.target.closest('[data-v]')?.dataset.v;
     const note=$('#dvNote');
+    if(v==='signout'){ driveSignOut(); closeSheet(); toast('구글 연결을 해제했어요'); return; }
     try{
       if(v==='save'){ note.textContent='저장 중…'; await ensureToken(true); const s=await driveSaveCurrent(); note.textContent='"'+s.name+'" 저장 완료'; toast('☁ 저장했어요'); return; }
       if(v==='list'){ note.textContent='목록 불러오는 중…'; await ensureToken(true);

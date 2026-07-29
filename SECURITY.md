@@ -3,7 +3,7 @@
 BrainBloom은 **백엔드 없는 단일 HTML, 클라이언트 전용** 앱입니다. 이 문서는 보안 위협 모델, 적용된 방어, 알려진 한계, 성능 메모를 정리합니다.
 
 - 대상: `index.html` (React 18 + Babel Standalone)
-- 최종 점검: 2026-06-16 (v3.82.2)
+- 최종 점검: 2026-07-13 (v3.95.3 — 3축 병렬 재점검: XSS·공급망·인증·프로토타입 오염)
 - 제보: redmirnet@naver.com
 
 ---
@@ -29,13 +29,20 @@ BrainBloom은 **백엔드 없는 단일 HTML, 클라이언트 전용** 앱입니
 - 링크 출력 시 `safeLinkUrl()`로 **스킴 화이트리스트(http/https/mailto)** 검증 + 제어문자 제거(개행 삽입을 통한 스킴 스머글링 차단) — 입력 정규식과 별개로 **출력 시점에도 막는 심층 방어**.
 - 불러오기·복원 데이터는 `sanitizeTree()` / `sanitizeNode()`로 알려진 필드·타입만 보존(모르는 필드 폐기).
 - About(외부 안내) 페이지는 **sandbox iframe**으로 격리.
+- **모바일(`mobile.html`)** 렌더는 `innerHTML` 문자열 조립을 쓰므로 사용자 데이터(라벨·노드 id·문서/드라이브 이름)를 `esc()`(`& < > " '` 이스케이프)로 감싸고, 색은 팔레트 키 조회로만 반영. 가져온 JSON은 데스크톱과 동일하게 **화이트리스트 재구성**(`sanitizeTree` — `{...n}` 스프레드 금지)으로 임의/악성 키를 폐기.
 
 ### 링크 / 네비게이션
 - 모든 `target="_blank"` 및 `window.open(...)`에 `rel="noopener noreferrer"`(또는 `'noopener,noreferrer'`) — 탭 탈취(reverse tabnabbing)·리퍼러 유출 차단.
 
+### 클릭재킹 / 프레이밍
+- GitHub Pages는 `X-Frame-Options`·CSP `frame-ancestors` 헤더를 설정할 수 없고 `frame-ancestors`는 `<meta>`에서 무시되므로, **JS 프레임버스팅**으로 방어: 상위 프레임에 갇히면 최상위로 탈출(`window.top!==window.self` → `top.location` 교체, 실패 시 `<html>` 숨김). index·mobile 모두 `<head>` 최상단.
+- **부분 CSP** `<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'">` 적용 — `unsafe-eval`(Babel) 없이도 가능한 하드닝으로 플러그인(`<object>/<embed>`)·주입된 `<base>` 상대경로 하이재킹을 차단.
+
 ### 인증 / 토큰
-- 구글 액세스 토큰은 **메모리 + sessionStorage**(탭을 닫으면 자동 삭제)에만 보관 — `localStorage` 미사용.
+- 구글 액세스 토큰은 **메모리 + sessionStorage**(탭을 닫으면 자동 삭제)에만 보관 — `localStorage` 미사용. 토큰은 `googleapis.com` `Authorization` 헤더로만 전송(URL·로그·타 도메인 노출 없음).
 - OAuth 범위 **`drive.file`** — 앱이 만든 파일만 접근. 사용자의 다른 드라이브 파일은 읽지 못함.
+- **연결 해제(revoke)** — 데스크톱·모바일 모두 로그아웃 시 `google.accounts.oauth2.revoke`로 토큰 폐기 + 세션 삭제(모바일 로그아웃은 v3.95.3에서 추가).
+- OAuth 클라이언트 ID·GA 측정 ID는 **공개되어도 안전한 값**(origin 제한). 소스에 시크릿(client_secret·API 키·비밀번호) 없음.
 
 ### 탭 간 통신
 - 중복 탭 감지는 **`BroadcastChannel`**(브라우저 동일 출처 전용)만 사용 — 교차 출처 메시지 수신/검증 위험 없음.
@@ -44,7 +51,7 @@ BrainBloom은 **백엔드 없는 단일 HTML, 클라이언트 전용** 앱입니
 
 ## 알려진 한계 · 트레이드오프
 
-- **CSP(Content-Security-Policy) 미적용.** 의도된 한계다. Babel Standalone로 브라우저에서 JSX를 즉석 컴파일하는 **무빌드 구조**라, 의미 있는 CSP를 적용하려면 `script-src`에 `'unsafe-eval'`(Babel)과 인라인 스크립트·React 인라인 스타일을 위한 `'unsafe-inline'`이 필요해 **CSP의 XSS 방어 가치가 크게 줄어든다.** 동시에 Google 로그인(GIS)·드라이브 연동을 깨뜨릴 위험이 있다.
+- **엄격 CSP는 미적용**(부분 CSP만 적용). 의도된 한계다. Babel Standalone로 브라우저에서 JSX를 즉석 컴파일하는 **무빌드 구조**라, 의미 있는 CSP를 적용하려면 `script-src`에 `'unsafe-eval'`(Babel)과 인라인 스크립트·React 인라인 스타일을 위한 `'unsafe-inline'`이 필요해 **CSP의 XSS 방어 가치가 크게 줄어든다.** 동시에 Google 로그인(GIS)·드라이브 연동을 깨뜨릴 위험이 있다.
   - **권장 경로**: JSX **사전 컴파일(빌드 단계 도입)** → Babel Standalone 제거 → 그때 `'unsafe-eval'` 없이 엄격 CSP 적용 가능. (저장소의 `precompiled-test.html`이 사전 컴파일 프로토타입.) 이는 "단일 HTML·무빌드" 철학(TechDoc의 의도적 트레이드오프)과 상충하므로 별도 결정 사안.
 - **호스트 게이트**(공식 도메인 외 실행 억제)는 클라이언트 측 억제로, 소스를 수정하면 우회 가능 — 단일 공개 소스의 구조적 한계(데이터 보안이 아닌 재호스팅 억제 목적).
 
