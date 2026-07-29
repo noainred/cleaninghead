@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.95.2] - 2026-07-13
+
+### Security
+전면 보안 재점검(3축 병렬 감사) 중 확인된 **저장형 XSS 1건 수정** (모바일):
+- **[MED] 모바일 맵 SVG의 노드 `id` 미이스케이프** — `mobile.html`의 `renderMap`이 `data-id="'+n.id+'"`를 이스케이프 없이 `svg.innerHTML`에 넣어, **가져온 JSON**의 노드 `id`에 `x"><image href=y onerror=...>` 같은 페이로드를 심으면 피해자가 모바일 맵 탭을 열 때 실행 → sessionStorage 드라이브 토큰·IndexedDB 마인드맵 탈취 가능. `esc(n.id)`로 수정(라벨은 이미 이스케이프돼 있었음). 문서/드라이브 목록의 `d.id`/`f.id`(현재 앱 생성 값이라 무해)도 방어적으로 `esc()` 적용.
+- `esc()` 헬퍼가 홑따옴표(`'`→`&#39;`)까지 처리하도록 강화(미래 방어). 모바일 피드백 `window.open`에 `noreferrer` 추가.
+- (React 앱 쪽은 전 경로 안전 확인 — SVG 내보내기 `escapeXml` 완비, 노드 링크 `safeLinkUrl` 화이트리스트, `dangerouslySetInnerHTML` 0.)
+
+### Technical Notes
+- 남은 하드닝(클릭재킹 프레임버스팅·부분 CSP)과 프로토타입 오염 재검증은 후속 릴리스에서.
+- 변경 파일: `mobile.html`, `index.html`(버전·RECENT_CHANGES), `seahyun/brainstorm_v3.95.2.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.95.1] - 2026-07-13
 
 ### Fixed

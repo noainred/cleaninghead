@@ -299,7 +299,7 @@ function normalizeDocItem(d){ const savedAt=typeof d.savedAt==='number'?d.savedA
 /* ═══════════ 앱 상태 ═══════════ */
 const S = { tree:null, docId:null, docList:[], folders:[], selectedId:null, editingId:null, tab:'outline', saveTimer:null, saving:false };
 const $ = (sel)=>document.querySelector(sel);
-const esc = (s)=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = (s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let toastTimer=null;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),1800); }
 
@@ -579,7 +579,7 @@ function openDocsSheet(){
   const rows=[...S.docList].sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.savedAt||0)-(a.savedAt||0)).map(d=>{
     const cur=d.id===S.docId;
     const nm=cur&&d.auto!==false?deriveDocName(S.tree):(d.name||DEFAULT_DOC_NAME);
-    return '<div class="doc-row'+(cur?' cur':'')+'" data-id="'+d.id+'">'+
+    return '<div class="doc-row'+(cur?' cur':'')+'" data-id="'+esc(d.id)+'">'+
       '<div class="nm">'+(d.pinned?'★ ':'')+esc(nm)+'<span class="sub">📌 '+(d.nodeCount||0)+'개 · '+fmtWhen(d.savedAt)+(cur?' · 지금 편집 중':'')+'</span></div>'+
       '<button class="mini" data-d="rename" title="이름">✎</button>'+
       '<button class="mini" data-d="del" title="삭제">🗑</button>'+
@@ -685,7 +685,7 @@ function renderMap(){
   }); });
   boxes.forEach(n=>{
     const sel=n.id===S.selectedId;
-    inner+='<g class="map-node'+(sel?' sel':'')+'" data-id="'+n.id+'">'+
+    inner+='<g class="map-node'+(sel?' sel':'')+'" data-id="'+esc(n.id)+'">'+
       '<rect x="'+n._mpx+'" y="'+n._my+'" width="'+n._mw+'" height="'+NODE_H+'" rx="12" fill="'+(COLORS[n.color]||COLORS.navy)+'"/>'+
       '<text x="'+(n._mpx+n._mw/2)+'" y="'+(n._my+NODE_H/2+4.5)+'" text-anchor="middle" font-size="'+(n===S.tree?14:12.5)+'">'+esc(n._ml)+'</text>'+
     '</g>';
@@ -827,7 +827,7 @@ function openDriveSheet(){
       if(v==='list'){ note.textContent='목록 불러오는 중…'; await ensureToken(true);
         const mainId=await driveFolder(); const files=await fetchMergedDriveList(mainId);
         note.textContent=files.length?files.length+'개 — 탭하면 새 문서로 가져와요':'저장된 파일이 없어요';
-        $('#dvList').innerHTML=files.map(f=>'<div class="doc-row" data-fid="'+f.id+'" data-fn="'+esc(f.name)+'">'+
+        $('#dvList').innerHTML=files.map(f=>'<div class="doc-row" data-fid="'+esc(f.id)+'" data-fn="'+esc(f.name)+'">'+
           '<div class="nm">☁ '+esc(f.name.replace(/\.json$/i,''))+'<span class="sub">'+(f.modifiedTime?new Date(f.modifiedTime).toLocaleDateString():'')+(f.size?' · '+Math.max(1,Math.round(f.size/1024))+' KB':'')+'</span></div>'+
           (f._backup?'<span class="badge">백업</span>':'<span class="badge accent">최신</span>')+'</div>').join('');
         return; }
@@ -878,7 +878,7 @@ $('#btnMenu').addEventListener('click',()=>{
     if(m==='desktop'){ try{localStorage.setItem('bb_force_desktop','1');}catch(_){} location.href='index.html?desktop'; }
     else if(m==='collapseAll'){ walk(S.tree,n=>{ if(n!==S.tree&&(n.children||[]).length) n.collapsed=true; }); scheduleSave(); renderOutline(); }
     else if(m==='expandAll'){ walk(S.tree,n=>{ n.collapsed=undefined; }); scheduleSave(); renderOutline(); }
-    else if(m==='feedback'){ window.open('https://forms.gle/Juj2LQ51ZtasjveB7','_blank','noopener'); }
+    else if(m==='feedback'){ window.open('https://forms.gle/Juj2LQ51ZtasjveB7','_blank','noopener,noreferrer'); }
   };
 });
 
