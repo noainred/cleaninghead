@@ -129,17 +129,18 @@
     <h1>Brain<span class="br">Bloom</span></h1>
     <p class="sub">빌드 도구 없이 단일 HTML 파일로 구현한 마인드맵 애플리케이션 — 그 설계와 엔지니어링 결정의 기록.</p>
     <div class="meta-row">
-      <span class="chip">스택: <b>React 18 + Babel (CDN)</b></span>
+      <span class="chip">스택: <b>React 18 + Babel (CDN)</b> · 모바일 <b>바닐라 JS</b></span>
       <span class="chip">빌드: <b>없음 (브라우저 즉석 변환)</b></span>
       <span class="chip">저장: <b>IndexedDB + Google Drive API</b></span>
       <span class="chip">배포: <b>정적 웹 호스팅</b></span>
+      <span class="chip">기준: <b>v3.95.3 · 2026-07</b></span>
     </div>
   </header>
 
   <div class="stats">
-    <div class="stat"><div class="n">10,758</div><div class="l">단일 파일 코드 라인</div></div>
-    <div class="stat"><div class="n">64 / 38</div><div class="l">useState / useEffect</div></div>
-    <div class="stat"><div class="n">14</div><div class="l">Drive API 헬퍼 함수</div></div>
+    <div class="stat"><div class="n">~13,900</div><div class="l">데스크톱 단일 파일 라인</div></div>
+    <div class="stat"><div class="n">~915</div><div class="l">모바일(mobile.html) 라인</div></div>
+    <div class="stat"><div class="n">97 / 50 / 57</div><div class="l">useState / useEffect / useRef</div></div>
     <div class="stat"><div class="n">0</div><div class="l">빌드 의존성 · 번들러</div></div>
   </div>
 
@@ -164,6 +165,7 @@
       <li><a href="#resilience">방어적 설계 · 복원력</a></li>
       <li><a href="#tradeoffs">의도적 트레이드오프</a></li>
       <li><a href="#qa">검증 방법론</a></li>
+      <li><a href="#recent">최근 아키텍처 확장 (2026-07)</a></li>
     </ol>
   </nav>
 
@@ -465,6 +467,31 @@ SANITIZE_MAX_LABEL = <span class="n">5000</span>  <span class="c">// 라벨 글�
     </div>
     <p>여기에 더해, 순수 로직(버전 관리, 변경 감지, 충돌 판정, 강조 집합 계산)은 <strong>Node 환경에서 시나리오별 시뮬레이션</strong>으로 검증한다 — 실제 드라이브 호출 없이 "동시 6회 저장 → 1회만 실행", "외부 최신본 판정 5케이스", "React.memo 비교 함수 14케이스", "중복 탭 프로토콜 9시나리오(버그 1건을 출시 전 검출)", "집중·몰입 분기 6케이스" 등을 확인했다.</p>
     <div class="callout win"><span class="ic">✦</span><div>순수 함수 분리(2장) 덕분에 가능한 방식이다. <strong>아키텍처가 곧 테스트 가능성</strong>이라는 원칙이 실제로 작동한 사례.</div></div>
+  </section>
+
+  <!-- 19 -->
+  <section id="recent">
+    <h2 class="sec"><span class="hash">#</span>최근 아키텍처 확장 (2026-07)</h2>
+    <p class="lead">v3.83~v3.95 세션에서 더해진 구조 변화 — 멀티문서·모바일·드라이브 백업·랜딩·데이터 무결성.</p>
+
+    <h4>① 문서 관리자 · 멀티문서 모델</h4>
+    <p>단일 문서에서 <strong>여러 문서</strong>로 확장했다. <code>docMeta = { currentId, list[], folders[] }</code>를 IndexedDB에 두고, 각 문서 본문은 <code>doc:&lt;id&gt;</code> 슬롯에 개별 저장한다. <code>list</code> 항목은 <code>id·name·savedAt·createdAt·auto·pinned·folderId·nodeCount·branches·tags·memo</code>를 담아 <strong>본문을 열지 않고도</strong> 카드 미리보기·검색·정렬·필터가 가능하다. <code>lastWork</code>는 여전히 "현재 열린 문서의 거울"로 유지돼 시작 복원·드라이브 동기화 호환을 보장한다. 옛 항목은 <code>normalizeDocItem</code>으로 로드 시 무결성 보정.</p>
+
+    <h4>② mobile.html — 별도 터치 앱, 같은 데이터</h4>
+    <p>데스크톱 앱(React+Babel, 수 MB 컴파일)은 폰에서 무겁고 터치 이벤트가 없어, <strong>프레임워크 없는 바닐라 JS 단일 파일</strong>을 신설했다. 핵심은 <em>같은 저장 규약 공유</em>: 동일 IndexedDB(<code>brainbloom/kv</code>)의 <code>docMeta·doc:&lt;id&gt;·lastWork</code>, 동일 트리 직렬화(<code>treeToText</code>의 빈 라벨 자리표시자, <code>serializeTree</code>의 <code>_</code>필드 제거), 동일 드라이브 상수·토큰 키. 새 노드 id는 <code>m</code> 접두로 데스크톱(<code>n…</code>)과 충돌 불가. 폰 감지 시 자동 안내(<code>?desktop</code>으로 고정 가능).</p>
+
+    <h4>③ 드라이브 저장 구조 개편 — 메인 최신 1개 / Backup 폴더</h4>
+    <p>저장 시 새 버전을 메인 폴더에 올린 뒤 <strong>나머지 앱 파일을 <code>BrainBloom/Backup/</code>로 이동</strong>(<code>driveMoveFile</code>, addParents/removeParents)해 메인엔 항상 최신 1개만 남긴다. 정리는 <em>같은 이름 계열별로</em> 보관 개수만큼 유지해 서로 다른 날짜·작업본 이력을 보존한다. <code>drive.file</code> 범위라 폴더엔 앱이 만든 파일만 존재 → 접두어 무관하게 안전하게 다룬다. 충돌 감지가 의존하는 <code>driveListFiles()</code>는 <strong>메인만</strong> 반환해 "최신은 항상 메인"을 유지, 불러오기는 <code>fetchMergedDriveList()</code>로 메인+Backup을 합쳐 최신순 표시.</p>
+    <div class="callout"><span class="ic">⚠</span><div><strong>알려진 한계</strong>: 드라이브 파일명이 <code>날짜_리조트_버전</code>이라 <em>문서 ID가 없다</em>. 같은 날 여러 문서를 편집하면 한 계열로 묶일 수 있어, 문서별 분리 동기화(파일명에 doc id 도입)가 남은 과제다.</div></div>
+
+    <h4>④ 랜딩 랜덤 분배기</h4>
+    <p><code>landing.html</code>은 <strong>초경량 분배기</strong>로, 10종(<code>landing01~10</code>) 중 하나를 <code>location.replace</code>로 즉시 선택한다. 각 변형은 자기 번호를 <code>sessionStorage</code>에 기록해 "다른 디자인 ↻"가 같은 걸 다시 고르지 않게 하고, 로드 직후 <code>history.replaceState(null,'','/')</code>로 <strong>주소창을 도메인만</strong> 남긴다(앱·모바일도 동일).</p>
+
+    <h4>⑤ 데이터 무결성 — 노드 id 중복 자가 치유</h4>
+    <p>중복 id는 렌더 key 충돌(위치·연결선 꼬임)과 "하나 지우면 같은 id가 다 지워지는" 사고를 만든다. <code>healDuplicateIds(root)</code>가 <strong>모든 문서 로드 통과점</strong>(<code>restoreWork</code>)과 텍스트 재파싱 직후에 idSeed를 트리 최대치로 정합한 뒤 겹치는/빈 id를 재발급한다 — 과거 오염 문서도 다음 로드 때 자동 복구. <code>removeNode</code>는 <code>findIndex+splice</code>로 <strong>정확히 1개만</strong> 제거한다.</p>
+
+    <h4>⑥ 편집 UX · 보안 하드닝</h4>
+    <p>선택 노드를 앵커로 한 확대/축소(<code>zoomAtAnchor</code>), 패널 폭 드래그(CSS 변수 <code>--left-w/--right-w</code> + settings 영속), 다중 선택 일괄 편집(<code>bulkUpdateSelected</code>), 태그 라이브러리(<code>allTags/tagCounts</code> + 전체 이름변경/삭제). 보안은 3축 병렬 감사 후 모바일 SVG id XSS 수정, <strong>JS 프레임버스팅(클릭재킹)</strong>·부분 CSP(<code>object-src 'none'; base-uri 'self'</code>)·모바일 토큰 revoke·가져오기 화이트리스트 재구성을 적용(자세한 내용은 <code>SECURITY.md</code>).</p>
   </section>
 
   <footer>
