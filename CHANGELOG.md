@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.96.0] - 2026-07-13
+
+### Changed
+- **검색 결과 3번 깜빡 강조** — `Ctrl+F` 검색에서 결과에 도착하면 그 노드가 **빨갛게 3번 깜빡**(`searchBlink` 0.36s×3)인 뒤 잔잔한 빨간 링으로 안착. 다음/이전 이동 시마다 재시작(같은 노드로 다시 가도 rAF로 클래스를 껐다 켜 애니메이션 재생). 기존 무한 펄스(`searchPulse`)는 다소 산만해 finite 3-blink로 교체.
+
+### Technical Notes
+- 신규 상태 `searchFlashId` + `flashFound(id)`(검색 첫 매칭 effect·`gotoSearchMatch`에서 호출, `closeSearch`에서 정리). `NodeView`에 `isSearchFlash` prop·`.search-flash` 클래스·memo 비교·nodeEls deps 추가. 현재 매칭 `search-focus`는 정적 링으로 변경(깜빡 종료 후 표식 유지).
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.96.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.95.3] - 2026-07-13
 
 ### Security
