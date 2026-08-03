@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.97.0] - 2026-08-03
+
+### Changed
+- 앱 소스를 최신 `index.html` 하나로 통합했습니다.
+- 오래된 `app.jsx` 복사본을 제거하고, 예전 실험 진입점 `index2.html`은 `index.html`로 연결되도록 정리했습니다.
+- 앞으로 수정과 배포의 기준 파일을 `index.html`로 일치시킵니다.
+
+### Technical Notes
+- 변경 파일: `index.html`, `index2.html`, `CHANGELOG.md`.
+- 삭제 파일: `app.jsx`.
+
+---
+
 ## [3.96.1] - 2026-07-13
 
 ### Added
