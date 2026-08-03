@@ -87,6 +87,6 @@
 <!-- 앱 분리: 원래 인라인 <script type="text/babel"> 블록 → app.jsx
      ⚠️ Babel standalone은 외부 파일을 fetch로 불러오므로 file:// 더블클릭 실행은 CORS로 막힘.
         로컬 테스트는 간단한 정적 서버로: 예) python3 -m http.server 8000 → http://localhost:8000 -->
-<script type="text/babel" src="app.jsx" data-presets="env,react"></script>
+<script>location.replace('index.html');</script>
 </body>
 </html>
