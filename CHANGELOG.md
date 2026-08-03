@@ -13,6 +13,16 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.96.1] - 2026-07-13
+
+### Added
+- **macOS ⌘+E 라벨 편집** — 맥에서 노드를 고른 뒤 `⌘+E`로 이름 편집 진입(전역 keydown의 F2 분기에 `isMac && metaKey && e/E` 추가, `preventDefault`). 기존 `F2`·더블클릭은 그대로. 설정 단축키 안내·README·UserGuide 갱신.
+
+### Technical Notes
+- 변경 파일: `index.html`, `README.md`, `BrainBloom_UserGuide.html`, `seahyun/brainstorm_v3.96.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.96.0] - 2026-07-13
 
 ### Changed
