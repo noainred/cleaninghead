@@ -13,6 +13,21 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.97.1] - 2026-08-05
+
+### Fixed
+- **노드 세로줄 어긋남(줄 안 맞음)** — 라벨 길이가 줄바꿈 경계 근처인 노드가 가끔 연결선보다 위/아래로 어긋나 보이던 문제를 고쳤습니다. 레이아웃의 글자폭 추정(CJK=1.0em 휴리스틱)이 실제 노드 글꼴(기본 Fraunces·사용자 지정 폰트)과 달라 줄 수를 오판하면, 추정 높이(`_h`)로 잡은 슬롯과 실제 렌더 높이가 어긋나 연결선(`_y + _h/2`)이 노드 중앙을 빗나가던 것이 원인.
+
+### Technical Notes
+- **근본 수정: 실측 기반 레이아웃.** 렌더 직후(페인트 전) `useLayoutEffect`에서 각 노드 DOM의 `offsetHeight`를 실측해 `measuredHRef`(id→px)에 저장하고, 추정치와 다르면 `measureTick`으로 재레이아웃 — 사용자에겐 보정된 화면만 보인다. `offsetHeight`는 CSS transform(줌) 영향을 받지 않아 줌과 무관.
+- `layoutTree(root, spaceMul, measuredH)` 3번째 인자 추가 — 화면 레이아웃만 실측을 쓰고, SVG/PDF 내보내기(`buildDiagramSVG`)는 종전 추정치를 유지(내보내기 텍스트 줄바꿈과 자기 일관성 유지).
+- 레이아웃 좌표를 읽는 memo들(`groupEls`/`boundaryEls`/`connectorEls`/`crossLinkEls`/`nodeEls`) 의존성에 `measureTick` 추가 — 보정 렌더에서 선·노드가 함께 갱신되도록.
+- 노드 글꼴 CSS 변수(`--node-font`) 적용을 `useEffect`→`useLayoutEffect`로 전환(실측보다 먼저 폰트가 적용되도록), 웹폰트 지연 로드 대응으로 `document.fonts.ready`/`loadingdone` 시 재실측(`fontTick`).
+- 부수 효과: 이모지·체크박스·줄수 제한 설정(`plainLabelLines`)·`line-height` 오차(CSS 1.35 vs 상수 22px)로 인한 미세 어긋남도 함께 해소. 실측 높이가 추정보다 작은 노드는 세로 간격이 약간 촘촘해질 수 있음(실제 높이 기준의 올바른 간격).
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.97.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.97.0] - 2026-08-03
 
 ### Changed
