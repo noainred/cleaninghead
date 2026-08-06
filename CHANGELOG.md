@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.99.0] - 2026-08-06
+
+### Added
+- **노드 복사에 AI 요청 문구 붙이기** — 설정 → 연결(AI 요약 섹션)에 토글 추가. 켜면 노드 우클릭 복사(v3.98.0)의 JSON·마크다운 텍스트 맨 앞에 사용자 지정 문구(기본 **"내용 요약해줘"**)를 붙여, AI 채팅에 붙여넣기만 하면 바로 요약을 요청할 수 있다. 문구 입력칸은 토글이 켜져 있을 때만 표시되고, 비우면 기본 문구로 복구.
+
+### Technical Notes
+- 설정 키 2종 추가: `copyAiPromptOn`(boolean, 기본 false — 기존 복사 동작 유지), `copyAiPromptText`(string, 기본 `DEFAULT_COPY_AI_MSG` = '내용 요약해줘'). 로드 시 타입 검증 방어 포함.
+- `copyNodeAs`에서 JSON/MD 분기에만 `aiMsg` 접두 부착. 이미지(PNG/JPG)·PDF는 텍스트를 담을 수 없어 미적용 — 설정 설명에 명시.
+- 문구가 붙은 JSON은 순수 JSON이 아니므로 'JSON 열기' 재가져오기 불가 — 설정 설명과 토스트(`+ AI 문구` 표기)로 구분되게 안내.
+- 변경 파일: `index.html`, `README.md`, `seahyun/brainstorm_v3.99.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.98.0] - 2026-08-06
 
 ### Added
