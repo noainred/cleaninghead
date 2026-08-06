@@ -13,6 +13,24 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.98.0] - 2026-08-06
+
+### Added
+- **노드 복사 (하위 포함)** — 노드 우클릭 메뉴에 "📋 복사 (하위 포함)" 항목 추가. PNG / JPG / PDF / JSON / 마크다운 5가지 형식 버튼이 펼쳐지고, 선택하면 해당 노드와 하위 가지 전체를 그 형식으로 클립보드에 복사한다.
+  - PNG·JPG: 하위 가지를 미니 다이어그램 이미지로 렌더해 클립보드에 복사 (JPEG 클립보드 미지원 브라우저는 PNG로 폴백 + 안내 토스트)
+  - JSON: 문서 내보내기와 같은 원형 트리 텍스트 — 파일로 저장하면 'JSON 열기'로 재가져오기 가능
+  - 마크다운: `treeToMarkdown` 형식 텍스트
+  - PDF: 브라우저 클립보드가 PDF를 받지 못하므로 하위 포함 PDF 파일 다운로드로 대체 + 안내 토스트
+
+### Technical Notes
+- `copyNodeAs(nodeId, fmt)` 추가 (saveAll 위) — `findNode`→`serializeTree`로 하위 포함 클론 후 형식별 처리. 기존 내보내기 유틸(`buildDiagramSVG`/`svgToRaster`/`dataURLtoBlob`/`buildPDFBlob`/`treeToMarkdown`/`saveToTarget`) 재사용.
+- 이미지 복사는 변환 Promise를 `ClipboardItem`에 그대로 전달 — Safari의 사용자 제스처(transient activation) 만료로 인한 거부 방지.
+- 메뉴 UI: `bgMenu` 상태에 `copyOpen` 토글 추가, 형식 선택은 인라인 버튼 행(`toolbar-btn`)으로 표시.
+- 이미지/PDF는 화면과 동일하게 '보이는(접히지 않은)' 노드만, JSON/마크다운은 접힘과 무관하게 전체 하위 포함. 관계선·경계는 루트 문서 소유 데이터라 가지 복사본에는 포함되지 않음.
+- 변경 파일: `index.html`, `README.md`, `seahyun/brainstorm_v3.98.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.97.1] - 2026-08-05
 
 ### Fixed
