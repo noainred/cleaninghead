@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.99.1] - 2026-08-07
+
+### Changed
+- **초기 로딩 체감 개선(스플래시)** — React 마운트 전까지 `#root`가 완전히 비어 있어 Babel 즉석 컴파일(~3초 실측) 동안 빈 화면이 보이던 것을, 순수 HTML/CSS 로딩 스플래시(브랜드 + 스피너 + "불러오는 중…")로 대체. React가 마운트되면 자동으로 교체되므로 JS 불필요. 0.15s 지연 페이드인으로 빠른 기기에서의 순간 깜빡임 방지.
+- **unpkg preconnect 추가** — 폰트(fonts.googleapis.com/gstatic)에만 있던 preconnect를 React/Babel CDN(unpkg.com)에도 추가. 첫 방문 시 DNS+TLS 핸드셰이크를 HTML 파싱과 병렬로 진행.
+
+### Technical Notes
+- 성능 분석 보고서(2026-08-07) 권장 1순위 적용. 근본 해결(사전 컴파일 전환, `tools/build-precompiled.js`)은 릴리스 워크플로 변경 결정 후 별도 진행 예정.
+- 스플래시는 기본 테마 CSS 변수(`--bg`/`--ink`/`--accent`/`--line`/`--ink-soft`)만 사용 — 도메인 차단 화면·ErrorBoundary와 충돌 없음(둘 다 #root 내용을 교체).
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.99.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.99.0] - 2026-08-06
 
 ### Added
