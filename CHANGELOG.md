@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.101.0] - 2026-08-09
+
+### Added
+- **노드 복사/붙여넣기 단축키** — `Ctrl+C`(맥 `⌘+C`)로 선택한 노드를 하위 포함 복사, `Ctrl+V`(`⌘+V`)로 선택한 노드의 자식으로 붙여넣기(선택 없으면 루트 아래). 시스템 클립보드에 마커 있는 JSON(`__type: 'brainbloom-node'`)을 쓰므로 **다른 탭/다른 문서의 BrainBloom에도 붙여넣기 가능**. 우클릭 'JSON 복사'(v3.98.0)의 원형 노드 텍스트도 붙여넣기 인식. 붙여넣기 후 새 노드 선택 + 토스트, `Ctrl+Z` 복구 지원.
+
+### Technical Notes
+- 복사: 전역 keydown에서 `e.code === 'KeyC'` + `mod` 판정. 입력칸(`INPUT`/`TEXTAREA`)·라벨 편집 중·본문 텍스트 선택 중(`window.getSelection()`)에는 **일반 텍스트 복사에 양보**(preventDefault 안 함). `navigator.clipboard.writeText` + 같은 탭 폴백 `nodeClipboardRef`(클립보드 쓰기가 막힌 환경 대비).
+- 붙여넣기: `window 'paste'` 이벤트 — `navigator.clipboard.readText()`와 달리 **권한 프롬프트 없이** 클립보드를 읽는 표준 경로. `sanitizeTree`로 스키마/한도 방어 후 Ctrl+드래그 복제와 같은 규칙으로 전체 새 id(`p<stamp>_<seq>`) 부여, 휘발성 좌표·`pinnedSide`/`autoSide` 제거, 루트 전용 필드(`links`/`boundaries`/`groups`) 제거. 접힌 부모는 펼침. 몰입 모드(편집 잠금)·다이얼로그 열림·입력칸 포커스 시 무시.
+- 의도적 차이: Ctrl+드래그 복제는 새 부모 톤으로 색을 통일하지만, 클립보드 붙여넣기는 **원본 색·메모·태그를 보존**(가져오기에 가까운 동작 — 문서 간 이동 시 원형 유지).
+- 변경 파일: `index.html`, `README.md`, `seahyun/brainstorm_v3.101.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.100.0] - 2026-08-09
 
 ### Added
