@@ -13,6 +13,20 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.102.1] - 2026-08-09
+
+### Changed
+- **설정 모달 2단 레이아웃** — v3.102.0에서 카테고리 재구성만 하고 승인된 목업의 레이아웃(좌측 세로 탭 레일 + 우측 컨텐츠)을 빠뜨렸던 것을 보완(준호님 지적). 좌측 152px 세로 탭 레일 + 우측 스크롤 컨텐츠, 모달 폭 520→820px, 높이 86vh 고정(우측만 스크롤).
+
+### Technical Notes
+- 설정 모달 루트에 `settings-modal` 클래스 추가 — `.modal`의 `overflow-y:auto`/`max-width:520px`를 후행 규칙으로 오버라이드(flex column, header/footer 고정, catbody flex:1).
+- `.settings-tabs`를 필 버튼 가로줄 → 세로 레일로 전환(on 상태: `--accent-soft` 배경), 섹션들을 `.settings-content`(flex:1, overflow-y:auto) 래퍼로 감쌈.
+- 변경 이력 화면은 `.settings-modal .modal-body { flex:1; overflow-y:auto }`로 동일 모달에서 자체 스크롤 유지.
+- 반응형: 640px 이하에서 레일을 상단 가로 스크롤 줄로 전환.
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.102.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.102.0] - 2026-08-09
 
 ### Changed
