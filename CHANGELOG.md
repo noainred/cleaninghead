@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.100.0] - 2026-08-09
+
+### Added
+- **한글 날짜/시간 삽입 단축키** — `Shift+Alt+D`(맥 `Shift+⌥+D`)는 오늘 날짜를 **"2026년 8월 9일"** 형식으로, `Shift+Alt+T`는 현재 시간을 **"21:12"** 형식으로 삽입. 노드 라벨 편집 중엔 커서 위치에, 입력칸(텍스트 패널 등)에서도 커서 위치에, 노드만 선택한 상태면 라벨 끝에 붙고 토스트로 확인. 설정 단축키 안내·README 갱신.
+
+### Fixed
+- **Ctrl/⌘+; 가 노드 라벨 편집 중 동작하지 않던 문제** — 라벨 편집 input의 `stopPropagation` 때문에 전역 단축키 핸들러에 키가 도달하지 않았음(이번 구현 중 발견). `NodeViewBase.handleKeyDown`에서 같은 형식(날짜 `2026-08-09`/시간 `21:12`)으로 직접 처리해 v3.95.0에 문서화된 동작을 충족.
+
+### Technical Notes
+- 모듈 헬퍼 `koreanDateString`/`hhmmString`/`shiftAltDateTimeKey` 추가. 판정은 `e.key`가 아닌 **`e.code`(KeyD/KeyT) 기준** — 맥에서 ⌥+문자는 `e.key`가 특수문자('Î' 등)로 바뀌어 `e.key`로는 잡을 수 없음. `preventDefault`로 맥의 ⌥ 특수문자 입력도 차단.
+- 두 곳에 구현: ① 전역 keydown(기존 Ctrl+; 블록 다음 — 텍스트 패널/기타 입력칸/노드 선택 상태 담당) ② `NodeViewBase.handleKeyDown`(노드 라벨 편집 input은 `stopPropagation`으로 전역 핸들러에 키가 닿지 않아 자체 처리 필요 — 이번에 확인된 사실로, 기존 Ctrl+;는 노드 라벨 편집 중 동작하지 않았음).
+- 삽입은 기존 관례대로 `document.execCommand('insertText')` — controlled input에 네이티브 input 이벤트가 발생해 React 상태에 반영.
+- 변경 파일: `index.html`, `README.md`, `seahyun/brainstorm_v3.100.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.99.1] - 2026-08-07
 
 ### Changed
