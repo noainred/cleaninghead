@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.104.0] - 2026-08-10
+
+### Changed
+- **사전 컴파일 배포 전환** — 접속 때마다 브라우저에서 하던 Babel 즉석 컴파일(실측 ~3.1초)을 배포 시점(GitHub Actions)으로 이동. 배포본에서 `babel.min.js`(gzip 631KB) 다운로드와 `text/babel` 블록이 사라지고, `'unsafe-eval'` 없는 **엄격 CSP**(인라인 스크립트 sha256 해시 허용)가 적용됨. 소스 `index.html`은 종전대로 babel 블록 그대로 편집 — "index.html 수정 → main 머지 = 배포" 개발 워크플로 불변.
+
+### Fixed
+- **tools/build-precompiled.js 결함 2건** (성능 감사 검증에서 발견) — ① 인라인 스크립트 4개 중 2개만 CSP 해시해 랜딩/모바일 리다이렉트·GA가 엄격 CSP에 차단되던 문제 → bare `<script>` 전부 해시(빌드 시 4개 확인) ② `img-src`에 `blob:` 누락으로 이미지 내보내기·노드 이미지 복사가 실패할 문제 → 추가. 부수: 원본 부분 CSP 메타 중복 제거, `compact:true` 기본화(gzip 16KB 억제), `--out`/`--readable` 플래그 신설.
+
+### Technical Notes
+- 성능 감사(2026-08-10) 반영 3/3. 배포 파이프라인: `.github/workflows/deploy-pages.yml` 신설(main 푸시 → npm i @babel/standalone → 빌드 → babel 흔적 0·해시 ≥4 검증 → Pages 배포), 저장소 Pages 소스를 branch → **GitHub Actions**로 전환.
+- 로컬 실증: 빌드 2.6초, 산출물 782KB/gzip 219KB(원본 대비 +7.7KB — babel 631KB 제거로 순감 ~623KB), text/babel·babel.min.js 참조 0, CSP 메타 1개, img-src에 blob: 포함 확인.
+- 정직 고지: 헤드리스 브라우저 검증은 이 환경에서 크롬 headless가 기동하지 않아 수행하지 못함 — 배포 후 curl 구조 검증 + 사용자 브라우저 확인(드라이브 로그인·내보내기·콘솔 CSP 오류)으로 대체. **롤백**: Settings → Pages → Source를 'Deploy from a branch'로 되돌리면 즉시 종전 방식 복귀.
+- 변경 파일: `index.html`(버전·안내), `tools/build-precompiled.js`, `.github/workflows/deploy-pages.yml`(신규), `precompiled-test.html`(재생성), `tools/README.md`, `CLAUDE.md`, `seahyun/brainstorm_v3.104.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.103.0] - 2026-08-10
 
 ### Added

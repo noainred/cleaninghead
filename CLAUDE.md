@@ -1,6 +1,11 @@
 # BrainBloom — Claude 작업 지침
 
-브라우저 단일 HTML(`index.html`, React 18 + Babel Standalone) 마인드맵 앱. `main`이 GitHub Pages(www.redmir.net)로 곧장 배포된다.
+브라우저 단일 HTML(`index.html`, React 18 + Babel Standalone) 마인드맵 앱. `main` 머지 시 GitHub Actions(`.github/workflows/deploy-pages.yml`)가 **사전 컴파일 빌드**(babel 제거 + 엄격 CSP) 후 GitHub Pages(www.redmir.net)로 배포한다(v3.104.0부터).
+
+- **소스는 여전히 index.html** — babel 블록을 종전대로 편집하면 된다. 빌드는 CI가 자동 수행(1~2분).
+- 새 인라인 `<script>`는 빌드가 자동으로 CSP 해시하므로 추가 작업 불필요. 단, **새 외부 도메인**(스크립트 로드·fetch·iframe)을 쓰게 되면 `tools/build-precompiled.js`의 CSP 목록도 함께 갱신할 것 — 빠뜨리면 배포본에서만 조용히 차단된다.
+- 배포 확인: 머지 후 `gh run list`로 Actions 성공 확인 + `curl -s "https://www.redmir.net/index.html?nocache=..." | grep APP_VERSION`.
+- 롤백: 저장소 Settings → Pages → Source를 'Deploy from a branch'(main, /)로 되돌리면 소스 그대로 서빙되는 종전 방식으로 즉시 복귀.
 
 ## 릴리스 워크플로 (기능/수정 1건마다)
 
