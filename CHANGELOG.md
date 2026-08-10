@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.107.0] - 2026-08-10
+
+### Added
+- **설정 → ⌨️ 단축키 탭 신설** — 프로그램 전체 단축키를 5개 분류(노드 편집 / 복사·실행 취소 / 날짜·시간 삽입 / 탐색·화면 / 저장·연동)로 정리해 표시. 키 표기는 kbd 스타일 칩(`.shortcut-key`), 목록 데이터는 `SHORTCUT_SECTIONS` 상수 하나로 관리(단축키 추가 시 여기에 함께 등록). 우측 패널의 기존 간단 목록 하단에 전체 목록 안내 한 줄 추가.
+
+### Technical Notes
+- 모든 항목은 실제 바인딩(전역 keydown·NodeViewBase·OutlineEdit)과 대조해 작성 — G/T 차트 전환, +/− 줌, Delete/Backspace, Ctrl+Shift+S/C 등 코드 확인 완료.
+- `SETTINGS_CATS`에 `keys` 탭 추가(연동과 정보 사이), CSS 매핑에 `cat-keys` 추가.
+- 변경 파일: `index.html`, `README.md`, `seahyun/brainstorm_v3.107.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.106.0] - 2026-08-10
 
 ### Fixed (버그 감사 3차 — 설계 수정 3건)
