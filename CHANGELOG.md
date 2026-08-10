@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.102.2] - 2026-08-10
+
+### Changed
+- **시작 시 IndexedDB 복원 병렬화** — 마운트 effect에서 순차 `await` 5회(settings → lastWork → driveSyncedTime → lastSeenVersion → docMeta)로 읽던 것을 `Promise.all` 병렬 프리페치로 전환. 이후 처리 순서·분기 로직은 종전과 동일(값만 프리페치 변수 사용).
+
+### Technical Notes
+- 성능 감사(2026-08-10 워크플로) 반영 1/3. 첫 페인트는 원래 막지 않던 구간이라 체감 효과는 콘텐츠 복원 지연 수십 ms 단축(추정) 수준 — 과장 없이 기록.
+- `idbGet`은 내부 try/catch로 실패 시 `undefined` 반환 → `Promise.all`이 reject되지 않음(확인).
+- 변경 파일: `index.html`, `seahyun/brainstorm_v3.102.2.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.102.1] - 2026-08-09
 
 ### Changed
