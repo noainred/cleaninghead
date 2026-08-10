@@ -1,6 +1,11 @@
 # tools/
 
-빌드·점검용 보조 스크립트. **앱 자체는 무빌드**(브라우저가 `index.html`을 직접 실행)이며, 여기 도구는 선택적 최적화/검증용입니다.
+빌드·점검용 보조 스크립트.
+
+> **v3.104.0(2026-08-10)부터 이 빌드는 배포 파이프라인의 일부입니다** — main 머지 시
+> `.github/workflows/deploy-pages.yml`이 `build-precompiled.js --out _site/index.html`로
+> 컴파일해 GitHub Pages에 배포합니다. 소스 `index.html`은 종전대로 babel 블록을 직접 편집하면 되고,
+> 아래 수동 실행은 로컬 검증용입니다. (`--out <경로>` 출력 지정, `--readable` compact 끄기)
 
 ## build-precompiled.js — 사전 컴파일 + 엄격 CSP 빌드
 

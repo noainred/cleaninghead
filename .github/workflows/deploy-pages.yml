@@ -1,0 +1,57 @@
+# main 푸시 → 사전 컴파일 빌드 → GitHub Pages 배포 (v3.104.0, 2026-08-10 도입)
+#
+# index.html(소스, text/babel 블록)은 그대로 편집·커밋하고,
+# 배포본만 이 워크플로가 컴파일된 index.html(babel 제거 + 엄격 CSP)로 교체한다.
+# 사이트의 나머지 파일(landing/mobile/seahyun/CNAME/아이콘 등)은 그대로 복사된다.
+#
+# 롤백: 저장소 Settings → Pages → Source를 'Deploy from a branch'(main, /)로 되돌리면
+#       소스 index.html이 그대로 서빙되는 종전 방식으로 즉시 복귀한다.
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 사전 컴파일 빌드 + 산출물 검증
+        run: |
+          npm i --no-save @babel/standalone@7.26.4
+          mkdir -p _site
+          rsync -a --exclude _site --exclude .git --exclude .github \
+            --exclude node_modules --exclude package.json --exclude package-lock.json \
+            ./ _site/
+          node tools/build-precompiled.js --out _site/index.html
+          # 검증: 산출물에 babel 흔적이 없어야 하고, CSP 인라인 해시가 4개 이상이어야 함
+          ! grep -q 'text/babel' _site/index.html
+          ! grep -q 'babel.min.js' _site/index.html
+          test "$(grep -o 'sha256-' _site/index.html | wc -l)" -ge 4
+          echo "빌드 검증 통과: $(wc -c < _site/index.html) bytes"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
