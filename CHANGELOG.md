@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.108.0] - 2026-08-11
+
+### Changed
+- **"📅 캘린더에 추가" 제미나이 경유 방식으로 개편** (준호님 요청) — 버튼/`Ctrl+Shift+C` 클릭 시: ① "지금 일정을 구글 캘린더에 추가해줘" 문구 + 선택 노드(하위 포함, 미선택 시 문서 전체)의 마크다운을 클립보드에 복사 ② 안내 팝업 표시("일정이 클립보드에 복사되었습니다. 제미나이에게 붙여 넣으시면…", **다시 보지 않기** 지원 — 끄면 짧은 토스트로 대체) ③ 제미나이(gemini.google.com)를 새 탭으로 열기. 종전 캘린더 URL 템플릿 방식(제목·본문 길이 제한, 단일 일정만)은 제거.
+
+### Technical Notes
+- `addToGoogleCalendar` 재구현(이름 유지 → Ctrl+Shift+C 경로 자동 적용). `window.open`은 핸들러 동기 구간에서 호출(팝업 차단 회피), 클립보드는 `treeToMarkdown(serializeTree(선택))`.
+- 설정 키 `calendarGeminiNoticeOff` 추가(+병합 방어). 설정 → 연동의 캘린더 섹션을 새 플로우 설명 + "복사 후 안내 팝업 표시" 토글로 교체(구 일정 제목/방식 컨트롤 제거 — `calendarEventTitle`/`calendarMode` 저장값과 `buildGoogleCalendarUrl`은 롤백 대비 보존).
+- 새 팝업을 전역 단축키/붙여넣기 가드 목록에 추가. gemini.google.com은 새 탭 내비게이션이라 CSP 변경 불필요.
+- 변경 파일: `index.html`, `README.md`, `seahyun/brainstorm_v3.108.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.107.0] - 2026-08-10
 
 ### Added
