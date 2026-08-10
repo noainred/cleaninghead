@@ -75,7 +75,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // React 인라인 스타일 + <style> + 구글폰트 CSS
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://unpkg.com https://fonts.googleapis.com https://fonts.gstatic.com",
+  // www.google.com/g/collect — GA4(Google Signals)가 비콘을 보내는 경로 (v3.104.1: 미허용 시 매 방문 콘솔에 CSP 위반 오류)
+  "connect-src 'self' https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com/g/collect https://unpkg.com https://fonts.googleapis.com https://fonts.gstatic.com",
   "frame-src 'self' https://accounts.google.com",
 ].join('; ');
 const cspMeta = `<meta http-equiv="Content-Security-Policy" content="${csp}" />`;
