@@ -13,6 +13,17 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.104.1] - 2026-08-10
+
+### Fixed
+- **GA4 비콘 CSP 차단 콘솔 오류** — GA4(Google Signals)가 `https://www.google.com/g/collect`로 보내는 비콘이 엄격 CSP `connect-src`에 없어 매 방문 콘솔에 위반 오류가 찍히던 문제(준호님 브라우저 확인에서 발견). 해당 경로를 connect-src에 추가(경로 한정 허용 — www.google.com 전체가 아님). 앱 기능 영향은 없던 표시상 문제.
+
+### Technical Notes
+- 같은 콘솔에서 보인 나머지 오류는 사용자 브라우저 확장 때문으로 확인: `ERR_NAME_NOT_RESOLVED`(AdGuard의 DNS 차단 — 오류 메시지의 CSP에 `local.adguard.org`가 삽입된 것이 증거), "eval 차단"(`dev-tools-inject.js` 확장이 페이지에서 eval 시도 → 엄격 CSP가 정상 차단). **우리 코드의 eval/new Function 사용은 소스·배포본 모두 0건 확인** — 확장 때문에 CSP를 완화하지 않음.
+- 변경 파일: `tools/build-precompiled.js`(CSP), `index.html`(버전·안내), `seahyun/brainstorm_v3.104.1.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.104.0] - 2026-08-10
 
 ### Changed
