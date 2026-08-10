@@ -13,6 +13,22 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.105.0] - 2026-08-10
+
+### Fixed (버그 감사 2차 — 중난도 7건)
+- **토큰 팝업 실패 시 저장 데드락** — GIS `error_callback` 미등록으로 팝업 차단/닫힘 시 Promise가 영구 pending → `isSavingRef`가 안 풀려 자동·수동 저장이 무증상 전면 정지되던 문제. `error_callback` 등록 + 60초 안전 타임아웃 + settle 가드로 모든 경로에서 반드시 결론이 나도록 수정.
+- **드라이브 목록 페이지네이션** — 기본 pageSize 100으로 초과분이 목록·백업 정리에서 누락 → `driveListAllInFolder`(pageSize 1000 + nextPageToken 루프) 신설, 메인/백업 목록이 공유.
+- **BrainBloom 폴더 중복 생성 경합** — `fetchMergedDriveList`의 Promise.all이 폴더 get-or-create를 동시 2회 실행(단일 탭에서도 재현) → in-flight Promise 메모이즈로 직렬화 + 기존 중복 계정 구제(createdTime 정렬로 가장 오래된 폴더를 정본 고정) + 로그아웃 시 캐시 무효화. Backup 폴더도 동일 처리.
+- **간트/타임라인에서 Tab/Enter/F2** — 편집 입력창이 없는 뷰에서 editingId가 고착돼 키보드 먹통 + 유령 샘플 노드 생성 → 차트 뷰에서 해당 키 차단.
+- **문서 전환 시 상태 잔존** — 다중 선택·관계선 대기·검색 상태가 새 문서로 넘어와 유령 배너 + 죽은 id 그룹 생성 → `resetViewForDocChange`에서 일괄 리셋 + `createGroup` 실존 id 필터 + `deleteNode`의 다중선택 정리.
+- **복사본의 ★샘플★ 플래그 잔존** — 붙여넣기/Ctrl+드래그 복제본에 `_autoLabel`이 남아 편집-취소 시 히스토리 롤백으로 복사본 전체 소멸 → 복제 시 플래그 제거.
+- **파일명 날짜 UTC 기준** — `toISOString` 대신 로컬 날짜(`localDateStr`) 사용. KST 자정~오전 9시 저장이 전날 파일로 붙던 문제(기존 파일 파싱은 문자열 그대로라 호환 영향 없음).
+
+### Technical Notes
+- 버그 감사 2차분. 변경 파일: `index.html`, `seahyun/brainstorm_v3.105.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.104.2] - 2026-08-10
 
 ### Fixed (버그 감사 1차 — 저위험 9건)
