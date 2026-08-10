@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.103.0] - 2026-08-10
+
+### Added
+- **Service Worker 런타임 캐싱 (`sw.js` 신규)** — CDN(unpkg)·폰트는 cache-first, HTML은 network-first(오프라인 시에만 캐시 폴백). 효과: ① 한 번 접속 후 오프라인에서도 앱 기동 ② 브라우저가 대용량 CDN 자원을 HTTP 캐시에서 축출해도 재다운로드 방지 ③ unpkg 장애(단일 장애점) 시에도 동작. manifest가 이미 있어 설치형 PWA 요건 충족.
+
+### Technical Notes
+- 성능 감사(2026-08-10) 반영 2/3. 정직 고지: 첫 방문·정상 캐시 재방문의 체감 속도 변화는 거의 없음 — 본질은 회복탄력성(오프라인·캐시 축출·CDN 장애) 개선.
+- 검증자 교정 반영: navigation preload 미사용(HTML `fetch(req,{cache:'no-cache'})` 재검증과 양립 불가), 폰트 CSS `<link>`에 `crossorigin` 추가(SW가 opaque 아닌 CORS 응답으로 캐시 — 오류 응답 캐시 방지), 오류·opaque 응답은 SWR 캐시 제외.
+- 등록은 `load` 이후 + https 한정(file:// 스냅샷·로컬 사본은 건너뜀). 구글 API(드라이브/GIS/GA) 요청에는 개입하지 않음. precache 목록이 없어 릴리스마다 sw.js 수정 불필요.
+- 변경 파일: `index.html`, `sw.js`(신규), `seahyun/brainstorm_v3.103.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.102.2] - 2026-08-10
 
 ### Changed
