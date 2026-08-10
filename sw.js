@@ -42,7 +42,11 @@ self.addEventListener('fetch', (e) => {
         if (res && res.ok) cache.put(req, res.clone());
         return res;
       } catch (err) {
-        const hit = await cache.match(req);
+        // 오프라인 폴백 — 기본 match는 쿼리까지 정확 일치라 '/index.html?app'으로 캐시된 것을
+        // '/'로 진입하면 miss가 났다(v3.104.2 수정): 쿼리 무시 → 루트 → index.html 순으로 넓혀 찾는다.
+        const hit = await cache.match(req, { ignoreSearch: true })
+          || await cache.match('/')
+          || await cache.match('/index.html', { ignoreSearch: true });
         if (hit) return hit;
         throw err;
       }
