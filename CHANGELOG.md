@@ -13,6 +13,24 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.109.0] - 2026-08-11
+
+### Added
+- **텍스트로 일정 입력 → 구글 캘린더 등록** (준호님 요청) — "📅 캘린더에 추가"가 일정 입력 모달을 연다. 한 줄에 한 일정씩 적고 "일정 해석하기"로 미리보기 확인 후 두 경로로 등록:
+  - **캘린더에 바로 등록** — 앱이 Calendar API로 직접 등록(증분 권한: 캘린더 기능 첫 사용 시에만 `calendar.events` 동의 팝업, 드라이브 로그인과 분리). 정형 형식 지원: `2026-08-15 14:00 회의` / `8/20 오후 3시~4시 워크샵` / `8월 25일 휴가`(종일) / `09:30~10:30` 범위.
+  - **제미나이로 등록** — 자유 문장 포함 전체 텍스트를 복사하고 제미나이 열기(v3.108.0 방식, 폴백).
+  - GCP 미설정(Calendar API/scope) 또는 권한 거부 시 "바로 등록"은 자동으로 제미나이 안내로 폴백 → 설정 전에도 앱이 깨지지 않음.
+
+### Technical Notes
+- 모듈 함수 추가: `parseScheduleLine`/`parseScheduleText`(정형 파서 — 날짜 없는 줄·잘못된 시간은 graceful 실패), `createCalendarEvent`(종일=`date`+익일 end, 시간=`dateTime`+브라우저 timeZone, 시작만 있으면 1시간 기본), `requestCalendarToken`/`ensureCalendarToken`(drive와 분리된 증분 토큰 클라이언트, error_callback+타임아웃).
+- CSP: Calendar API는 `www.googleapis.com`(기존 connect-src에 포함)이라 변경 불필요.
+- 모달을 전역 단축키·붙여넣기 가드에 추가. 설정 → 연동 캘린더 섹션을 새 이중 플로우 설명으로 교체.
+- 관리자 설정 가이드 신설: `CALENDAR_SETUP.md`(Calendar API 활성화 + OAuth scope + 테스트 사용자).
+- 정직 고지: "바로 등록"은 헤드리스 브라우저 검증 불가 환경이라 자동 테스트는 파서 단위(모듈 함수 직접 실행)까지만 — 실제 API 등록은 GCP 설정 후 준호님 확인 필요.
+- 변경 파일: `index.html`, `README.md`, `CALENDAR_SETUP.md`(신규), `seahyun/brainstorm_v3.109.0.html`(스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.108.0] - 2026-08-11
 
 ### Changed
