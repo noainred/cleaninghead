@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.110.1] - 2026-08-13
+
+### Changed
+- **데이터 모듈 분리 (파일럿)** — index.html babel 블록 안에 있던 순수 데이터 `CHANGELOG_URL`·`RECENT_CHANGES`(~215줄)를 `data/bb-data.js`(클래식 JS, JSX 없음)로 분리. index.html은 babel 로더보다 먼저 `<script src="data/bb-data.js">`로 로드 → 전역 `const`가 앱 코드와 전역 스코프를 공유. 브라우저 직접 실행·`file://`·CSP `'self'` 모두 유지. 소스 index.html이 그만큼 짧아짐.
+
+### Technical Notes
+- 이후 격언/트렌디 단어/색·아이콘·폰트/슬로건 등 순수 데이터(~1,000줄)를 같은 방식으로 확장할 계획의 **1단계 파일럿** — 외부 클래식 스크립트의 top-level `const`가 babel 변환 코드와 전역 렉시컬 환경을 공유하는지(HTML 스펙상 보장) 실제 브라우저에서 검증하기 위해 작은 범위 먼저 배포.
+- 자동 검증: 분리 데이터가 원본과 **문자 단위 동일**(git HEAD 대조 통과), 값 로드 정상, babel 블록 컴파일 통과. 브라우저 전역 공유는 `vm`으로 재현 불가라 배포 후 확인.
+- seahyun 스냅샷은 자족성 유지를 위해 `data/bb-data.js`를 **인라인화한 자족본**으로 저장(스냅샷 규칙 유지). 배포본·소스는 외부 `<script src>` 사용(빌드가 `data/`를 함께 배포, `'self'` 허용).
+- 변경 파일: `index.html`, `data/bb-data.js`(신규), `seahyun/brainstorm_v3.110.1.html`(인라인 자족 스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.110.0] - 2026-08-11
 
 ### Reverted
