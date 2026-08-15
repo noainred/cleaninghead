@@ -13,6 +13,19 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.111.0] - 2026-08-13
+
+### Added
+- **복수 노드 복사/붙여넣기** — Shift+클릭 다중 선택(`groupSelectIds`) 2개 이상에서 `Ctrl/⌘+C` → 선택한 최상위 노드들을 하위 포함 복사, `Ctrl/⌘+V` → 대상 노드(없으면 루트)의 자식으로 순서대로 삽입. 붙여넣은 최상위 노드들은 다중 선택 상태로 이어짐. 버그 감사에서 지적됐던 "다중 선택 상태에서 Ctrl+C가 1개만 복사"(구 항목 #9)를 기능으로 해소.
+
+### Technical Notes
+- 복사: 클립보드 페이로드에 복수 타입 `{__type:'brainbloom-nodes', nodes:[...]}` 추가(단수 `brainbloom-node`·원형 트리도 계속 수용). 선택 id 중 **다른 선택의 후손은 제외**(`isDescendant`)해 상위만 담고, **문서(트리) 순서로 정렬**해 붙여넣기 순서를 화면과 일치.
+- 붙여넣기: raws 배열로 정규화 후 각각 `sanitizeTree`→새 id(`p<stamp>_<seq>`)→휘발성/루트전용 필드 제거→부모 children push. 한도 절삭 감지 시 경고 토스트.
+- keydown effect 의존성에 `groupSelectIds` 추가(stale 방지). paste는 setter만 호출해 불변.
+- 변경 파일: `index.html`, `data/bb-data.js`(RECENT_CHANGES — 데이터 분리 후 첫 항목 추가), `seahyun/brainstorm_v3.111.0.html`(자족 스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.110.1] - 2026-08-13
 
 ### Changed
