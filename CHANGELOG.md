@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.111.1] - 2026-08-18
+
+### Fixed
+- **★샘플★ 노드에 날짜/시간 삽입 시 자리표시자 미대체** (준호님 스크린샷 리포트) — 노드 선택 상태에서 `Ctrl+;`·`Shift+Alt+D/T`를 누르면 자동 채움 라벨 뒤에 덧붙기만 하고 `_autoLabel`이 남아 "★ 전해야 할 말 2026년 8월 18일 ★"처럼 표시되고, 편집-취소 시 롤백·삭제될 수 있는 미확정 상태로 남던 문제. → 자리표시자는 삽입 텍스트로 **대체 + 확정**(일반 노드는 종전대로 덧붙임). 같은 계열: **우측 패널 라벨 입력**도 수정 시 `_autoLabel` 미제거 → 제거 추가.
+- **다중 선택에서 첫 노드 누락** — "1 클릭 → 2~5 Shift+클릭 → 복사하면 2~5만 복사" 문제의 근본 원인: 일반 클릭 노드(selectedId)가 `groupSelectIds`에 합류하지 않았음. → `toggleGroupSelectNode`가 다중 선택 시작 시 selectedId를 묶음에 시드(파일 탐색기 관례). 복사뿐 아니라 그룹 묶기·일괄 색/할 일·선택 배너 개수도 함께 일관됨.
+
+### Technical Notes
+- 삽입 branch 2곳(Ctrl+; / Shift+Alt+D·T)과 우측 패널 onChange, `toggleGroupSelectNode` 총 4곳 수정. 아웃라인·맵 인라인 편집의 `_autoLabel` 확정 경로는 기존 정상 확인.
+- 변경 파일: `index.html`, `data/bb-data.js`(RECENT_CHANGES), `seahyun/brainstorm_v3.111.1.html`(자족 스냅샷), `CHANGELOG.md`.
+
+---
+
 ## [3.111.0] - 2026-08-13
 
 ### Added
