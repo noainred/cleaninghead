@@ -13,6 +13,18 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 
 ---
 
+## [3.112.1] - 2026-09-02
+
+### Changed
+- **날짜 삽입 단축키에 요일 추가** (준호님 요청) — `Shift+Alt+D`(맥 `Shift+⌥+D`)로 넣는 한국어 날짜가 `2026년 9월 2일` → `2026년 9월 2일/수요일`처럼 뒤에 `/요일`을 붙이도록 변경. 요일은 `['일','월','화','수','목','금','토'][getDay()]`로 산출.
+
+### Technical Notes
+- `koreanDateString()` 한 곳만 수정 + 모듈 상수 `KR_WEEKDAYS` 추가. 루트 라벨 생성용 `formatTodayKR()`(예: "2026년 5월 28일 — 소중한 것 먼저 하기")는 의도적으로 그대로 두어 요일이 붙지 않음 — 단축키 삽입 경로에만 적용.
+- `Ctrl+;`의 ISO 형식(`2026-09-02`)은 무관하게 유지.
+- 변경 파일: `index.html`, `data/bb-data.js`(RECENT_CHANGES), `seahyun/brainstorm_v3.112.1.html`(자족 스냅샷), `CHANGELOG.md`, `README.md`.
+
+---
+
 ## [3.112.0] - 2026-08-19
 
 ### Added
