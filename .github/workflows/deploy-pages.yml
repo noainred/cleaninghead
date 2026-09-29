@@ -37,10 +37,12 @@ jobs:
 
       - name: 사전 컴파일 빌드 + 산출물 검증
         run: |
-          npm i --no-save @babel/standalone@7.26.4
+          npm ci
+          npm test
           mkdir -p _site
           rsync -a --exclude _site --exclude .git --exclude .github \
             --exclude node_modules --exclude package.json --exclude package-lock.json \
+            --exclude tests --exclude .preview \
             ./ _site/
           node tools/build-precompiled.js --out _site/index.html
           # 검증: 산출물에 babel 흔적이 없어야 하고, CSP 인라인 해시가 4개 이상이어야 함
