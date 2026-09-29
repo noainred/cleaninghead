@@ -2397,63 +2397,6 @@ try { if (window.top !== window.self) { window.top.location = window.self.locati
   }
   @keyframes bootSpin { to { transform: rotate(360deg); } }
   .boot-hint { font-size: 12.5px; color: var(--ink-soft); }
-
-  /* 작업 공간: 문서·저장 상태 / 보기 / 편집 도구를 같은 위치에서 찾는다. */
-  button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
-    outline: 3px solid var(--navy); outline-offset: 3px;
-  }
-  .header { flex-wrap: wrap; gap: 10px; padding: 12px 24px; }
-  .header-actions { flex-wrap: wrap; align-items: center; justify-content: flex-end; }
-  .workspace-bar {
-    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-    padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--line); flex-shrink: 0;
-  }
-  .workspace-document { flex: 1 1 220px; min-width: 0; }
-  .workspace-title { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 440px; }
-  .workspace-meta { display: flex; gap: 12px; align-items: center; margin-top: 5px; font-size: 11px; color: var(--ink-soft); }
-  .save-state { display: inline-flex; align-items: center; gap: 5px; }
-  .save-state::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .save-state.saved { color: var(--teal); }
-  .save-state.error { color: var(--rose); font-weight: 700; }
-  .workspace-views { display: flex; padding: 4px; gap: 3px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; }
-  .workspace-views button { border: 0; background: transparent; padding: 8px 12px; border-radius: 8px; color: var(--ink-soft); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
-  .workspace-views button[aria-pressed="true"] { background: var(--panel); color: var(--ink); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
-  .workspace-tools { display: flex; align-items: center; gap: 6px; }
-  .workspace-tools .btn { min-height: 36px; }
-  .workspace-tools .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
-  .save-error-banner { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; padding: 10px 20px; background: var(--accent-soft); color: var(--ink); font-size: 12px; }
-  .doc-open-button { display: block; border: 0; padding: 0; background: transparent; text-align: left; font-family: inherit; cursor: pointer; }
-  .docmgr-grid { gap: 14px; }
-  .doc-card { padding: 16px; border-radius: 14px; }
-  .doc-card:focus-within { border-color: var(--navy); }
-  .docmgr-busy { opacity: .65; pointer-events: none; }
-  @media (max-width: 1000px) {
-    .workspace-bar { gap: 12px; padding: 12px 16px; }
-    .workspace-document { flex-basis: calc(100% - 330px); }
-    .workspace-tools { margin-left: auto; }
-    .brand-tag { display: none; }
-  }
-  @media (max-width: 640px) {
-    .header { padding: 8px 12px; }
-    .workspace-bar { padding: 10px 12px; gap: 10px; }
-    .workspace-document { flex-basis: 100%; }
-    .workspace-title { max-width: 100%; }
-    .workspace-views { width: 100%; }
-    .workspace-views button { flex: 1; padding: 8px 5px; }
-    .workspace-tools { width: 100%; margin: 0; }
-    .workspace-tools .btn { flex: 1; min-width: 0; min-height: 40px; padding: 8px 5px; font-size: 11px; white-space: nowrap; justify-content: center; }
-    .workspace-meta { flex-wrap: wrap; }
-    .layout { display: flex; flex-direction: column; min-height: 0; }
-    .left-panel { flex: 0 1 42%; border-right: 0; border-bottom: 1px solid var(--line); }
-    .left-panel .panel-header { padding: 10px 14px; }
-    .left-panel .panel-sub, .left-panel .today-quote-wrap, .panel-resizer { display: none; }
-    .left-panel .text-input { min-height: 60px; padding: 12px 14px; }
-    .canvas-wrap { flex: 1 1 0; min-height: 0; }
-    .right-panel { position: absolute; inset: 0 0 0 auto; width: min(100%, 300px); z-index: 40; box-shadow: -8px 0 28px rgba(0,0,0,.12); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
-  }
 </style>
 </head>
 <body>
@@ -2474,13 +2417,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.113.0';
-const APP_BUILD_DATE = '2026-09-29';
-
-// React SyntheticEvent는 조합 상태를 nativeEvent에 보관한다.
-function isImeComposing(e) {
-  return !!(e.isComposing || (e.nativeEvent && e.nativeEvent.isComposing) || e.keyCode === 229);
-}
+const APP_VERSION = '3.112.1';
+const APP_BUILD_DATE = '2026-09-02';
 
 // 'a.b.c' 형식 버전 비교 — a가 b보다 높으면 true (업그레이드 판정용. 다운그레이드/동일은 false)
 function isNewerVersion(a, b) {
@@ -4153,65 +4091,63 @@ function openDB() {
     req.onerror = () => reject(req.error);
   });
 }
-let idbWriteQueue = Promise.resolve();
-async function idbGet(key, { strict = false } = {}) {
-  let db;
+async function idbGet(key) {
   try {
-    await idbWriteQueue;
-    db = await openDB();
+    const db = await openDB();
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
       const req = tx.objectStore(STORE).get(key);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
-      tx.onabort = () => reject(tx.error || new Error('읽기가 취소되었습니다'));
     });
   } catch (e) {
     console.warn('idbGet failed', e);
-    if (strict) throw e;
     return undefined;
-  } finally {
-    if (db) db.close();
   }
 }
-function idbSet(key, value) {
-  return idbSetMany([[key, value]]);
+async function idbSet(key, value) {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('idbSet failed', e);
+    return false;
+  }
 }
 // 여러 키를 '한 트랜잭션'으로 기록 — lastWork(미러)/doc 슬롯/docMeta처럼 서로 정합이
 // 필요한 값들이 중간에 끊겨 "미러=문서A, currentId=문서B" 같은 불일치로 남지 않게 한다(v3.106.0).
-function idbSetMany(entries, deleteKeys = []) {
-  // 연결 완료 순서가 아닌 호출 순서로 저장. 실패해도 다음 저장은 계속 실행한다.
-  const write = async () => {
-    let db;
-    try {
-      db = await openDB();
-      return await new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readwrite');
-        tx.oncomplete = () => resolve(true);
-        tx.onabort = () => reject(tx.error || new Error('저장이 취소되었습니다'));
-        tx.onerror = () => reject(tx.error);
-        try {
-          const store = tx.objectStore(STORE);
-          for (const [k, v] of entries) store.put(v, k);
-          for (const key of deleteKeys) store.delete(key);
-        } catch (e) {
-          tx.abort();
-          reject(e);
-        }
-      });
-    } catch (e) {
-      console.warn('idbSetMany failed', e);
-      return false;
-    } finally {
-      if (db) db.close();
-    }
-  };
-  const result = idbWriteQueue.then(write);
-  idbWriteQueue = result.then(() => undefined, () => undefined);
-  return result;
+async function idbSetMany(entries) {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      for (const [k, v] of entries) tx.objectStore(STORE).put(v, k);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('idbSetMany failed', e);
+    return false;
+  }
 }
-function idbDel(key) {
-  return idbSetMany([], [key]);
+async function idbDel(key) {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('idbDel failed', e);
+    return false;
+  }
 }
 
 /* ============================================================
@@ -5777,10 +5713,6 @@ function App() {
   // 자동저장 effect 클로저가 항상 최신 문서 컨텍스트를 보도록 ref에 동기화
   const currentDocIdRef = useRef(null);
   const docListRef = useRef([]);
-  const docTransitionRef = useRef(false);
-  const [docBusy, setDocBusy] = useState(false);
-  const [localSaveStatus, setLocalSaveStatus] = useState('pending');
-  const localSaveSequenceRef = useRef(0);
   useEffect(() => { currentDocIdRef.current = currentDocId; }, [currentDocId]);
   useEffect(() => { docListRef.current = docList; }, [docList]);
   // 파일 관리자: 폴더·검색·정렬·뷰
@@ -6075,7 +6007,7 @@ function App() {
          "444"가 "333333" 첫 글자 아래로 정렬됨 */
   const handleTextKeyDown = (e) => {
     // 한글 등 IME 조합 중에는 Enter가 조합 확정용이므로 가로채지 않음
-    if (isImeComposing(e)) return;
+    if (e.nativeEvent && e.nativeEvent.isComposing) return;
     if (e.key !== 'Enter') return;
     // Shift+Enter 등 수정자 조합도 동일하게 들여쓰기 유지 (특별 처리 안 함)
 
@@ -6607,40 +6539,31 @@ function App() {
     patchDocItem(docId, { tags: cur.filter(x => x !== tag) });
   }
   // 활성 문서 내용을 doc:<id> + lastWork(미러)에 기록하고 목록 savedAt/자동이름 갱신.
-  // 자동저장(1.5초 디바운스) 경로: 목록은 ref로 갱신하고 저장 상태만 화면에 반영한다.
+  // 자동저장(1.5초 디바운스) 경로에서 호출되므로 setState 없이 ref+IDB만 갱신(렌더 비용 없음).
   // (v3.106.0) 목록 검증을 lastWork 쓰기보다 앞으로 — 삭제된 문서의 대기 디바운스가
   // 미러에 죽은 내용을 남기던 문제 방어. 세 키는 idbSetMany 한 트랜잭션으로 기록.
-  async function writeActiveDoc(payload, id = currentDocIdRef.current) {
-    if (!id || id !== currentDocIdRef.current) return false;
+  function writeActiveDoc(payload) {
+    const id = currentDocIdRef.current;
+    if (!id) return;
     const list = docListRef.current;
     const cur = list.find(d => d.id === id);
-    if (!cur) return false; // 목록에 없는(삭제된) 문서 — 아무것도 쓰지 않는다
-    const sequence = ++localSaveSequenceRef.current;
-    setLocalSaveStatus('saving');
+    if (!cur) return; // 목록에 없는(삭제된) 문서 — 아무것도 쓰지 않는다
     const name = (cur.auto === false) ? cur.name : deriveDocName(payload.tree);
     const stats = docStatsOf(payload.tree);
     const nextList = list.map(d => d.id === id
       ? { ...d, savedAt: payload.savedAt, name, nodeCount: stats.nodeCount, branches: stats.branches }
       : d);
     docListRef.current = nextList;
-    const ok = await idbSetMany([
+    idbSetMany([
       ['lastWork', payload], // 기존 복원/드라이브 로직 호환용 미러
       [DOC_KEY(id), { ...payload, name }],
       ['docMeta', { currentId: id, list: nextList, folders: docFoldersRef.current || [] }],
     ]);
-    // 성공한 내용만 기억한다. 실패한 저장은 재시도 때 건너뛰지 않는다.
-    if (ok) lastLocalSaveRef.current = JSON.stringify({ id, tree: payload.tree, inputText: payload.inputText });
-    if (id === currentDocIdRef.current && sequence === localSaveSequenceRef.current) {
-      setLocalSaveStatus(ok ? 'saved' : 'error');
-    }
-    return ok;
   }
   // 패널 열 때 목록·폴더를 IndexedDB에서 다시 읽어 화면에 반영(savedAt/이름/폴더 최신화)
   async function refreshDocList() {
     try {
-      await flushActiveDoc();
       const meta = await idbGet('docMeta');
-      if (docTransitionRef.current) return;
       if (meta && Array.isArray(meta.list)) {
         const list = meta.list.filter(d => d && d.id).map(normalizeDocItem);
         docListRef.current = list; setDocList(list);
@@ -6654,23 +6577,8 @@ function App() {
   }
   // 현재 화면 내용을 즉시 활성 문서 슬롯에 저장(전환/생성/삭제 직전 보존용)
   function flushActiveDoc() {
-    if (!tree) return Promise.resolve(false);
-    return writeActiveDoc(currentDocPayload());
-  }
-  function currentDocPayload() {
-    // 텍스트 입력 후 400ms 이내 전환/창 숨김에도 최신 글을 트리와 함께 보존한다.
-    let liveTree = tree;
-    if (syncSourceRef.current === 'text') {
-      const parsed = (looksLikeBrainBloomMarkdown(inputText) && parseBrainBloomMarkdown(inputText)) || parseInput(inputText);
-      if (parsed) {
-        walk(parsed, n => { if (!n.meta) n.meta = {}; });
-        if (tree) preserveMetadata(parsed, tree);
-        assignDefaultColors(parsed);
-        healDuplicateIds(parsed);
-        liveTree = parsed;
-      }
-    }
-    return { savedAt: Date.now(), tree: serializeTree(liveTree), inputText };
+    if (!tree) return;
+    writeActiveDoc({ savedAt: Date.now(), tree: serializeTree(tree), inputText });
   }
   // 전환·생성·삭제 시 화면(뷰/선택/편집)을 깔끔히 정리 — 맵 편집 모드로
   function resetViewForDocChange() {
@@ -6681,83 +6589,69 @@ function App() {
     // 존재하지 않는 id로 그룹이 만들어져 데이터가 오염된다(v3.105.0 수정)
     setGroupSelectIds([]); setLinkSourceId(null); setSelectedGroupId(null); setSelectedLinkKey(null);
     setSearchOpen(false); setSearchQuery(''); setSearchMatchIds([]); setSearchPos(0);
-    setTagFilter([]); setIconFilter([]);
     overlapFixRef.current = 0; // 겹침 자동복구 시도 횟수는 문서별 — 이전 문서에서 소진돼 새 문서에서 비활성화되지 않게
   }
   // doc:<id> 내용을 화면(tree·inputText)에 로드. 직전 문서 보존(flush)은 호출 측 책임.
-  async function loadDocIntoView(id, list = docListRef.current, deleteId = null) {
+  async function loadDocIntoView(id) {
     // 슬롯을 먼저 읽는다 — 읽는 동안엔 currentDocId가 아직 옛 문서라, 이 사이 자동저장이 터져도
     // 옛 슬롯(또는 목록에 없어 no-op)에 안전하게 쓰이고 대상 슬롯을 덮지 않는다.
-    const data = await idbGet(DOC_KEY(id), { strict: true });
-    const safeTree = data ? sanitizeTree(data.tree) : null;
-    if (!safeTree) throw new Error('문서를 읽지 못했어요. 현재 문서를 유지합니다.');
-    if (sanitizeTreeTruncated()) throw new Error('문서가 크기 한도를 초과해요. 원본을 보존하기 위해 열기를 중단했어요.');
-    const payload = { savedAt: Date.now(), tree: serializeTree(safeTree), inputText: data.inputText || treeToText(safeTree) };
-    const ok = await idbSetMany([
-      ['lastWork', payload],
-      ['docMeta', { currentId: id, list, folders: docFoldersRef.current || [] }],
-    ], deleteId ? [DOC_KEY(deleteId)] : []);
-    if (!ok) throw new Error('문서 전환을 저장하지 못했어요. 다시 시도해 주세요.');
-    docListRef.current = list; setDocList(list);
+    const data = await idbGet(DOC_KEY(id));
     currentDocIdRef.current = id;
     setCurrentDocId(id);
     resetViewForDocChange();
-    restoreWork(payload);
-    lastLocalSaveRef.current = JSON.stringify({ id, tree: payload.tree, inputText: payload.inputText });
-    setLocalSaveStatus('saved');
+    const safeTree = data ? sanitizeTree(data.tree) : null;
+    if (safeTree) {
+      if (sanitizeTreeTruncated()) showToast('⚠️ 문서 일부가 크기 한도를 초과해 잘렸어요');
+      restoreWork({ tree: safeTree, inputText: (data.inputText || '') });
+      // lastWork 미러도 이 문서로 맞춰, 다음 새로고침에 동일 문서가 복원되게
+      idbSet('lastWork', { savedAt: Date.now(), tree: serializeTree(safeTree), inputText: (data.inputText || '') });
+    } else {
+      // 슬롯이 비어 있으면 빈 문서로 시작
+      const rootLabel = generateRootLabel();
+      const freshTree = { id: genId(), label: rootLabel, children: [], meta: {}, color: 'navy' };
+      syncSourceRef.current = null;
+      setTree(freshTree); setInputText(rootLabel + '\n'); setMorningQuote('');
+      // 빈 슬롯도 미러를 즉시 맞춘다 — 안 맞추면 1.5초 자동저장 전에 브라우저가 닫힐 때
+      // 다음 시작에서 옛 문서 내용이 이 문서로 복사되던 창이 남는다(v3.106.0)
+      idbSet('lastWork', { savedAt: Date.now(), tree: serializeTree(freshTree), inputText: rootLabel + '\n' });
+    }
   }
   // 다른 문서 열기
   async function switchDoc(id) {
-    if (docTransitionRef.current) return;
     setRenamingDocId(null);
     if (id === currentDocIdRef.current) { setShowDocs(false); return; }
-    docTransitionRef.current = true; setDocBusy(true);
-    try {
-      if (!await flushActiveDoc()) throw new Error('현재 문서를 저장하지 못해요. JSON 백업 후 다시 시도해 주세요.');
-      await loadDocIntoView(id);
-      setShowDocs(false);
-      const d = docListRef.current.find(x => x.id === id);
-      showToast(`"${d ? (d.name || DEFAULT_DOC_NAME) : '문서'}" 열었어요`);
-    } catch (e) { showToast(e.message, { duration: 6000 }); }
-    finally { docTransitionRef.current = false; setDocBusy(false); }
+    flushActiveDoc();
+    await loadDocIntoView(id);
+    persistDocMeta(docListRef.current, id);
+    setShowDocs(false);
+    const d = docListRef.current.find(x => x.id === id);
+    showToast(`"${d ? (d.name || DEFAULT_DOC_NAME) : '문서'}" 열었어요`);
   }
   // 새 문서 만들기 (현재 문서는 보존하고 빈 문서로 전환)
-  async function createDoc() {
-    if (docTransitionRef.current) return;
-    docTransitionRef.current = true; setDocBusy(true);
-    try {
-      if (!await flushActiveDoc()) throw new Error('현재 문서를 저장하지 못해요. JSON 백업 후 다시 시도해 주세요.');
-      const id = newDocId();
-      const rootLabel = generateRootLabel();
-      const freshTree = { id: genId(), label: rootLabel, children: [], meta: {}, color: 'navy' };
-      const freshText = rootLabel + '\n';
-      const savedAt = Date.now();
-      // 폴더 보기 중이면 새 문서를 그 폴더에 생성
-      const targetFolder = docFoldersRef.current.some(f => f.id === docFolderView) ? docFolderView : null;
-      const item = { id, name: deriveDocName(freshTree), savedAt, createdAt: savedAt, auto: true, pinned: false, folderId: targetFolder, nodeCount: docStatsOf(freshTree).nodeCount, branches: [], tags: [], memo: '' };
-      const nextList = [...docListRef.current, item];
-      const payload = { savedAt, tree: freshTree, inputText: freshText };
-      const ok = await idbSetMany([
-        [DOC_KEY(id), { ...payload, name: item.name }],
-        ['lastWork', payload],
-        ['docMeta', { currentId: id, list: nextList, folders: docFoldersRef.current || [] }],
-      ]);
-      if (!ok) throw new Error('새 문서를 저장하지 못했어요. 현재 문서를 유지합니다.');
-      docListRef.current = nextList;
-      setDocList(nextList);
-      currentDocIdRef.current = id;
-      setCurrentDocId(id);
-      lastLocalSaveRef.current = JSON.stringify({ id, tree: freshTree, inputText: freshText });
-      setLocalSaveStatus('saved');
-      syncSourceRef.current = null;
-      resetViewForDocChange();
-      setTree(freshTree); setInputText(freshText);
-      setMorningQuote(pickQuote());
-      setShowDocs(false);
-      showToast('새 문서를 만들었어요');
-      focusTextInputAtSecondLine(freshText);
-    } catch (e) { showToast(e.message, { duration: 6000 }); }
-    finally { docTransitionRef.current = false; setDocBusy(false); }
+  function createDoc() {
+    flushActiveDoc();
+    const id = newDocId();
+    const rootLabel = generateRootLabel();
+    const freshTree = { id: genId(), label: rootLabel, children: [], meta: {}, color: 'navy' };
+    const freshText = rootLabel + '\n';
+    const savedAt = Date.now();
+    // 폴더 보기 중이면 새 문서를 그 폴더에 생성
+    const targetFolder = docFoldersRef.current.some(f => f.id === docFolderView) ? docFolderView : null;
+    const item = { id, name: deriveDocName(freshTree), savedAt, createdAt: savedAt, auto: true, pinned: false, folderId: targetFolder, nodeCount: docStatsOf(freshTree).nodeCount, branches: [], tags: [], memo: '' };
+    const nextList = [...docListRef.current, item];
+    docListRef.current = nextList;
+    setDocList(nextList);
+    currentDocIdRef.current = id;
+    setCurrentDocId(id);
+    persistDocMeta(nextList, id);
+    idbSet(DOC_KEY(id), { savedAt, tree: freshTree, inputText: freshText, name: item.name });
+    syncSourceRef.current = null;
+    resetViewForDocChange();
+    setTree(freshTree); setInputText(freshText);
+    setMorningQuote(pickQuote());
+    setShowDocs(false);
+    showToast('새 문서를 만들었어요');
+    focusTextInputAtSecondLine(freshText);
   }
   // 문서 이름 바꾸기 (빈 값이면 자동이름 모드로 되돌림)
   function commitRename(id, rawName) {
@@ -6785,29 +6679,23 @@ function App() {
   }
   // 문서 삭제 (마지막 1개는 삭제 불가)
   async function deleteDoc(id) {
-    if (docTransitionRef.current) return;
     const list = docListRef.current;
     if (list.length <= 1) { showToast('마지막 문서는 삭제할 수 없어요'); return; }
-    if (!list.some(d => d.id === id)) return;
-    docTransitionRef.current = true; setDocBusy(true);
-    try {
-      const wasCurrent = (id === currentDocIdRef.current);
-      const nextList = list.filter(d => d.id !== id);
-      if (wasCurrent) {
-        // 현재 문서를 지웠으면 가장 최근 문서로 이동 — flush 없이 곧장 로드(지운 슬롯 재생성 방지)
-        const target = nextList.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
-        await loadDocIntoView(target.id, nextList, id);
-      } else {
-        const ok = await idbSetMany([
-          ['docMeta', { currentId: currentDocIdRef.current, list: nextList, folders: docFoldersRef.current || [] }],
-        ], [DOC_KEY(id)]);
-        if (!ok) throw new Error('문서를 삭제하지 못했어요. 다시 시도해 주세요.');
-        docListRef.current = nextList; setDocList(nextList);
-      }
-      setRenamingDocId(null);
-      showToast('문서를 삭제했어요');
-    } catch (e) { showToast(e.message, { duration: 6000 }); }
-    finally { docTransitionRef.current = false; setDocBusy(false); }
+    const wasCurrent = (id === currentDocIdRef.current);
+    const nextList = list.filter(d => d.id !== id);
+    docListRef.current = nextList;
+    setDocList(nextList);
+    idbDel(DOC_KEY(id));
+    if (wasCurrent) {
+      // 현재 문서를 지웠으면 가장 최근 문서로 이동 — flush 없이 곧장 로드(지운 슬롯 재생성 방지)
+      const target = nextList.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))[0];
+      await loadDocIntoView(target.id);
+      persistDocMeta(docListRef.current, target.id);
+    } else {
+      persistDocMeta(nextList, currentDocIdRef.current);
+    }
+    setRenamingDocId(null);
+    showToast('문서를 삭제했어요');
   }
   // ── 폴더 ──
   function createFolder() {
@@ -6848,46 +6736,33 @@ function App() {
   }
   // ── 복제(통째 복사 → 새 문서) ──
   async function duplicateDoc(id) {
-    if (docTransitionRef.current) return;
-    docTransitionRef.current = true; setDocBusy(true);
-    try {
-      if (!await flushActiveDoc()) throw new Error('현재 문서를 저장하지 못했어요. JSON 백업 후 다시 시도해 주세요.');
-      const src = docListRef.current.find(d => d.id === id);
-      // flush에서 최신 텍스트를 반영한 슬롯을 사용한다(이 렌더의 tree는 아직 이전 내용일 수 있다).
-      const data = await idbGet(DOC_KEY(id), { strict: true });
-      const safeTree = data ? sanitizeTree(data.tree) : null;
-      if (!safeTree) { showToast('복제할 내용을 찾지 못했어요'); return; }
-      if (sanitizeTreeTruncated()) throw new Error('문서가 크기 한도를 초과해요. 원본을 보존하기 위해 복제를 중단했어요.');
-      const nid = newDocId(); const now = Date.now();
-      const baseName = (src && src.auto === false && src.name) ? src.name : deriveDocName(safeTree);
-      const name = (baseName + ' 사본').slice(0, 60);
-      const stats = docStatsOf(safeTree);
-      const item = { id: nid, name, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: (src && src.folderId) || null, nodeCount: stats.nodeCount, branches: stats.branches, tags: (src && Array.isArray(src.tags)) ? src.tags.slice() : [], memo: (src && src.memo) || '' };
-      const nextList = [...docListRef.current, item];
-      const ok = await idbSetMany([
-        [DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: (data.inputText || treeToText(safeTree)), name }],
-        ['docMeta', { currentId: currentDocIdRef.current, list: nextList, folders: docFoldersRef.current || [] }],
-      ]);
-      if (!ok) throw new Error('사본을 저장하지 못했어요. 다시 시도해 주세요.');
-      docListRef.current = nextList; setDocList(nextList);
-      showToast(`"${name}" 만들었어요`);
-    } catch (e) { showToast(e.message, { duration: 6000 }); }
-    finally { docTransitionRef.current = false; setDocBusy(false); }
+    const src = docListRef.current.find(d => d.id === id);
+    const data = (id === currentDocIdRef.current)
+      ? { tree: serializeTree(tree), inputText }
+      : await idbGet(DOC_KEY(id));
+    const safeTree = data ? sanitizeTree(data.tree) : null;
+    if (!safeTree) { showToast('복제할 내용을 찾지 못했어요'); return; }
+    const nid = newDocId(); const now = Date.now();
+    const baseName = (src && src.auto === false && src.name) ? src.name : deriveDocName(safeTree);
+    const name = (baseName + ' 사본').slice(0, 60);
+    const stats = docStatsOf(safeTree);
+    const item = { id: nid, name, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: (src && src.folderId) || null, nodeCount: stats.nodeCount, branches: stats.branches, tags: (src && Array.isArray(src.tags)) ? src.tags.slice() : [], memo: (src && src.memo) || '' };
+    const nextList = [...docListRef.current, item];
+    docListRef.current = nextList; setDocList(nextList);
+    idbSet(DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: (data.inputText || treeToText(safeTree)), name });
+    persistDocMeta(nextList, currentDocIdRef.current);
+    showToast(`"${name}" 만들었어요`);
   }
   // ── JSON 백업을 "새 문서"로 가져오기 (현재 문서 안 덮음) ──
   function importDocFromFile(file) {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async () => {
-      if (docTransitionRef.current) { setDocImportMsg('문서 작업이 끝난 뒤 다시 가져와 주세요'); return; }
-      docTransitionRef.current = true; setDocBusy(true);
+    reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result || ''));
         const rawTree = (parsed && parsed.tree) ? parsed.tree : parsed;
         const safeTree = sanitizeTree(rawTree);
         if (!safeTree) { setDocImportMsg('JSON에서 마인드맵을 읽지 못했어요'); return; }
-        if (sanitizeTreeTruncated()) { setDocImportMsg('파일이 크기 한도를 초과해요. 원본 파일을 보존해 주세요.'); return; }
-        if (!await flushActiveDoc()) throw new Error('현재 문서를 저장하지 못했어요. JSON 백업 후 다시 시도해 주세요.');
         walk(safeTree, n => { if (!n.meta) n.meta = {}; });
         assignDefaultColors(safeTree);
         const nid = newDocId(); const now = Date.now();
@@ -6896,19 +6771,15 @@ function App() {
         const targetFolder = docFoldersRef.current.some(f => f.id === docFolderView) ? docFolderView : null;
         const item = { id: nid, name, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: targetFolder, nodeCount: stats.nodeCount, branches: stats.branches, tags: [], memo: '' };
         const nextList = [...docListRef.current, item];
-        const ok = await idbSetMany([
-          [DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: treeToText(safeTree), name }],
-          ['docMeta', { currentId: currentDocIdRef.current, list: nextList, folders: docFoldersRef.current || [] }],
-        ]);
-        if (!ok) throw new Error('가져온 문서를 저장하지 못했어요. 다시 시도해 주세요.');
         docListRef.current = nextList; setDocList(nextList);
+        idbSet(DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: treeToText(safeTree), name });
+        persistDocMeta(nextList, currentDocIdRef.current);
         setDocImportMsg('"' + name + '"(으)로 가져왔어요 — 목록에서 열어보세요');
         showToast('JSON을 새 문서로 가져왔어요');
       } catch (e) {
-        setDocImportMsg(e instanceof SyntaxError ? 'JSON 형식이 올바르지 않아요' : e.message);
-      } finally { docTransitionRef.current = false; setDocBusy(false); }
+        setDocImportMsg('JSON 형식이 올바르지 않아요');
+      }
     };
-    reader.onerror = () => setDocImportMsg('파일을 읽지 못했어요. 다시 선택해 주세요.');
     reader.readAsText(file);
   }
   // ── 구글 드라이브에서 읽어오기 (문서 관리자) ──
@@ -6948,15 +6819,12 @@ function App() {
   }
   // 드라이브 파일을 "새 문서"로 가져오기. open=true면 가져온 뒤 바로 열고 관리자 닫기.
   async function importDriveFile(file, open) {
-    if (docTransitionRef.current) return;
-    docTransitionRef.current = true; setDocBusy(true);
     setDriveImportingId(file.id);
     try {
       const data = JSON.parse(await driveLoadFileById(file.id));
       const safeTree = sanitizeTree(data.tree || data);
       if (!safeTree) { showToast('파일 형식이 올바르지 않아요'); return; }
-      if (sanitizeTreeTruncated()) throw new Error('파일이 크기 한도를 초과해요. 원본 파일을 보존해 주세요.');
-      if (!await flushActiveDoc()) throw new Error('현재 문서를 저장하지 못했어요. JSON 백업 후 다시 시도해 주세요.');
+      if (sanitizeTreeTruncated()) showToast('⚠️ 가져온 문서 일부가 크기 한도를 초과해 잘렸어요');
       walk(safeTree, n => { if (!n.meta) n.meta = {}; });
       assignDefaultColors(safeTree);
       const nid = newDocId(); const now = Date.now();
@@ -6964,17 +6832,22 @@ function App() {
       const stats = docStatsOf(safeTree);
       const item = { id: nid, name: baseName, savedAt: now, createdAt: now, auto: false, pinned: false, folderId: null, nodeCount: stats.nodeCount, branches: stats.branches, tags: [], memo: '' };
       const nextList = [...docListRef.current, item];
+      docListRef.current = nextList; setDocList(nextList);
       const inputForDoc = treeToText(safeTree);
       // 슬롯 쓰기를 await로 확정(레이스 방지) — currentId 가리키기/재읽기 전에 디스크에 안착
-      const ok = await idbSetMany([
-        [DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: inputForDoc, name: baseName }],
-        ['docMeta', { currentId: currentDocIdRef.current, list: nextList, folders: docFoldersRef.current || [] }],
-      ]);
-      if (!ok) throw new Error('가져온 문서를 저장하지 못했어요. 다시 시도해 주세요.');
-      docListRef.current = nextList; setDocList(nextList);
+      await idbSet(DOC_KEY(nid), { savedAt: now, tree: safeTree, inputText: inputForDoc, name: baseName });
+      persistDocMeta(nextList, currentDocIdRef.current);
       setDriveImportedIds(ids => ids.includes(file.id) ? ids : [...ids, file.id]);
       if (open) {
-        await loadDocIntoView(nid);
+        // 현재 문서 보존 후, IDB 재읽기 없이 메모리에서 바로 전환(createDoc와 동일 패턴 — 읽기/쓰기 레이스 회피)
+        flushActiveDoc();
+        currentDocIdRef.current = nid;
+        setCurrentDocId(nid);
+        resetViewForDocChange();
+        syncSourceRef.current = null;
+        restoreWork({ tree: safeTree, inputText: inputForDoc });
+        idbSet('lastWork', { savedAt: now, tree: serializeTree(safeTree), inputText: inputForDoc });
+        persistDocMeta(docListRef.current, nid);
         setShowDocs(false);
         showToast(`"${baseName}" 드라이브에서 열었어요`);
       } else {
@@ -6985,7 +6858,6 @@ function App() {
       else showToast('가져오기 실패: ' + ((e && e.message) || '오류'));
     } finally {
       setDriveImportingId(null);
-      docTransitionRef.current = false; setDocBusy(false);
     }
   }
   // 관리자에서 드라이브 소스를 보고, 로그인돼 있고, 아직 안 불러왔으면 목록 자동 로드
@@ -9466,9 +9338,6 @@ function App() {
       // 다이얼로그가 열려있으면 전역 단축키 비활성화 (다이얼로그 전용 핸들러가 처리)
       if (confirmNewFile || startupDialog || showSettings || showDocs || remoteNewer || colorCascade || showUpdate || welcomeQuote || calendarGeminiNotice) return;
 
-      // 버튼·선택 상자에 포커스가 있으면 Enter/Space/Tab은 해당 컨트롤이 처리한다.
-      if (!e.ctrlKey && !e.metaKey && e.target && e.target.closest && e.target.closest('button, a, select, [contenteditable="true"]')) return;
-
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const mod = isMac ? e.metaKey : e.ctrlKey;
       const inTextarea = e.target.tagName === 'TEXTAREA';
@@ -9476,7 +9345,7 @@ function App() {
       // 한글 IME 조합 중에는 어떤 단축키도 발동하지 않음 (Enter가 조합 종료용으로 쓰이는 케이스 방어)
       // - keyCode 229: 일부 브라우저에서 조합 중 키 이벤트의 표시
       // - isComposing: 표준 속성
-      const isComposing = isImeComposing(e);
+      const isComposing = e.isComposing || e.keyCode === 229;
 
       // ─── 현재 날짜/시간 삽입 — Ctrl/⌘+; = 날짜, Ctrl/⌘+Shift+; = 시간 (Excel 관례)
       // 입력칸(라벨 편집·텍스트 패널·태그 등)에서는 커서 위치에, 아니면 선택한 노드 라벨 끝에 붙인다.
@@ -9839,7 +9708,7 @@ function App() {
         e.preventDefault();
         if (confirmNewFile) setConfirmNewFile(false);
         else if (showSettings) setShowSettings(false);
-        else if (showDocs && !docTransitionRef.current) { setShowDocs(false); setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); }
+        else if (showDocs) { setShowDocs(false); setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); }
         // startupDialog는 Esc로 닫으면 안 됨 - 사용자가 반드시 선택해야 함
         // (선택 안 하면 빈 화면이 됨)
       } else if (e.key === 'Enter') {
@@ -10085,10 +9954,13 @@ function App() {
   // ─────────── 페이지 닫기/숨김 시 lastWork 저장 (다음 날 복원용 + 데이터 안전) ───────────
   useEffect(() => {
     // 현재 트리/텍스트를 저장하는 공통 함수
-    const docId = currentDocId;
     const saveNow = () => {
-      if (!tree || docTransitionRef.current) return;
-      writeActiveDoc(currentDocPayload(), docId);
+      if (!tree) return;
+      writeActiveDoc({
+        savedAt: Date.now(),
+        tree: serializeTree(tree),
+        inputText,
+      });
     };
     // beforeunload: 탭/창을 닫을 때 (fire-and-forget, 완료 보장은 안 되지만 시도)
     const onBeforeUnload = () => saveNow();
@@ -10104,33 +9976,28 @@ function App() {
       window.removeEventListener('beforeunload', onBeforeUnload);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [tree, inputText, currentDocId]);
+  }, [tree, inputText]);
 
   // 트리/텍스트가 변할 때마다 IndexedDB에도 가벼운 백업 저장 (디바운스)
   // 변경이 없으면(직전 저장과 동일) 직렬화·쓰기를 건너뛴다 — 불필요한 IndexedDB I/O 절감.
   useEffect(() => {
     if (!tree) return;
     if (!settingsLoadedRef.current) return;
-    const docId = currentDocId;
-    if (!docId) return;
-    ++localSaveSequenceRef.current; // 이전 저장 완료가 새 변경을 '저장됨'으로 표시하지 않게
-    setLocalSaveStatus('pending');
     const t = setTimeout(() => {
-      if (docTransitionRef.current || docId !== currentDocIdRef.current) return;
-      // 큰 문서도 매 키 입력마다 직렬화하지 않도록 디바운스 안에서 계산한다.
       const cleanTree = serializeTree(tree);
-      const snapshot = JSON.stringify({ id: docId, tree: cleanTree, inputText });
+      const snapshot = JSON.stringify({ tree: cleanTree, inputText });
       // 직전에 저장한 내용과 같으면 건너뜀 (좌표 등 휘발성 필드는 serializeTree가 이미 제거)
-      if (lastLocalSaveRef.current === snapshot) { setLocalSaveStatus('saved'); return; }
+      if (lastLocalSaveRef.current === snapshot) return;
+      lastLocalSaveRef.current = snapshot;
       writeActiveDoc({
         savedAt: Date.now(),
         tree: cleanTree,
         inputText,
-      }, docId);
+      });
     }, 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line
-  }, [tree, inputText, currentDocId]);
+  }, [tree, inputText]);
 
   // 통계
   const stats = useMemo(() => {
@@ -10762,6 +10629,29 @@ function App() {
             📄 <span className="btn-label">{currentDocName.length > 14 ? currentDocName.slice(0, 14) + '…' : currentDocName}</span>
             {docList.length > 1 && <span className="doc-count">{docList.length}</span>}
           </button>
+          {/* 맵 ↔ 아웃라인(목록) 전환 — 미니멀/모바일에서도 항상 보이게 (view-toggle-btn) */}
+          <button
+            className="btn icon-btn view-toggle-btn"
+            onClick={() => { setOutlineView(v => !v); setChartView(null); setEditingId(null); }}
+            title={outlineView ? '마인드맵 화면으로 돌아가기' : '아웃라인(목록) 화면으로 보기'}
+          >
+            {outlineView ? <MapGlyph /> : <OutlineGlyph />}
+            <span className="btn-label">{outlineView ? '지도' : '아웃라인'}</span>
+          </button>
+          <button
+            className={`btn icon-btn view-toggle-btn${chartView === 'gantt' ? ' active' : ''}`}
+            onClick={() => { setChartView(v => v === 'gantt' ? null : 'gantt'); setOutlineView(false); setEditingId(null); }}
+            title="간트 차트로 보기 (일정 · G)"
+          >
+            📊 <span className="btn-label">간트</span>
+          </button>
+          <button
+            className={`btn icon-btn view-toggle-btn${chartView === 'timeline' ? ' active' : ''}`}
+            onClick={() => { setChartView(v => v === 'timeline' ? null : 'timeline'); setOutlineView(false); setEditingId(null); }}
+            title="타임라인으로 보기 (일정 · T)"
+          >
+            🕒 <span className="btn-label">타임라인</span>
+          </button>
           {settings.showToolbarButtons !== false && settings.minimalHeader !== true && (
           <>
           <button
@@ -10898,44 +10788,6 @@ function App() {
         </div>
       </div>
 
-      <div className="workspace-bar" aria-label="작업 공간 도구">
-        <div className="workspace-document">
-          <div className="workspace-title" title={currentDocName}>{currentDocName}</div>
-          <div className="workspace-meta">
-            <span className={`save-state ${localSaveStatus}`} role="status" aria-live="polite">
-              {localSaveStatus === 'saved' ? '이 브라우저에 저장됨' : localSaveStatus === 'error' ? '저장 실패' : localSaveStatus === 'saving' ? '저장 중…' : '변경사항 저장 대기'}
-            </span>
-            <span>아이디어 {stats.nodes}개</span>
-          </div>
-        </div>
-        <div className="workspace-views" role="group" aria-label="보기 방식">
-          {[
-            ['map', '마인드맵'], ['outline', '아웃라인'], ['gantt', '간트'], ['timeline', '타임라인'],
-          ].map(([mode, label]) => (
-            <button key={mode} aria-pressed={(chartView || (outlineView ? 'outline' : 'map')) === mode}
-              onClick={() => { setOutlineView(mode === 'outline'); setChartView(mode === 'gantt' || mode === 'timeline' ? mode : null); setEditingId(null); }}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="workspace-tools">
-          <button className="btn" disabled={!tree || outlineView || !!chartView} onClick={fitToScreen}
-            title="지도 전체를 화면 가운데에 맞추기">화면 맞춤</button>
-          <button className="btn" onClick={openSearch} aria-label="노드 검색" title="노드 검색 (Ctrl/⌘+F)">⌕ 검색</button>
-          <button className="btn" aria-pressed={settings.showLeftPanel !== false}
-            onClick={() => setSettings(s => ({ ...s, showLeftPanel: s.showLeftPanel === false }))}>텍스트 입력</button>
-          <button className="btn primary" disabled={!tree || viewMode !== 'edit' || !!chartView || docBusy}
-            title={chartView ? '마인드맵 또는 아웃라인에서 추가하세요' : '선택한 노드 아래에 추가 (선택이 없으면 중심 아래)'}
-            onClick={() => addChild(selectedId || tree.id, { label: '', startEditing: true })}>＋ 아이디어</button>
-        </div>
-      </div>
-      {localSaveStatus === 'error' && (
-        <div className="save-error-banner" role="alert">
-          <span>변경사항을 이 브라우저에 저장하지 못했어요. 창을 닫기 전에 JSON 백업을 내려받으세요.</span>
-          <button className="btn" onClick={() => flushActiveDoc()}>다시 저장</button>
-          <button className="btn" onClick={() => saveAll(['json'])}>JSON 백업</button>
-        </div>
-      )}
       <div
         className={`layout ${settings.showLeftPanel === false ? 'no-left-panel' : ''} ${!rightPanelVisible ? 'no-right-panel' : ''}`}
         ref={layoutRef}
@@ -10966,7 +10818,6 @@ function App() {
           <textarea
             ref={textInputRef}
             className="text-input"
-            aria-label="아이디어 텍스트"
             value={inputText}
             onChange={handleTextChange}
             onKeyDown={handleTextKeyDown}
@@ -10995,7 +10846,6 @@ function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  if (isImeComposing(e)) return;
                   if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
                   else if (e.key === 'Enter') { e.preventDefault(); gotoSearchMatch(e.shiftKey ? -1 : 1); }
                 }}
@@ -11384,7 +11234,7 @@ function App() {
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={e => {
                     if (e.key !== 'Enter') return;
-                    if (isImeComposing(e)) return; // 한글 조합 확정 Enter는 태그 추가로 처리하지 않는다
+                    if (e.isComposing || e.keyCode === 229) return; // 한글 IME 조합 중 Enter는 무시(조합 확정용) — "가나다"+"다" 중복 입력 방지
                     e.preventDefault();
                     const t = tagInput.trim().slice(0, 24);
                     if (t) updateNode(selectedNode.id, n => {
@@ -11885,7 +11735,7 @@ function App() {
 
       {/* 문서 관리자 — 폴더·검색·정렬·카드·복제·즐겨찾기·가져오기 */}
       {showDocs && (() => {
-        const closeMgr = () => { if (docTransitionRef.current) return; setShowDocs(false); setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); };
+        const closeMgr = () => { setShowDocs(false); setRenamingDocId(null); setRenamingFolderId(null); setEditingMetaDocId(null); setDocImportMsg(''); };
         const folderName = (id) => { const f = docFolders.find(x => x.id === id); return f ? f.name : '미분류'; };
         const counts = {
           all: docList.length,
@@ -11898,12 +11748,12 @@ function App() {
             <div className="modal-header">
               <div>
                 <div className="modal-title">문서 관리자</div>
-                <div className="modal-subtitle" role="status">{docBusy ? '문서를 안전하게 저장하는 중…' : `폴더로 정리하고 검색·복제·즐겨찾기할 수 있어요 (총 ${docList.length}개)`}</div>
+                <div className="modal-subtitle">폴더로 정리하고 검색·복제·즐겨찾기할 수 있어요 (총 {docList.length}개)</div>
               </div>
               <button className="modal-close" onClick={closeMgr}>×</button>
             </div>
             <div className="modal-body">
-              <div className={`docmgr ${docBusy ? 'docmgr-busy' : ''}`} aria-busy={docBusy} inert={docBusy ? '' : undefined}>
+              <div className="docmgr">
                 {/* 폴더 레일 */}
                 <div className="docmgr-rail">
                   <button className={`docmgr-folder ${docFolderView === 'all' ? 'active' : ''}`} onClick={() => setDocFolderView('all')}>
@@ -11920,7 +11770,7 @@ function App() {
                     renamingFolderId === f.id ? (
                       <input key={f.id} className="doc-rename-input" autoFocus value={folderNameDraft}
                         onChange={(e) => setFolderNameDraft(e.target.value)}
-                        onKeyDown={(e) => { if (isImeComposing(e)) return; if (e.key === 'Enter') commitFolderRename(f.id, folderNameDraft); else if (e.key === 'Escape') setRenamingFolderId(null); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitFolderRename(f.id, folderNameDraft); else if (e.key === 'Escape') setRenamingFolderId(null); }}
                         onBlur={() => commitFolderRename(f.id, folderNameDraft)} maxLength={40} placeholder="폴더 이름" />
                     ) : (
                       <button key={f.id} className={`docmgr-folder ${docFolderView === f.id ? 'active' : ''}`} onClick={() => setDocFolderView(f.id)}>
@@ -12031,8 +11881,8 @@ function App() {
                     </div>
                   ) : (<>
                   <div className="docmgr-toolbar">
-                    <input className="docmgr-search" aria-label="문서 검색" value={docSearch} onChange={(e) => setDocSearch(e.target.value)} placeholder="이름·가지·태그·메모 검색" />
-                    <select className="docmgr-sort" aria-label="문서 정렬" value={docSort} onChange={(e) => setDocSort(e.target.value)}>
+                    <input className="docmgr-search" value={docSearch} onChange={(e) => setDocSearch(e.target.value)} placeholder="🔍 이름·가지 검색" />
+                    <select className="docmgr-sort" value={docSort} onChange={(e) => setDocSort(e.target.value)}>
                       <option value="recent">최근 수정순</option>
                       <option value="created">생성일순</option>
                       <option value="name">이름순</option>
@@ -12061,11 +11911,10 @@ function App() {
                               {renamingDocId === d.id ? (
                                 <input className="doc-rename-input" autoFocus value={renameDraft} onClick={(e) => e.stopPropagation()}
                                   onChange={(e) => setRenameDraft(e.target.value)}
-                                  onKeyDown={(e) => { e.stopPropagation(); if (isImeComposing(e)) return; if (e.key === 'Enter') commitRename(d.id, renameDraft); else if (e.key === 'Escape') setRenamingDocId(null); }}
+                                  onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commitRename(d.id, renameDraft); else if (e.key === 'Escape') setRenamingDocId(null); }}
                                   onBlur={() => commitRename(d.id, renameDraft)} maxLength={60} placeholder="문서 이름" />
                               ) : (
-                                <button className="doc-card-name doc-open-button" aria-label={`${dispName} 열기`}
-                                  onClick={(e) => { e.stopPropagation(); switchDoc(d.id); }}>{dispName}</button>
+                                <span className="doc-card-name">{dispName}</span>
                               )}
                               <button className={`doc-card-pin ${d.pinned ? 'on' : ''}`} title={d.pinned ? '고정 해제' : '즐겨찾기 고정'}
                                 onClick={(e) => { e.stopPropagation(); togglePinDoc(d.id); }}>{d.pinned ? '★' : '☆'}</button>
@@ -12102,7 +11951,6 @@ function App() {
                                     placeholder={(d.tags && d.tags.length) ? '태그 추가' : '태그 입력 후 Enter'}
                                     onChange={(e) => setTagDraft(e.target.value)}
                                     onKeyDown={(e) => {
-                                      if (isImeComposing(e)) return;
                                       if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addDocTag(d.id, tagDraft); setTagDraft(''); }
                                       else if (e.key === 'Backspace' && !tagDraft && (d.tags || []).length) { removeDocTag(d.id, d.tags[d.tags.length - 1]); }
                                     }}
@@ -14183,7 +14031,7 @@ function NodeViewBase({
     // 한글 IME 조합 중 Enter는 조합 종료용. 편집 종료로 처리하면 사용자가 두 번 Enter를 쳐야 함.
     // 보통은 한 번 Enter로 조합 종료 + 편집 종료가 되어야 자연스러우니, 조합 중 Enter는 무시하고
     // 다음 Enter(또는 keyup)에서 finish 시키도록 한다.
-    if (isImeComposing(e)) {
+    if (e.isComposing || e.keyCode === 229) {
       // IME 조합 중 — 기본 동작(조합 종료)에 맡기고 우리는 아무것도 하지 않음
       return;
     }
