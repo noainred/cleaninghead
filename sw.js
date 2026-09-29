@@ -18,8 +18,7 @@ self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    // 같은 도메인의 다른 앱 캐시는 보존한다.
-    await Promise.all(keys.filter((k) => k.startsWith('bb-rt-') && k !== CACHE).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
