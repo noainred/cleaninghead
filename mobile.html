@@ -123,6 +123,7 @@ nav button.on{color:var(--accent);}
 }
 .ol-more{flex:0 0 40px; height:44px; display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--ink-soft); border-radius:10px;}
 .ol-more:active{background:var(--tap);}
+.ol-thumb{flex:0 0 auto; height:30px; max-width:54px; object-fit:cover; border-radius:6px; border:1px solid var(--line); align-self:center;}
 .ol-empty{text-align:center; color:var(--ink-soft); padding:60px 20px; font-size:14px; line-height:1.8;}
 
 /* FAB */
@@ -291,6 +292,7 @@ function findParent(root, id){ let res=null; (function go(n){ if(res) return; fo
 // 임의/악성 키(__proto__ 등)와 원본 meta 객체를 그대로 통과시키지 않아 미래 sink·오염을 원천 차단.
 const NODE_KEEP = ['color','collapsed','done','task','shape','icons','tags','note','pinnedSide','autoSide','w','createdAt','updatedAt'];
 const INBOX_MAX_ITEMS = 500; // 데스크톱과 동일
+const NODE_IMG_PREFIX = /^data:image\/(?:png|jpeg|webp|gif);base64,/; // 노드 이미지로 허용하는 형식(외부 주소·SVG 제외)
 const isObj = (v)=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const numPt = (p)=>(isObj(p)&&Number.isFinite(p.dx)&&Number.isFinite(p.dy))?{dx:p.dx,dy:p.dy}:null;
 // 루트 전용 데이터(관계선·경계·그룹·보관함) — 모바일은 관계선·경계·그룹을 그리지 않지만 반드시 그대로 실어 날라야 한다.
@@ -338,6 +340,10 @@ function sanitizeTree(t){
     };
     // 알려진 표시 속성만 타입 무관하게 복사(값 자체는 렌더 시 팔레트 키·배열 등으로 안전 처리됨)
     for(const k of NODE_KEEP){ if(n[k]!==undefined) out[k]=n[k]; }
+    // 노드 이미지(데스크톱에서 넣은 썸네일) — 래스터 data URL만 받아 그대로 보존한다. 모바일은 목록에 작게만 보여 준다.
+    if(isObj(n.image)&&typeof n.image.src==='string'&&NODE_IMG_PREFIX.test(n.image.src)){
+      out.image={ src:n.image.src, w:Number(n.image.w)||0, h:Number(n.image.h)||0 };
+    }
     return out;
   }
   const root=fix(t);
@@ -452,6 +458,11 @@ function renderOutline(){
       lb.className='ol-label'+(isRoot?' root':'')+(n.done?' done':'');
       lb.textContent=(n.label||'').trim()||'(이름 없음)';
       div.appendChild(lb);
+      if(n.image&&typeof n.image.src==='string'&&NODE_IMG_PREFIX.test(n.image.src)){
+        const th=document.createElement('img');
+        th.className='ol-thumb'; th.alt=''; th.src=n.image.src;
+        div.appendChild(th);
+      }
     }
     const more=document.createElement('button');
     more.className='ol-more'; more.dataset.act='more'; more.textContent='⋯';
