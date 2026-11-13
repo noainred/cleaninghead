@@ -40,7 +40,7 @@ BrainBloom의 모든 변경사항이 이 파일에 기록됩니다.
 - **보안**: 허용 형식은 `data:image/(png|jpeg|webp|gif);base64,…`(base64 문자만)뿐. 외부 주소(가져온 JSON에 심은 추적 URL)와 SVG는 받지 않는다. 데스크톱 `sanitizeNode`와 모바일 `sanitizeTree` 양쪽에서 검사.
 - **텍스트 재파싱**: `preserveMetadata`의 `copyMeta`에 `image` 추가. ★샘플★ 노드에 그림을 넣으면 그 순간 확정한다(미확정으로 두면 편집-취소가 그림 넣기까지 되돌린다).
 - **비동기 주의**: 그림 변환(`fileToNodeImage`)을 기다린 뒤에는 `nodeActionsRef`를 거쳐 최신 렌더의 함수로 반영한다(변환 사이의 편집을 낡은 트리로 덮지 않게).
-- **검증**: 헤드리스 Chromium(Chrome 153)에서 실제 앱으로 확인 — 노드 이미지 36 + 데이터·한도·복제 39 + 모바일 보존 17, 그리고 복제 방식 교체에 따른 회귀로 v3.114.0의 테스트 전부를 다시 실행했다. 소스와 배포 형태(사전 컴파일 + 엄격 CSP) 양쪽에서 통과. 실행해 보지 못한 것: 실제 구글 드라이브 왕복(네트워크 차단), PDF 내보내기의 마지막 단계(jsPDF를 CDN에서 받아야 함 — 그 앞 단계인 SVG → PNG 변환까지는 그림이 그려지는 것을 픽셀로 확인), Safari·Firefox.
+- **검증**: 헤드리스 Chromium(Chrome 153)에서 실제 앱으로 확인 — 노드 이미지 36 + 추가 동작(그림 잡고 끌기·폭 조절·JSON 복사·보관함 표시) 11 + 실제 내보내기 버튼으로 내려받은 파일 검사(PDF·JPG·SVG·JSON) 10 + 데이터·한도·복제 39 + 모바일 보존 17, 그리고 복제 방식 교체에 따른 회귀로 v3.114.0의 테스트 106개를 전부 다시 실행했다. 합계 219개가 소스와 배포 형태(사전 컴파일 + 엄격 CSP) 양쪽에서 통과. 실행해 보지 못한 것: 실제 구글 드라이브 왕복(이 환경에서 네트워크 차단 — 드라이브에 올리는 내용이 트리 전체 직렬화라 그림이 포함되는 것은 코드로 확인), Safari·Firefox.
 - 변경 파일: `index.html`, `mobile.html`, `data/bb-data.js`(RECENT_CHANGES), `seahyun/brainstorm_v3.115.0.html`(자족 스냅샷), `CHANGELOG.md`, `README.md`, `BrainBloom_UserGuide.html`, `BrainBloom_TechDoc.html`.
 
 ---

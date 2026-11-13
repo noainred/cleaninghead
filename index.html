@@ -2500,7 +2500,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.114.0';
+const APP_VERSION = '3.115.0';
 const APP_BUILD_DATE = '2026-11-13';
 
 // 'a.b.c' 형식 버전 비교 — a가 b보다 높으면 true (업그레이드 판정용. 다운그레이드/동일은 false)
@@ -10507,9 +10507,13 @@ function App() {
     const aiTag = aiMsg ? ' + AI 문구' : '';
     try {
       if (fmt === 'json') {
+        // AI 문구를 붙이는 복사는 AI 채팅에 붙여넣는 용도 — 그림(base64 수십 KB)이 프롬프트에 섞이지 않게 뺀다.
+        // 문구 없는 일반 복사는 그림까지 든 원형 데이터 그대로(다시 불러오기·붙여넣기용).
+        let imgSkipped = 0;
+        if (aiMsg) walk(sub, n => { if (n.image) { delete n.image; imgSkipped++; } });
         // 문서 JSON 내보내기와 같은 원형 트리 — 붙여넣어 저장하면 'JSON 열기'로 다시 불러올 수 있다
         await navigator.clipboard.writeText(aiMsg + JSON.stringify(sub, null, 2));
-        showToast(`노드를 JSON으로 복사했어요 (하위${aiTag} 포함)`);
+        showToast(`노드를 JSON으로 복사했어요 (하위${aiTag} 포함${imgSkipped ? ' · 이미지 제외' : ''})`);
       } else if (fmt === 'md') {
         await navigator.clipboard.writeText(aiMsg + treeToMarkdown(sub));
         showToast(`노드를 마크다운으로 복사했어요 (하위${aiTag} 포함)`);
@@ -11683,8 +11687,8 @@ function App() {
                 ) : (
                   <div className="inbox-list">
                     {inboxItems.map(it => {
-                      let kids = 0;
-                      walk(it, () => kids++);
+                      let kids = 0, hasImg = false;
+                      walk(it, (n) => { kids++; if (n.image) hasImg = true; });
                       kids -= 1;
                       const editing = inboxEditId === it.id;
                       return (
@@ -11725,6 +11729,7 @@ function App() {
                               }}
                             >{(it.label || '').trim() ? it.label : '(이름 없음)'}</span>
                           )}
+                          {hasImg && <span className="inbox-kids" title="이미지가 들어 있는 항목이에요">🖼</span>}
                           {kids > 0 && <span className="inbox-kids" title={`하위 노드 ${kids}개가 함께 들어 있어요`}>+{kids}</span>}
                           {!editing && !locked && (
                             <>
