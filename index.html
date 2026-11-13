@@ -1094,6 +1094,25 @@ try { if (window.top !== window.self) { window.top.location = window.self.locati
     transition: box-shadow 0.2s;
   }
   .node.root .node-body { padding: 12px 12px; }
+  /* 노드 이미지 — 라벨 위에 왼쪽 정렬. 아래 여백 4px + 부모 gap 2px = NODE_IMG_GAP(6px) */
+  .node-img {
+    display: block; align-self: flex-start; max-width: 100%;
+    object-fit: contain; border-radius: 8px; margin-bottom: 4px;
+    background: rgba(255,255,255,0.16);
+    -webkit-user-drag: none; user-select: none;
+  }
+  .outline-thumb {
+    height: 24px; max-width: 48px; object-fit: cover; border-radius: 4px; margin-left: 6px;
+    vertical-align: middle; flex-shrink: 0; border: 1px solid var(--line);
+  }
+  /* 우측 패널 — 노드 이미지 */
+  .panel-img-box { display: flex; flex-direction: column; gap: 8px; }
+  .panel-img-preview {
+    display: block; max-width: 100%; max-height: 220px; object-fit: contain; align-self: flex-start;
+    border-radius: 8px; border: 1px solid var(--line); background: var(--bg-2);
+  }
+  .panel-img-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .panel-img-hint { font-size: 11.5px; line-height: 1.55; color: var(--ink-soft); }
   .node-label {
     font-family: var(--node-font);
     font-weight: 700;
@@ -2883,6 +2902,133 @@ const LABEL_FONT = 15;      // 라벨 폰트 크기(px) — 루트는 더 큼
 const ROOT_LABEL_FONT = 19;
 const LINE_HEIGHT = 22;     // 라벨 줄 높이
 
+/* ── 노드 이미지 ──
+   node.image = { src: data URL(래스터), w, h } — w/h는 저장된 그림의 픽셀 크기.
+   넣을 때 긴 변 NODE_IMG_STORE_MAX px로 줄여 저장한다(썸네일). 그림이 노드 데이터 안에 들어 있어
+   저장·드라이브·복사/붙여넣기·JSON 내보내기를 별도 처리 없이 그대로 따라간다. */
+const NODE_IMG_STORE_MAX = 480;       // 저장 해상도: 긴 변(px)
+const NODE_IMG_MAX_CHARS = 400000;    // 그림 1장의 data URL 최대 길이 (약 300KB)
+const NODE_IMG_TOTAL_MAX = 12000000;  // 문서 1개의 그림 data URL 합계 한도 (약 9MB) — 넘으면 새 그림을 더 못 넣는다
+// 절대 한도: 복제·붙여넣기·병합으로 그림이 겹쳐 늘어나는 것까지는 받아 주되, 이 선을 넘는 그림은 뺀다.
+// (불러올 때의 정화도 같은 선을 쓴다 — 화면에 있던 그림이 다음 로드에서 사라지는 일이 없게 양쪽을 맞춘다)
+const NODE_IMG_TOTAL_HARD = 48000000;
+const NODE_IMG_AUTO_W = 220;          // 자동 폭 노드에서 그림 표시 폭 상한
+const NODE_IMG_MAX_H = 240;           // 그림 표시 높이 상한
+const NODE_IMG_GAP = 6;               // 그림과 그 아래 내용 사이 간격
+// 허용 형식: 래스터 data URL만. 외부 주소(추적·유출 경로)와 SVG(스크립트 포함 가능)는 받지 않는다.
+const NODE_IMG_RE = /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
+// 그림 파일(Blob)을 노드용 썸네일로 변환 → { src, w, h }. 실패하면 사용자에게 보여 줄 문구를 담아 throw.
+// 긴 변을 NODE_IMG_STORE_MAX로 줄이고, 불투명하면 JPEG·투명이 있으면 PNG로 저장한다.
+// 그래도 한도(NODE_IMG_MAX_CHARS)를 넘으면 품질 → 해상도 순으로 더 낮춘다.
+async function fileToNodeImage(file) {
+  if (!file || !/^image\//.test(file.type || '')) throw new Error('이미지 파일만 넣을 수 있어요');
+  if (file.size > 40 * 1024 * 1024) throw new Error('이미지가 너무 커요 (40MB 이하만 가능)');
+  let bmp = null, url = null;
+  try {
+    let source = null, sw = 0, sh = 0;
+    // createImageBitmap: 사진의 회전 정보(EXIF)를 반영해 준다. SVG는 <img> 경로로.
+    if (typeof createImageBitmap === 'function' && file.type !== 'image/svg+xml') {
+      try { bmp = await createImageBitmap(file); source = bmp; sw = bmp.width; sh = bmp.height; } catch (e) { bmp = null; }
+    }
+    if (!source) {
+      url = URL.createObjectURL(file);
+      source = await new Promise((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = () => rej(new Error('이 이미지는 읽을 수 없어요 (지원하지 않는 형식일 수 있어요)'));
+        im.src = url;
+      });
+      sw = source.naturalWidth || 300; sh = source.naturalHeight || 150;   // 크기 정보 없는 SVG 대비
+    }
+    if (!(sw > 0 && sh > 0)) throw new Error('이미지 크기를 알 수 없어요');
+    const mayHaveAlpha = file.type !== 'image/jpeg';
+    let scale = Math.min(1, NODE_IMG_STORE_MAX / Math.max(sw, sh));
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const w = Math.max(1, Math.round(sw * scale)), h = Math.max(1, Math.round(sh * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(source, 0, 0, w, h);
+      let hasAlpha = false;
+      if (mayHaveAlpha) {
+        const d = ctx.getImageData(0, 0, w, h).data;
+        for (let i = 3; i < d.length; i += 4) { if (d[i] < 250) { hasAlpha = true; break; } }
+      }
+      let src = null;
+      if (hasAlpha) {
+        const png = canvas.toDataURL('image/png');
+        if (png.length <= NODE_IMG_MAX_CHARS) src = png;
+      }
+      if (!src) {
+        // 불투명하거나 PNG가 한도를 넘으면 JPEG — 투명한 곳은 흰 바탕으로 채운다
+        let c2 = canvas;
+        if (hasAlpha) {
+          c2 = document.createElement('canvas'); c2.width = w; c2.height = h;
+          const x2 = c2.getContext('2d');
+          x2.fillStyle = '#ffffff'; x2.fillRect(0, 0, w, h); x2.drawImage(canvas, 0, 0);
+        }
+        for (const q of [0.86, 0.76, 0.62]) {
+          const jpg = c2.toDataURL('image/jpeg', q);
+          if (jpg.length <= NODE_IMG_MAX_CHARS) { src = jpg; break; }
+        }
+      }
+      if (src) return { src, w, h };
+      scale *= 0.75;   // 여전히 크면 해상도를 낮춰 다시 시도
+    }
+    throw new Error('이미지를 충분히 줄이지 못했어요');
+  } finally {
+    if (bmp && typeof bmp.close === 'function') bmp.close();
+    if (url) URL.revokeObjectURL(url);
+  }
+}
+// 드래그·붙여넣기 데이터에서 첫 번째 그림 파일을 꺼낸다(없으면 null)
+function firstImageFile(dt) {
+  if (!dt) return null;
+  const files = dt.files;
+  if (files && files.length) { for (let i = 0; i < files.length; i++) if (/^image\//.test(files[i].type || '')) return files[i]; }
+  const items = dt.items;
+  if (items && items.length) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && /^image\//.test(items[i].type || '')) { const f = items[i].getAsFile(); if (f) return f; }
+    }
+  }
+  return null;
+}
+// 드래그 중인 것이 파일인지(브라우저는 놓기 전엔 내용을 안 보여 줘 종류만 알 수 있다)
+function dragHasFiles(e) {
+  const t = e && e.dataTransfer && e.dataTransfer.types;
+  if (!t) return false;
+  for (let i = 0; i < t.length; i++) if (t[i] === 'Files') return true;
+  return false;
+}
+// 트리(보관함 포함) 안 그림 data URL 길이 합계
+function treeImageChars(root) {
+  let sum = 0;
+  const add = (n) => { if (n.image && typeof n.image.src === 'string') sum += n.image.src.length; };
+  if (root) { walk(root, add); if (Array.isArray(root.inbox)) root.inbox.forEach(it => { if (it && typeof it === 'object') walk(it, add); }); }
+  return sum;
+}
+// 트리(보관함 포함)의 그림 합계가 절대 한도를 넘으면 넘는 그림을 뺀다. 뺀 개수를 돌려준다.
+function enforceImageBudget(root) {
+  let sum = 0, removed = 0;
+  const visit = (n) => {
+    if (!n.image || typeof n.image.src !== 'string') return;
+    if (sum + n.image.src.length > NODE_IMG_TOTAL_HARD) { delete n.image; removed++; }
+    else sum += n.image.src.length;
+  };
+  if (root) { walk(root, visit); if (Array.isArray(root.inbox)) root.inbox.forEach(it => { if (it && typeof it === 'object') walk(it, visit); }); }
+  return removed;
+}
+// 노드 안에서 그림이 표시될 크기 — 내용 폭에 맞추되 원본보다 키우지 않고, 높이는 상한까지만.
+function nodeImageBox(node, nodeW, isRoot = false) {
+  const im = node && node.image;
+  if (!im || !(im.w > 0) || !(im.h > 0)) return null;
+  const maxW = Math.max(24, nodeW - (isRoot ? 24 : NODE_PAD_X));   // 루트는 좌우 패딩이 12+12
+  const sc = Math.min(1, maxW / im.w, NODE_IMG_MAX_H / im.h);
+  return { w: Math.max(1, Math.round(im.w * sc)), h: Math.max(1, Math.round(im.h * sc)) };
+}
+
 // 글자 폭 대략 추정 (한글/전각은 넓고, 영문/숫자/공백은 좁음)
 function estimateTextWidth(text, fontSize) {
   let units = 0;
@@ -2951,7 +3097,13 @@ function nodeWidth(node, isRoot = false) {
   }
   const font = labelFontOf(node, isRoot);
   const textW = estimateTextWidth(node.label || '', font);
-  const desired = textW + NODE_PAD_X;
+  let desired = textW + NODE_PAD_X;
+  // 그림이 있으면 적당한 크기로 보일 만큼은 폭을 확보(짧은 라벨 때문에 그림이 쪼그라들지 않게)
+  const im = node.image;
+  if (im && im.w > 0 && im.h > 0) {
+    const sc = Math.min(1, NODE_IMG_AUTO_W / im.w, NODE_IMG_MAX_H / im.h);
+    desired = Math.max(desired, Math.round(im.w * sc) + (isRoot ? 24 : NODE_PAD_X));
+  }
   return Math.max(NODE_MIN_W, Math.min(NODE_MAX_W, Math.ceil(desired)));
 }
 
@@ -3010,6 +3162,9 @@ function nodeHeight(node, isRoot = false) {
   }
   // 아이콘 줄 높이도 반영
   if (node.icons && node.icons.length > 0) h += 4 + 18;
+  // 그림(라벨 위) 높이 반영
+  const box = nodeImageBox(node, nodeWidth(node, isRoot), isRoot);
+  if (box) h += box.h + NODE_IMG_GAP;
   return h;
 }
 function countMetaLines(node) {
@@ -3226,10 +3381,30 @@ function walkVisible(root, fn) {
 /* ============================================================
    트리 조작
    ============================================================ */
+// 깊은 복제 — 트리는 평면(JSON형) 데이터라 객체·배열만 새로 만들고 문자열은 그대로 가리킨다.
+// 문자열은 불변이라 공유해도 안전하고, 그래야 노드 이미지(data URL, 수십 KB)가 편집 한 번·실행 취소
+// 스냅샷 하나마다 통째로 복사되지 않는다. 실측으로 structuredClone보다 4~8배 빠르기도 하다(v3.115.0).
+function cloneDeepShared(v) {
+  if (v === null || typeof v !== 'object') return v;
+  if (Array.isArray(v)) {
+    const a = new Array(v.length);
+    for (let i = 0; i < v.length; i++) a[i] = cloneDeepShared(v[i]);
+    return a;
+  }
+  const o = {};
+  for (const k in v) {
+    // '__proto__'는 대입하면 값이 아니라 프로토타입이 바뀌므로 건너뛴다(정화된 트리에는 없는 키)
+    if (k !== '__proto__' && Object.prototype.hasOwnProperty.call(v, k)) o[k] = cloneDeepShared(v[k]);
+  }
+  return o;
+}
 function cloneTree(node) {
-  // 깊은 복제: 네이티브 structuredClone(빠름) 우선, 예외·미지원 시 JSON 폴백(평면 데이터라 결과 동일)
-  try { return structuredClone(node); }
-  catch (e) { return JSON.parse(JSON.stringify(node)); }
+  // 재귀가 넘칠 만큼 깊거나(스택 한도) 순환이 있는 비정상 데이터면 네이티브 복제로 물러난다
+  try { return cloneDeepShared(node); }
+  catch (e) {
+    try { return structuredClone(node); }
+    catch (e2) { return JSON.parse(JSON.stringify(node)); }
+  }
 }
 
 /* ── 트리 비교·병합 (다중 기기 충돌 안내용) ──
@@ -3311,7 +3486,10 @@ function mergeRemoteIntoLocal(localRoot, remoteRoot, remoteDate) {
   merged.children.push(restoreNode);
   let addedCount = 0;
   walk(restoreNode, () => { addedCount++; });
-  return { merged, addedCount };
+  // 양쪽 그림이 합쳐져 절대 한도를 넘으면 넘는 그림은 뺀다(노드는 남는다)
+  const imagesDropped = enforceImageBudget(merged);
+  if (imagesDropped > 0) console.warn('[BrainBloom] 병합 결과의 이미지가 한도를 넘어 ' + imagesDropped + '개를 뺐습니다');
+  return { merged, addedCount, imagesDropped };
 }
 
 /* ============================================================
@@ -3376,6 +3554,7 @@ const SANITIZE_MAX_NODES = 20000;    // 트리 전체 최대 노드 수
 const SANITIZE_MAX_LABEL = 5000;     // 노드 라벨 최대 글자 수
 const INBOX_MAX_ITEMS = 500;         // 아이디어 보관함(root.inbox) 최대 항목 수
 let _sanitizeNodeCount = 0;          // sanitizeTree 1회 동안 처리한 노드 수
+let _sanitizeImageChars = 0;         // sanitizeTree 1회 동안 통과시킨 노드 이미지 data URL 길이 합계
 // 직전 sanitizeTree에서 한도 절삭(깊이/노드 수/라벨/노트)이 있었는지 — 호출측이 사용자에게
 // 알릴 수 있게 기록한다. 종전엔 무통보로 잘린 뒤 1.5초 자동저장으로 영구화됐다(v3.106.0).
 let _sanitizeTruncated = false;
@@ -3515,6 +3694,21 @@ function sanitizeNode(node, seenIds, depth) {
   if (node.done === true) clean.done = true;       // 완료 상태
   if (node.shape === 'rect' || node.shape === 'pill' || node.shape === 'ellipse') clean.shape = node.shape;   // 노드 모양
   if (typeof node.w === 'number' && node.w > 0) clean.w = Math.max(NODE_MIN_W, Math.min(NODE_RESIZE_MAX, Math.round(node.w)));   // 사용자 지정 노드 폭
+  // 노드 이미지 — 래스터 data URL만(형식·길이 검사), 문서 합계 한도를 넘는 그림은 버린다.
+  if (node.image && typeof node.image === 'object' && !Array.isArray(node.image) && typeof node.image.src === 'string') {
+    const src = node.image.src;
+    if (src.length <= NODE_IMG_MAX_CHARS && _sanitizeImageChars + src.length <= NODE_IMG_TOTAL_HARD && NODE_IMG_RE.test(src)) {
+      _sanitizeImageChars += src.length;
+      // 크기 정보가 없거나 이상하면 임시 크기(4:3) — 화면에서는 비율을 지켜(contain) 그 칸 안에 그린다
+      const iw = Number(node.image.w), ih = Number(node.image.h);
+      const okDim = (v) => Number.isFinite(v) && v >= 1 && v <= 8192;
+      clean.image = okDim(iw) && okDim(ih)
+        ? { src, w: Math.round(iw), h: Math.round(ih) }
+        : { src, w: 200, h: 150 };
+    } else {
+      _sanitizeTruncated = true;   // 형식 불량·너무 큼·절대 한도 초과 → 그림만 뺀다(노드는 유지)
+    }
+  }
   return clean;
 }
 // 루트 트리 전체 검증. 복구 가능하면 정상 트리 반환, 루트 자체가 깨졌으면 null.
@@ -3522,6 +3716,7 @@ function sanitizeTree(root) {
   _sanitizeIdCounter = 0;
   _sanitizeNodeCount = 0;
   _sanitizeTruncated = false;
+  _sanitizeImageChars = 0;
   const seenIds = new Set();
   const result = sanitizeNode(root, seenIds, 0);
   // 루트는 반드시 존재해야 함. children도 배열 보장됨.
@@ -4735,7 +4930,8 @@ function buildDiagramSVG(root) {
   const monoFamily = "'JetBrains Mono','D2Coding','SF Mono','Consolas','Apple SD Gothic Neo','Malgun Gothic',monospace";
 
   const parts = [];
-  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
+  // xmlns:xlink — 노드 이미지(<image xlink:href>)용. 브라우저뿐 아니라 오래된 SVG 편집기에서도 열리게 xlink 표기를 쓴다.
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
 
   // 배경
   parts.push(`<rect width="${W}" height="${H}" fill="#f4f6f9"/>`);
@@ -4789,11 +4985,19 @@ function buildDiagramSVG(root) {
     // 본체
     parts.push(`<rect x="${x}" y="${y}" width="${nw}" height="${nh}" rx="14" ry="14" fill="${color}"/>`);
 
-    // 아이콘 줄 (있으면 맨 위)
+    // 노드 이미지 (있으면 맨 위) — 아이콘·라벨·메타는 그만큼 아래로 내려 그린다
+    const imgBox = nodeImageBox(n, nw, isRoot);
+    let imgOffset = 0;
+    if (imgBox) {
+      parts.push(`<image xlink:href="${escapeXml(n.image.src)}" x="${x + 11}" y="${y + 9}" width="${imgBox.w}" height="${imgBox.h}" preserveAspectRatio="xMidYMid meet"/>`);
+      imgOffset = imgBox.h + NODE_IMG_GAP;
+    }
+
+    // 아이콘 줄 (있으면 그림 아래·라벨 위)
     const icons = n.icons || [];
     let iconOffset = 0;
     if (icons.length > 0) {
-      const iconY = y + 18;
+      const iconY = y + 18 + imgOffset;
       icons.forEach((ic, i) => {
         parts.push(`<text x="${x + 11 + i * 22}" y="${iconY}" font-size="16" font-family="${fontFamily}">${escapeXml(ic)}</text>`);
       });
@@ -4808,8 +5012,8 @@ function buildDiagramSVG(root) {
     const metaCount = countMetaLines(n);
     // 메타/아이콘 유무에 따라 라벨 세로 위치 결정
     let labelTop;
-    if (metaCount > 0 || icons.length > 0) {
-      labelTop = y + 9 + iconOffset + font; // 위에서부터 (아이콘 아래)
+    if (metaCount > 0 || icons.length > 0 || imgBox) {
+      labelTop = y + 9 + imgOffset + iconOffset + font; // 위에서부터 (그림·아이콘 아래)
     } else {
       labelTop = y + (nh - totalLabelH) / 2 + font; // 세로 중앙
     }
@@ -4825,7 +5029,7 @@ function buildDiagramSVG(root) {
     if (meta.effort) metaLines.push(`⚡ ${meta.effort}`);
     if (meta.cost) metaLines.push(`💰 ${meta.cost}`);
     if (metaLines.length > 0) {
-      const dividerY = y + 9 + iconOffset + totalLabelH + 6;
+      const dividerY = y + 9 + imgOffset + iconOffset + totalLabelH + 6;
       let metaY = dividerY + 16;
       parts.push(`<line x1="${x + 11}" y1="${dividerY}" x2="${x + nw - 11}" y2="${dividerY}" stroke="rgba(255,255,255,0.2)"/>`);
       metaLines.forEach((line, i) => {
@@ -5330,6 +5534,9 @@ function OutlineRow({ node, depth, ctx }) {
       )}
       {!isEditing && node.note && (
         <span className="outline-note" title={node.note.length > 140 ? node.note.slice(0, 140) + '…' : node.note}>📝</span>
+      )}
+      {!isEditing && node.image && node.image.src && (
+        <img className="outline-thumb" src={node.image.src} alt="" title="이 노드에 넣은 이미지" draggable={false} />
       )}
 
       {!isEditing && (
@@ -6245,6 +6452,7 @@ function App() {
       if (old.done && node.done === undefined) node.done = old.done;
       if (old.shape && node.shape === undefined) node.shape = old.shape;
       if (typeof old.w === 'number' && node.w === undefined) node.w = old.w;    // 사용자 지정 폭 보존
+      if (old.image && node.image === undefined) node.image = { ...old.image };  // 노드 이미지 보존(src 문자열은 참조만 복사돼 가볍다)
     };
     const pairWalk = (newNode, oldNode) => {
       oldIdToNewId.set(oldNode.id, newNode.id);
@@ -9013,6 +9221,85 @@ function App() {
     },
   };
 
+  // ─────────── 노드 이미지 ───────────
+  const imageFileInputRef = useRef(null);
+  const imageTargetRef = useRef(null);   // 파일 선택 창을 연 노드 id
+  const imageEditBlocked = () => {
+    if (viewMode !== 'immerse') return false;
+    showToast('몰입 모드에서는 편집할 수 없어요 — 우클릭 → 편집 모드');
+    return true;
+  };
+  // 변환이 끝난 그림을 노드에 반영 — 문서 합계 한도를 확인한 뒤 넣는다(바꾸기도 같은 경로).
+  const applyNodeImage = (nodeId, img) => {
+    if (!tree) return false;
+    const node = findNode(tree, nodeId);
+    if (!node) return false;
+    const oldLen = (node.image && typeof node.image.src === 'string') ? node.image.src.length : 0;
+    if (treeImageChars(tree) - oldLen + img.src.length > NODE_IMG_TOTAL_MAX) {
+      showToast('⚠️ 이 문서에 이미지가 너무 많아요 — 다른 이미지를 지운 뒤 다시 넣어 주세요', { duration: 3500 });
+      return false;
+    }
+    // ★샘플★ 노드라면 그림을 넣는 순간 확정한다 — 미확정으로 두면 편집-취소 때 그림까지 되돌려진다
+    updateNode(nodeId, n => { n.image = { src: img.src, w: img.w, h: img.h }; delete n._autoLabel; },
+      { label: node.image ? '이미지 바꾸기' : '이미지 넣기' });
+    return true;
+  };
+  const attachImageFile = async (nodeId, file) => {
+    if (!tree || !nodeId || !file || imageEditBlocked()) return;
+    let img;
+    try { img = await fileToNodeImage(file); }
+    catch (e) { showToast('⚠️ ' + ((e && e.message) || '이미지를 넣지 못했어요'), { duration: 3500 }); return; }
+    // 변환(비동기)하는 사이 화면이 다시 그려졌을 수 있다 → 최신 렌더의 함수로 반영(낡은 tree로 덮지 않게)
+    if (nodeActionsRef.current.applyNodeImage(nodeId, img)) showToast('🖼 이미지를 넣었어요');
+  };
+  const removeNodeImage = (nodeId) => {
+    if (!tree || imageEditBlocked()) return;
+    const node = findNode(tree, nodeId);
+    if (!node || !node.image) return;
+    updateNode(nodeId, n => { delete n.image; }, { label: '이미지 지우기' });
+  };
+  const pickImageForNode = (nodeId) => {
+    if (!tree || imageEditBlocked()) return;
+    imageTargetRef.current = nodeId;
+    const el = imageFileInputRef.current;
+    if (el) { el.value = ''; el.click(); }
+  };
+  // 그림 파일을 노드가 아닌 캔버스 바탕에 놓았을 때 — 선택한 노드가 있으면 거기에 넣는다
+  const dropImageOnCanvas = (file) => {
+    if (selectedId && tree && findNode(tree, selectedId)) attachImageFile(selectedId, file);
+    else showToast('이미지를 넣을 노드 위에 놓아 주세요');
+  };
+  // 바깥(탐색기 등)에서 끌어온 파일을 창에 놓으면 브라우저가 그 파일을 열어 앱 화면을 떠나 버린다.
+  // 창 전체에서 그 기본 동작을 막고, 캔버스 바탕에 놓은 그림은 선택한 노드에 넣는다.
+  // (노드 위에 놓은 경우는 노드의 onDrop이 먼저 처리하고 전파를 멈춘다)
+  useEffect(() => {
+    const inCanvas = (t) => !!(t && t.closest && t.closest('.canvas-wrap') && !t.closest('.inbox-panel'));
+    const onOver = (e) => {
+      if (!dragHasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = inCanvas(e.target) ? 'copy' : 'none';
+    };
+    const onDrop = (e) => {
+      if (!dragHasFiles(e)) return;
+      e.preventDefault();
+      const A = nodeActionsRef.current;
+      A.setDropTargetId(null);
+      if (!inCanvas(e.target)) return;
+      const f = firstImageFile(e.dataTransfer);
+      if (f) A.dropImageOnCanvas(f);
+      else A.showToast('이미지 파일만 노드에 넣을 수 있어요');
+    };
+    const onLeave = (e) => { if (!e.relatedTarget) nodeActionsRef.current.setDropTargetId(null); };   // 창 밖으로 나감
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('drop', onDrop);
+    window.addEventListener('dragleave', onLeave);
+    return () => {
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('drop', onDrop);
+      window.removeEventListener('dragleave', onLeave);
+    };
+  }, []);
+
   // ─────────── 드래그 앤 드롭 ───────────
   const handleDragStart = (e, id) => {
     if (id === tree.id) { e.preventDefault(); return; }
@@ -9021,7 +9308,15 @@ function App() {
     e.dataTransfer.setData('text/plain', id);
   };
   const handleDragOver = (e, targetId) => {
-    if (!dragInfo) return;
+    if (!dragInfo) {
+      // 앱 안에서 시작한 끌기가 아님 = 바깥에서 끌어온 파일. 그림이면 이 노드에 넣을 수 있다(종류는 놓을 때 확인).
+      if (dragHasFiles(e) && viewMode !== 'immerse') {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        setDropTargetId(targetId);
+      }
+      return;
+    }
     if (dragInfo.inboxId) {
       // 보관함 항목을 끌고 온 경우 — 어느 노드든 자식으로 받을 수 있다
       e.preventDefault();
@@ -9042,7 +9337,17 @@ function App() {
   };
   const handleDrop = (e, targetId) => {
     e.preventDefault();
-    if (!dragInfo) return;
+    if (!dragInfo) {
+      // 바깥에서 끌어온 파일을 노드 위에 놓음 → 그림이면 그 노드에 넣는다
+      if (dragHasFiles(e)) {
+        e.stopPropagation();   // 창 전체 drop 처리(선택 노드에 넣기)와 겹치지 않게
+        setDropTargetId(null);
+        const f = firstImageFile(e.dataTransfer);
+        if (f) attachImageFile(targetId, f);
+        else showToast('이미지 파일만 노드에 넣을 수 있어요');
+      }
+      return;
+    }
     if (dragInfo.inboxId) {
       // 보관함 항목을 노드 위에 놓음 → 그 노드의 자식으로 편입
       placeInboxItem(dragInfo.inboxId, targetId);
@@ -9073,6 +9378,8 @@ function App() {
       newParent.children.push(dup);
       if (newParent.collapsed === true) delete newParent.collapsed;   // 접힌 부모면 펼쳐 복제본이 보이게
       applyColorToBranch(dup, colorForMovedNode(newParent, newTree)); // 새 부모 톤으로 색 통일
+      const dupImgDropped = enforceImageBudget(newTree);
+      if (dupImgDropped > 0) showToast(`⚠️ 이미지 합계 한도를 넘어 ${dupImgDropped}개는 그림 없이 복제했어요`, { duration: 3500 });
       setTree(newTree);
       setSelectedId(dup.id);
       setDragInfo(null); setDropTargetId(null);
@@ -9949,16 +10256,32 @@ function App() {
       const t = e.target;
       // 입력칸에서는 일반 텍스트 붙여넣기에 양보
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || nodeClipboardRef.current || '';
-      if (!text || text.length > 3000000) return; // 비정상 대용량 방어
-      let data;
-      try { data = JSON.parse(text); } catch (_) { return; } // 노드 JSON이 아니면 조용히 무시
-      // 복수 페이로드(brainbloom-nodes) / 단수(brainbloom-node) / 원형 트리 모두 받아 배열로 정규화
-      const raws = (data && data.__type === 'brainbloom-nodes' && Array.isArray(data.nodes)) ? data.nodes
-        : (data && data.__type === 'brainbloom-node' && data.node) ? [data.node]
-        : (data && typeof data === 'object' && !Array.isArray(data) && ('id' in data) && ('label' in data)) ? [data]
-        : null;
-      if (!raws || raws.length === 0) return;
+      // 클립보드 글자를 노드 묶음으로 해석 — 복수(brainbloom-nodes) / 단수(brainbloom-node) / 원형 트리. 아니면 null.
+      const PASTE_MAX_CHARS = 16000000;   // 노드 이미지가 든 가지도 받도록 넉넉히(그 이상은 비정상 대용량)
+      const parseNodes = (text) => {
+        if (!text) return null;
+        if (text.length > PASTE_MAX_CHARS) { showToast('⚠️ 붙여넣을 내용이 너무 커서 받지 못했어요'); return null; }
+        let data;
+        try { data = JSON.parse(text); } catch (_) { return null; } // 노드 JSON이 아님
+        const r = (data && data.__type === 'brainbloom-nodes' && Array.isArray(data.nodes)) ? data.nodes
+          : (data && data.__type === 'brainbloom-node' && data.node) ? [data.node]
+          : (data && typeof data === 'object' && !Array.isArray(data) && ('id' in data) && ('label' in data)) ? [data]
+          : null;
+        return (r && r.length) ? r : null;
+      };
+      const clipText = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+      let raws = parseNodes(clipText);
+      // 노드가 아니고 그림이 들어 있으면(스크린샷·복사한 이미지) → 선택한 노드에 그림으로 넣는다
+      const imgFile = raws ? null : firstImageFile(e.clipboardData);
+      if (imgFile) {
+        e.preventDefault();
+        if (selectedId && findNode(tree, selectedId)) attachImageFile(selectedId, imgFile);
+        else showToast('이미지를 넣을 노드를 먼저 선택해 주세요');
+        return;
+      }
+      // 시스템 클립보드가 비어 있을 때만 같은 탭 폴백 저장소를 쓴다(종전 규칙 유지)
+      if (!raws && !clipText) raws = parseNodes(nodeClipboardRef.current || '');
+      if (!raws) return; // 노드 JSON이 아니면 조용히 무시
       let truncated = false;
       const safes = raws.map(r => sanitizeTree(r)).filter(Boolean);
       if (sanitizeTreeTruncated()) truncated = true;
@@ -9985,11 +10308,14 @@ function App() {
         walk(dup, () => cnt++);
       });
       if (parent.collapsed === true && parent !== newTree) delete parent.collapsed; // 접힌 부모면 펼쳐 보이게
+      const pasteImgDropped = enforceImageBudget(newTree);
       setTree(newTree);
       // 붙여넣은 최상위 노드들을 선택 상태로 — 1개면 단일 선택, 여러 개면 다중 선택 배너로 이어감
       setSelectedId(newTopIds[0]);
       setGroupSelectIds(newTopIds.length >= 2 ? newTopIds : []);
-      showToast(newTopIds.length >= 2
+      showToast(pasteImgDropped > 0
+        ? `⚠️ 붙여넣었지만 이미지 합계 한도를 넘어 ${pasteImgDropped}개는 그림 없이 들어갔어요`
+        : newTopIds.length >= 2
         ? `📋 노드 ${newTopIds.length}개 붙여넣기 완료 (하위 포함 총 ${cnt}개) — Ctrl+Z로 되돌리기`
         : `📋 붙여넣기 완료 (노드 ${cnt}개) — Ctrl+Z로 되돌리기`);
     };
@@ -10911,6 +11237,7 @@ function App() {
     handleDragStart, handleDragOver, handleDrop, setDragInfo, setDropTargetId,
     linkSourceId, addLink,
     toggleGroupSelectNode, setGroupSelectIds,
+    applyNodeImage, dropImageOnCanvas, showToast,
   };
 
   return (
@@ -11682,6 +12009,26 @@ function App() {
                   ))}
                 </div>
 
+                <div className="divider"><span>이미지</span></div>
+                <div className="panel-img-box">
+                  {selectedNode.image && selectedNode.image.src && (
+                    <img className="panel-img-preview" src={selectedNode.image.src} alt="이 노드에 넣은 이미지" />
+                  )}
+                  <div className="panel-img-actions">
+                    <button className="btn" style={{ flex: 1 }} onClick={() => pickImageForNode(selectedNode.id)}>
+                      🖼 {selectedNode.image ? '이미지 바꾸기' : '이미지 넣기'}
+                    </button>
+                    {selectedNode.image && (
+                      <button className="btn" onClick={() => removeNodeImage(selectedNode.id)} title="이 노드의 이미지를 지웁니다">지우기</button>
+                    )}
+                  </div>
+                  {!selectedNode.image && (
+                    <div className="panel-img-hint">
+                      이미지를 복사한 뒤 노드를 고르고 <b>Ctrl/⌘+V</b>로 붙여넣거나, 이미지 파일을 노드 위로 끌어다 놓아도 돼요. 작게 줄여(긴 변 {NODE_IMG_STORE_MAX}px) 문서 안에 저장됩니다.
+                    </div>
+                  )}
+                </div>
+
                 <div className="divider"><span>태그</span></div>
                 {(selectedNode.tags || []).length > 0 && (
                   <div className="panel-tags">
@@ -12108,6 +12455,20 @@ function App() {
         </div>
       )}
 
+      {/* 노드 이미지 선택용 숨김 파일 입력 — 우측 패널·우클릭 메뉴의 "이미지 넣기"가 연다 */}
+      <input
+        ref={imageFileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files && e.target.files[0];
+          const id = imageTargetRef.current;
+          imageTargetRef.current = null;
+          e.target.value = '';
+          if (f && id) attachImageFile(id, f);
+        }}
+      />
       {/* 설정 모달 */}
       {/* JSON 열기용 숨김 파일 입력 — 설정 모달·미니멀 헤더와 무관하게 항상 마운트 */}
       <input
@@ -12577,7 +12938,7 @@ function App() {
             onContextMenu={(e) => { e.preventDefault(); setBgMenu(null); }}
           />
           <div style={{
-            position: 'fixed', left: Math.min(bgMenu.x, window.innerWidth - 220), top: Math.max(8, Math.min(bgMenu.y, window.innerHeight - (bgMenu.nodeId ? 432 : 288))),
+            position: 'fixed', left: Math.min(bgMenu.x, window.innerWidth - 220), top: Math.max(8, Math.min(bgMenu.y, window.innerHeight - (bgMenu.nodeId ? 472 : 288))),
             zIndex: 1200, background: 'var(--panel)', border: '1px solid var(--line)',
             borderRadius: 10, boxShadow: '0 8px 28px rgba(0,0,0,0.22)', padding: 6, minWidth: 200,
           }}>
@@ -12626,6 +12987,22 @@ function App() {
                 >
                   <span>🔲</span><span>{hasBoundary(bgMenu.nodeId) ? '경계 해제' : '경계로 묶기'}</span>
                 </button>
+                {/* 이미지 넣기/바꾸기 — 파일 선택 창을 연다 (지우기는 우측 패널의 "이미지"에서) */}
+                {viewMode !== 'immerse' && (
+                  <button
+                    onClick={() => { const id = bgMenu.nodeId; setBgMenu(null); pickImageForNode(id); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                      cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                      padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    title="이미지 파일을 골라 이 노드에 넣습니다 (복사한 이미지는 Ctrl/⌘+V로도 가능)"
+                  >
+                    <span>🖼</span><span>{(tree && (findNode(tree, bgMenu.nodeId) || {}).image) ? '이미지 바꾸기' : '이미지 넣기'}</span>
+                  </button>
+                )}
                 {/* 보관함으로 보내기 — 지우긴 아깝고 자리는 아직 못 정한 가지를 잠시 빼 둔다 (중심 노드 제외) */}
                 {tree && bgMenu.nodeId !== tree.id && viewMode !== 'immerse' && (
                   <button
@@ -13018,6 +13395,7 @@ const SHORTCUT_SECTIONS = [
   { title: '📋 복사 · 실행 취소', items: [
     ['Ctrl/⌘ + C', '노드 복사 — 하위 포함, 다른 문서·탭에도 붙여넣기 가능'],
     ['Ctrl/⌘ + V', '복사한 노드를 선택한 노드의 자식으로 붙여넣기'],
+    ['Ctrl/⌘ + V (이미지)', '복사한 이미지·스크린샷을 선택한 노드에 넣기'],
     ['Ctrl/⌘ + 드래그', '노드를 끌어 복제 (원본 유지)'],
     ['Ctrl/⌘ + Z', '실행 취소'],
     ['Ctrl/⌘ + Shift + Z · Ctrl + Y', '다시 실행'],
@@ -14592,6 +14970,12 @@ function NodeViewBase({
         {node.note && !isEditing && (
           <span className="node-note-badge" title={node.note.length > 140 ? node.note.slice(0, 140) + '…' : node.note}>📝</span>
         )}
+        {/* 노드 이미지 — 라벨 위. 크기를 미리 지정해 그림이 뜨기 전에도 자리가 잡혀 있다(레이아웃 실측과 일치). */}
+        {node.image && node.image.src && (() => {
+          const box = nodeImageBox(node, node._w || NODE_W, isRoot);
+          if (!box) return null;
+          return <img className="node-img" src={node.image.src} width={box.w} height={box.h} alt="" draggable={false} />;
+        })()}
         {isEditing ? (
           <input
             ref={inputRef}
@@ -14814,6 +15198,9 @@ function nodeViewPropsEqual(prev, next) {
   const am = a.meta || {}, bm = b.meta || {};
   if (am.date !== bm.date || am.effort !== bm.effort || am.cost !== bm.cost) return false;
   if ((a.note || '') !== (b.note || '')) return false; // 노트 변경 시 📝 배지 갱신
+  // 노드 이미지 — 복제본끼리 src 문자열을 공유하므로 대부분 참조 비교로 끝난다
+  const aimg = a.image, bimg = b.image;
+  if ((aimg ? aimg.src : '') !== (bimg ? bimg.src : '') || (aimg ? aimg.w : 0) !== (bimg ? bimg.w : 0) || (aimg ? aimg.h : 0) !== (bimg ? bimg.h : 0)) return false;
   // 태그 비교 (길이 + 각 항목)
   const at = a.tags || [], bt = b.tags || [];
   if (at.length !== bt.length) return false;
