@@ -2254,6 +2254,70 @@ try { if (window.top !== window.self) { window.top.location = window.self.locati
     border-radius: 9px; background: var(--accent); color: #fff;
     font-size: 10px; font-weight: 700; line-height: 1;
   }
+  /* ===== 아이디어 보관함 — 헤더 버튼 + 캔버스 좌상단 패널 ===== */
+  .inbox-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; padding: 0 4px; margin-left: 4px;
+    border-radius: 9px; background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 1;
+  }
+  .inbox-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+  .inbox-btn.drop-hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .inbox-panel {
+    position: absolute; top: 14px; left: 14px; z-index: 30;   /* 아웃라인·간트(z 25) 위에서도 쓸 수 있게 */
+    width: 272px; max-width: calc(100% - 28px); max-height: calc(100% - 96px);
+    display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.16);
+    overflow: hidden;
+  }
+  .inbox-panel.drop-hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 10px 30px rgba(0,0,0,0.16); }
+  .inbox-head {
+    display: flex; align-items: center; gap: 2px; padding: 10px 10px 8px 12px;
+    font-size: 13px; font-weight: 800; color: var(--ink); flex-shrink: 0;
+  }
+  .inbox-close {
+    margin-left: auto; cursor: pointer; border: none; background: transparent; color: var(--ink-soft);
+    font-size: 13px; line-height: 1; padding: 5px 7px; border-radius: 7px;
+  }
+  .inbox-close:hover { background: var(--bg-2); color: var(--ink); }
+  .inbox-add { padding: 0 10px 8px; flex-shrink: 0; }
+  .inbox-input, .inbox-edit {
+    width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; color: var(--ink);
+    background: var(--node-input-bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; outline: none;
+  }
+  .inbox-input:focus, .inbox-edit:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .inbox-input:disabled { opacity: 0.6; cursor: not-allowed; }
+  .inbox-edit { padding: 4px 7px; }
+  .inbox-empty { padding: 4px 14px 14px; font-size: 12px; line-height: 1.65; color: var(--ink-soft); }
+  .inbox-list { overflow-y: auto; padding: 0 8px 4px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .inbox-item {
+    display: flex; align-items: flex-start; gap: 4px; padding: 6px 5px 6px 9px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--bg);
+    font-size: 13px; line-height: 1.45; color: var(--ink); cursor: grab; flex-shrink: 0;
+  }
+  .inbox-item:hover { border-color: var(--ink-soft); }
+  .inbox-item.dragging { opacity: 0.45; }
+  .inbox-text {
+    flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .inbox-kids {
+    flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--ink-soft);
+    background: var(--bg-2); border-radius: 8px; padding: 1px 5px; margin-top: 2px;
+  }
+  .inbox-act {
+    flex-shrink: 0; cursor: pointer; border: none; background: transparent; color: var(--ink-soft);
+    font-size: 12px; line-height: 1; padding: 4px 5px; border-radius: 6px; opacity: 0.35;
+  }
+  .inbox-item:hover .inbox-act, .inbox-act:focus-visible { opacity: 1; }
+  .inbox-act:hover { background: var(--accent-soft); color: var(--ink); }
+  .inbox-act.del:hover { background: rgba(229,72,77,0.16); color: #e5484d; }
+  .inbox-foot {
+    flex-shrink: 0; padding: 7px 12px 10px; font-size: 11px; line-height: 1.5; color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+  }
+  .inbox-foot b { color: var(--ink); font-weight: 700; }
   .doc-list { display: flex; flex-direction: column; gap: 6px; }
   .doc-item {
     display: flex; align-items: center; gap: 6px;
@@ -2374,7 +2438,7 @@ try { if (window.top !== window.self) { window.top.location = window.self.locati
   @media (max-width: 640px) {
     .brand,
     .timer-zone,
-    .header-actions > *:not(.settings-btn):not(.view-toggle-btn):not(.doc-switch-btn) { display: none !important; }
+    .header-actions > *:not(.settings-btn):not(.view-toggle-btn):not(.doc-switch-btn):not(.inbox-btn) { display: none !important; }
   }
 
   /* ── 로딩 스플래시 (#root 초기 내용 — React 마운트 시 통째로 교체됨, JS 불필요) ──
@@ -2417,8 +2481,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } = R
    - 마이너(x.Y.0): 새 기능 추가, 기존과 호환
    - 패치(x.y.Z): 버그 수정, 미세 조정
    ============================================================ */
-const APP_VERSION = '3.112.1';
-const APP_BUILD_DATE = '2026-09-02';
+const APP_VERSION = '3.114.0';
+const APP_BUILD_DATE = '2026-11-13';
 
 // 'a.b.c' 형식 버전 비교 — a가 b보다 높으면 true (업그레이드 판정용. 다운그레이드/동일은 false)
 function isNewerVersion(a, b) {
@@ -3219,6 +3283,18 @@ function mergeRemoteIntoLocal(localRoot, remoteRoot, remoteDate) {
   const stamp = Date.now().toString(36);
   const freshId = () => `r${stamp}_${++seq}`;
   const remoteCopy = cloneTree(remoteRoot);
+  // 최신본의 보관함은 '복원' 가지에 묻히지 않게 따로 떼어, 지금 보관함 뒤에 이어 붙인다(새 id 발급).
+  const remoteInbox = Array.isArray(remoteCopy.inbox) ? remoteCopy.inbox : [];
+  delete remoteCopy.inbox;
+  if (remoteInbox.length) {
+    // 양쪽에 똑같이 있는 낱개 항목(하위 없음·같은 글)은 한 번만 — 같은 메모가 두 줄로 늘지 않게
+    const have = new Set((merged.inbox || []).filter(x => !(x.children && x.children.length)).map(x => x.label || ''));
+    const moved = remoteInbox
+      .filter(x => x && typeof x === 'object')
+      .filter(x => (x.children && x.children.length) || !have.has(x.label || ''))
+      .map(toInboxNode);
+    if (moved.length) merged.inbox = (merged.inbox || []).concat(moved).slice(0, INBOX_MAX_ITEMS);
+  }
   walk(remoteCopy, n => {
     n.id = freshId();
     delete n._x; delete n._y; delete n._subH; delete n._w; delete n._h;
@@ -3298,6 +3374,7 @@ function makeFallbackId() {
 const SANITIZE_MAX_DEPTH = 100;      // 트리 최대 깊이 (이보다 깊으면 잘라냄)
 const SANITIZE_MAX_NODES = 20000;    // 트리 전체 최대 노드 수
 const SANITIZE_MAX_LABEL = 5000;     // 노드 라벨 최대 글자 수
+const INBOX_MAX_ITEMS = 500;         // 아이디어 보관함(root.inbox) 최대 항목 수
 let _sanitizeNodeCount = 0;          // sanitizeTree 1회 동안 처리한 노드 수
 // 직전 sanitizeTree에서 한도 절삭(깊이/노드 수/라벨/노트)이 있었는지 — 호출측이 사용자에게
 // 알릴 수 있게 기록한다. 종전엔 무통보로 잘린 뒤 1.5초 자동저장으로 영구화됐다(v3.106.0).
@@ -3418,6 +3495,16 @@ function sanitizeNode(node, seenIds, depth) {
       .slice(0, 50);
     if (clean.groups.length === 0) delete clean.groups;
   }
+  // 아이디어 보관함: 루트 노드에만. 아직 가지에 넣지 않은 노드(하위 포함)들의 목록.
+  // 항목도 일반 노드와 같은 규칙으로 정화하고 seenIds를 공유해, 트리 노드와 id가 겹치면 새로 발급된다.
+  // (루트가 아닌 노드의 inbox는 버린다 — 보관함 안의 보관함 같은 중첩 방지)
+  if (depth === 0 && Array.isArray(node.inbox)) {
+    if (node.inbox.length > INBOX_MAX_ITEMS) _sanitizeTruncated = true;
+    const items = node.inbox.slice(0, INBOX_MAX_ITEMS)
+      .map(c => sanitizeNode(c, seenIds, 1))
+      .filter(c => c !== null);
+    if (items.length) clean.inbox = items;
+  }
   if (node.pinnedSide === 'left' || node.pinnedSide === 'right') clean.pinnedSide = node.pinnedSide;
   if (node.autoSide === 'left' || node.autoSide === 'right') clean.autoSide = node.autoSide;
   if (node.collapsed === true) clean.collapsed = true;
@@ -3509,8 +3596,49 @@ function healDuplicateIds(root) {
     if (typeof n.id !== 'string' || n.id.length === 0 || seen.has(n.id)) { n.id = genId(); fixed++; }
     seen.add(n.id);
   });
+  // 보관함 항목도 같은 seen으로 검사. 'n<숫자>' 꼴 id는 트리 전용(텍스트 재파싱이 n1..nN으로 재발급)이라
+  // 보관함에 남아 있으면 나중에 트리와 겹칠 수 있다 → 보관함 전용 id로 바꿔 둔다.
+  if (Array.isArray(root.inbox)) {
+    root.inbox.forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      walk(item, n => {
+        const bad = typeof n.id !== 'string' || n.id.length === 0 || seen.has(n.id);
+        if (bad || /^n\d+$/.test(n.id)) { n.id = genInboxId(); if (bad) fixed++; }
+        seen.add(n.id);
+      });
+    });
+  }
   if (fixed > 0) console.warn('[BrainBloom] 중복/불량 노드 id ' + fixed + '개 자동 수리');
   return fixed;
+}
+
+/* ── 아이디어 보관함(root.inbox) ──
+   아직 가지에 넣지 않은 노드를 모아 두는 곳. 항목은 일반 노드와 같은 모양(하위 포함 가능)이고
+   루트의 inbox 배열에 담겨 문서와 함께 저장·동기화된다. 맨 앞이 가장 최근 항목.
+   id 규칙: 보관함에 들어올 때 항상 전용 id('i…')로 새로 발급한다 — 트리의 'n<숫자>' id는
+   텍스트 패널을 고칠 때마다 n1..nN으로 다시 매겨지므로, 그대로 두면 나중에 반드시 겹친다. */
+let _inboxSeq = 0;
+function genInboxId() {
+  return `i${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}_${(++_inboxSeq).toString(36)}`;
+}
+// 트리의 노드(하위 포함)를 보관함 항목으로 변환 — 새 id + 배치·레이아웃·루트 전용 정보 제거
+function toInboxNode(node) {
+  const item = cloneTree(node);
+  walk(item, n => {
+    n.id = genInboxId();
+    delete n._x; delete n._y; delete n._w; delete n._h; delete n._subH; delete n._subW; delete n._side;
+    delete n._autoLabel;
+  });
+  delete item.pinnedSide; delete item.autoSide;
+  delete item.links; delete item.boundaries; delete item.groups; delete item.inbox;
+  return item;
+}
+// 붙여넣은 여러 줄 텍스트 → 보관함 항목 라벨 목록 (줄마다 1개, 글머리 기호·번호 제거)
+function splitInboxLines(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map(s => s.trim().replace(/^(?:[-*+•·▪◦]|\d{1,3}[.)]|#{1,6})\s+/, '').replace(/^\[[ xX]?\]\s+/, '').trim())
+    .filter(Boolean);
 }
 
 /* ============================================================
@@ -5802,6 +5930,19 @@ function App() {
   // 바탕 클릭 시 이 임시 열림만 닫는다(설정으로 켜 둔 영구 표시는 건드리지 않음).
   const [panelTempOpen, setPanelTempOpen] = useState(false);
 
+  // ─────────── 아이디어 보관함 ───────────
+  // 항목 자체는 tree.inbox(문서와 함께 저장)에 있고, 여기엔 패널의 화면 상태만 둔다.
+  // 열림 여부는 브라우저에 기억(localStorage) — 설정에 넣지 않아 드라이브 설정 백업을 건드리지 않는다.
+  const [inboxOpen, setInboxOpen] = useState(() => {
+    try { return localStorage.getItem('bb_inbox_open') === '1'; } catch (e) { return false; }
+  });
+  const [inboxDraft, setInboxDraft] = useState('');          // 빠른 입력칸 내용
+  const [inboxEditId, setInboxEditId] = useState(null);      // 이름 편집 중인 항목 id
+  const [inboxEditDraft, setInboxEditDraft] = useState('');
+  const [inboxDropHover, setInboxDropHover] = useState(false); // 노드를 끌어 패널 위에 올린 상태(강조)
+  const inboxInputRef = useRef(null);
+  const inboxEditCancelRef = useRef(false);  // Esc로 편집을 취소했음 — 뒤따르는 blur가 저장하지 않게
+
   // ─────────── 노드 검색 (Ctrl+F) ───────────
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -6180,6 +6321,8 @@ function App() {
       }
       if (rg.length) newTree.groups = rg;
     }
+    // 아이디어 보관함은 텍스트 패널에 나오지 않는 루트 전용 데이터 — 재파싱해도 그대로 넘긴다.
+    if (Array.isArray(oldTree.inbox) && oldTree.inbox.length) newTree.inbox = cloneTree(oldTree.inbox);
   }
 
   // 최초 로드 시 트리 생성
@@ -8700,6 +8843,176 @@ function App() {
     return () => clearInterval(id);
   }, [timerState, timerEndAt, settings.timerNotifyMinutes]); // 간격 설정을 틱이 직접 읽으므로 deps 포함(낡은 클로저 방지)
 
+  // ─────────── 아이디어 보관함 동작 ───────────
+  // 떠오른 생각을 자리(부모)부터 정하지 않고 일단 적어 두는 곳. 항목은 tree.inbox에 노드 모양으로 담긴다.
+  const inboxItems = (tree && Array.isArray(tree.inbox)) ? tree.inbox : [];
+  useEffect(() => {
+    try { localStorage.setItem('bb_inbox_open', inboxOpen ? '1' : '0'); } catch (e) {}
+  }, [inboxOpen]);
+  const focusInboxInput = () => {
+    setTimeout(() => { const el = inboxInputRef.current; if (el) el.focus(); }, 30);
+  };
+  const toggleInbox = () => {
+    setInboxOpen(v => { if (!v) focusInboxInput(); return !v; });
+  };
+  // 몰입 모드(편집 잠금)에서는 보관함도 바꾸지 않는다
+  const inboxEditBlocked = () => {
+    if (viewMode !== 'immerse') return false;
+    showToast('몰입 모드에서는 보관함을 바꿀 수 없어요 — 우클릭 → 편집 모드');
+    return true;
+  };
+  // 보관함에 새 아이디어 추가 — 여러 개를 한꺼번에 넣어도 실행 취소 1번으로 묶인다. 맨 앞 = 가장 최근.
+  const addInboxItems = (labels) => {
+    if (!tree || inboxEditBlocked()) return 0;
+    const clean = (labels || []).map(s => String(s || '').trim().slice(0, SANITIZE_MAX_LABEL)).filter(Boolean);
+    if (clean.length === 0) return 0;
+    const room = INBOX_MAX_ITEMS - inboxItems.length;
+    if (room <= 0) { showToast(`보관함이 가득 찼어요 (최대 ${INBOX_MAX_ITEMS}개) — 정리한 뒤 다시 넣어 주세요`); return 0; }
+    const take = clean.slice(0, room);
+    const now = new Date().toISOString();
+    // 여러 줄을 붙여넣었을 때 적힌 순서(위→아래) 그대로 목록 맨 위에 얹는다
+    const items = take.map(label => ({ id: genInboxId(), label, children: [], meta: {}, createdAt: now, updatedAt: now }));
+    maybePushHistory(take.length > 1 ? `보관함에 ${take.length}개 추가` : '보관함에 추가');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      if (!prev) return prev;
+      const nt = cloneTree(prev);
+      nt.inbox = items.concat(nt.inbox || []).slice(0, INBOX_MAX_ITEMS);
+      return nt;
+    });
+    if (take.length < clean.length) showToast(`보관함이 가득 차서 ${take.length}개만 넣었어요`);
+    return take.length;
+  };
+  // 보관함 항목을 꺼내 parentId 노드의 자식으로 편입 (parentId가 없거나 사라졌으면 중심 노드 아래)
+  const placeInboxItem = (itemId, parentId) => {
+    if (!tree || inboxEditBlocked()) return;
+    if (!inboxItems.some(x => x.id === itemId)) return;
+    const pid = (parentId && findNode(tree, parentId)) ? parentId : tree.id;
+    maybePushHistory('보관함에서 꺼내기');
+    syncSourceRef.current = 'tree';
+    const nowTs = new Date().toISOString();
+    setTree(prev => {
+      if (!prev) return prev;
+      const nt = cloneTree(prev);
+      const list = nt.inbox || [];
+      const idx = list.findIndex(x => x.id === itemId);
+      const parent = findNode(nt, pid);
+      if (idx === -1 || !parent) return prev;
+      const node = list.splice(idx, 1)[0];
+      if (list.length === 0) delete nt.inbox;
+      walk(node, n => { if (!n.meta) n.meta = {}; if (!Array.isArray(n.children)) n.children = []; });
+      if (!parent.children) parent.children = [];
+      // 색은 새 부모 톤으로 통일하고, 중심 노드 직속이면 좌/우는 기존 형제 다수파를 따른다(addChild와 같은 규칙)
+      applyColorToBranch(node, colorForMovedNode(parent, nt));
+      if (parent === nt && parent.children.length > 0) {
+        const rightCount = parent.children.filter(c => (c.pinnedSide || c.autoSide) === 'right').length;
+        const leftCount = parent.children.filter(c => (c.pinnedSide || c.autoSide) === 'left').length;
+        node.autoSide = (rightCount >= leftCount) ? 'right' : 'left';
+      }
+      node.updatedAt = nowTs;
+      parent.children.push(node);
+      if (parent.collapsed === true) delete parent.collapsed;   // 접힌 부모면 펼쳐 보이게
+      return nt;
+    });
+    if (inboxEditId === itemId) setInboxEditId(null);
+    // 선택은 그대로 둔다 — 같은 노드 아래로 ➜를 연달아 눌러 여러 개를 한 번에 정리할 수 있게.
+    // 대신 방금 들어간 노드를 깜빡여 어디로 갔는지 보여 준다.
+    flashFound(itemId);
+  };
+  // 노드(하위 포함)를 트리에서 떼어 보관함으로 — 지우긴 아깝고 자리는 아직 못 정한 가지를 잠시 빼 둘 때.
+  // 보관함에 들어가면 새 id가 발급되므로 그 노드에 걸려 있던 관계선·그룹·경계는 끊긴다.
+  const sendNodeToInbox = (nodeId) => {
+    if (!tree || inboxEditBlocked()) return;
+    if (nodeId === tree.id) { showToast('중심 노드는 보관함으로 보낼 수 없어요'); return; }
+    const target = findNode(tree, nodeId);
+    const parent = findParent(tree, nodeId);
+    if (!target || !parent) return;
+    if (inboxItems.length >= INBOX_MAX_ITEMS) { showToast(`보관함이 가득 찼어요 (최대 ${INBOX_MAX_ITEMS}개)`); return; }
+    // 다음 선택: 이전 형제 → 다음 형제 → 부모 (deleteNode와 같은 규칙)
+    const sibs = parent.children || [];
+    const i = sibs.findIndex(c => c.id === nodeId);
+    const nextSel = i > 0 ? sibs[i - 1].id : (i + 1 < sibs.length ? sibs[i + 1].id : parent.id);
+    const goneIds = new Set();
+    walk(target, n => goneIds.add(n.id));
+    maybePushHistory('보관함으로 보내기');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      if (!prev) return prev;
+      const nt = cloneTree(prev);
+      const n = findNode(nt, nodeId);
+      if (!n || nt.id === nodeId) return prev;
+      const item = toInboxNode(n);
+      if (!removeNode(nt, nodeId)) return prev;
+      nt.inbox = [item].concat(nt.inbox || []).slice(0, INBOX_MAX_ITEMS);
+      return nt;
+    });
+    setSelectedId(nextSel);
+    // 떼어 낸 가지 안의 노드가 다중 선택·편집 중이었다면 함께 정리(죽은 id가 남으면 키보드가 먹통이 된다)
+    setGroupSelectIds(prev => (prev.some(x => goneIds.has(x)) ? prev.filter(x => !goneIds.has(x)) : prev));
+    if (editingId && goneIds.has(editingId)) setEditingId(null);
+    setInboxOpen(true);
+    showToast('💡 보관함으로 옮겼어요 — Ctrl+Z로 되돌리기');
+  };
+  const renameInboxItem = (itemId, rawLabel) => {
+    setInboxEditId(null);
+    if (!tree || viewMode === 'immerse') return;
+    const label = String(rawLabel || '').trim().slice(0, SANITIZE_MAX_LABEL);
+    const cur = inboxItems.find(x => x.id === itemId);
+    if (!cur || !label || label === (cur.label || '')) return;   // 빈 값·무변경은 그대로 둔다
+    maybePushHistory('보관함 항목 수정');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      if (!prev) return prev;
+      const nt = cloneTree(prev);
+      const it = (nt.inbox || []).find(x => x.id === itemId);
+      if (!it) return prev;
+      it.label = label;
+      it.updatedAt = new Date().toISOString();
+      return nt;
+    });
+  };
+  const deleteInboxItem = (itemId) => {
+    if (!tree || inboxEditBlocked()) return;
+    if (!inboxItems.some(x => x.id === itemId)) return;
+    maybePushHistory('보관함 항목 삭제');
+    syncSourceRef.current = 'tree';
+    setTree(prev => {
+      if (!prev) return prev;
+      const nt = cloneTree(prev);
+      nt.inbox = (nt.inbox || []).filter(x => x.id !== itemId);
+      if (nt.inbox.length === 0) delete nt.inbox;
+      return nt;
+    });
+    if (inboxEditId === itemId) setInboxEditId(null);
+  };
+  const handleInboxDragStart = (e, itemId) => {
+    if (viewMode === 'immerse') { e.preventDefault(); return; }
+    setDragInfo({ inboxId: itemId });
+    e.dataTransfer.effectAllowed = 'move';
+    const it = inboxItems.find(x => x.id === itemId);
+    e.dataTransfer.setData('text/plain', (it && it.label) || '');
+  };
+  // 맵의 노드를 끌어 보관함(패널·헤더 버튼) 위에 올렸을 때 — 놓으면 보관함으로 보낸다
+  const inboxDropProps = {
+    onDragOver: (e) => {
+      if (!dragInfo || !dragInfo.id || viewMode === 'immerse') return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!inboxDropHover) setInboxDropHover(true);
+      if (dropTargetId) setDropTargetId(null);
+    },
+    onDragLeave: (e) => {
+      if (!e.currentTarget.contains(e.relatedTarget)) setInboxDropHover(false);
+    },
+    onDrop: (e) => {
+      setInboxDropHover(false);
+      if (!dragInfo || !dragInfo.id) return;
+      e.preventDefault();
+      sendNodeToInbox(dragInfo.id);
+      setDragInfo(null); setDropTargetId(null);
+    },
+  };
+
   // ─────────── 드래그 앤 드롭 ───────────
   const handleDragStart = (e, id) => {
     if (id === tree.id) { e.preventDefault(); return; }
@@ -8709,6 +9022,13 @@ function App() {
   };
   const handleDragOver = (e, targetId) => {
     if (!dragInfo) return;
+    if (dragInfo.inboxId) {
+      // 보관함 항목을 끌고 온 경우 — 어느 노드든 자식으로 받을 수 있다
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setDropTargetId(targetId);
+      return;
+    }
     if (dragInfo.id === targetId) return;
     const isCopy = e.ctrlKey || e.metaKey;   // Ctrl/⌘ 누른 채 드래그 = 복제
     if (!isCopy) {
@@ -8723,6 +9043,12 @@ function App() {
   const handleDrop = (e, targetId) => {
     e.preventDefault();
     if (!dragInfo) return;
+    if (dragInfo.inboxId) {
+      // 보관함 항목을 노드 위에 놓음 → 그 노드의 자식으로 편입
+      placeInboxItem(dragInfo.inboxId, targetId);
+      setDragInfo(null); setDropTargetId(null);
+      return;
+    }
     if (dragInfo.id === targetId) { setDragInfo(null); setDropTargetId(null); return; }
     const isCopy = e.ctrlKey || e.metaKey;
     const draggedNode = findNode(tree, dragInfo.id);
@@ -8856,11 +9182,15 @@ function App() {
     const onPointerDown = (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;   // 마우스는 좌클릭만
       if (!isPanTarget(e.target)) return;
+      // 마우스는 포인터가 하나뿐 — 지난 누름이 캔버스 밖에서 끝나 남은 기록이 있으면 비운다(핀치로 오인 방지)
+      if (e.pointerType === 'mouse') pointers.clear();
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
-        // 한 포인터 → 패닝 준비(실제 이동 감지 시 시작)
+        // 한 포인터 → 패닝 준비(실제 이동 감지 시 시작).
+        // 포인터 캡처는 여기서 걸지 않는다: 캡처된 채 떼면 브라우저가 click을 캡처 요소(.canvas-scroll)로
+        // 보내 .canvas-inner의 onClick(선택 해제)·onDoubleClick(중심으로)이 불리지 않는다.
+        // 캡처는 실제로 끌기 시작할 때(onPointerMove) 건다.
         panStartRef.current = { x: e.clientX, y: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop, moved: false };
-        try { el.setPointerCapture(e.pointerId); } catch (err) {}
       } else if (pointers.size === 2) {
         // 두 포인터 → 핀치 줌 시작(패닝 취소)
         panStartRef.current = null;
@@ -8895,7 +9225,11 @@ function App() {
       if (!start) return;
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!start.moved && Math.abs(dx) + Math.abs(dy) < 3) return;   // 3px 이상에서만 패닝(단순 클릭 구분)
-      if (!start.moved) { start.moved = true; setIsPanning(true); }
+      if (!start.moved) {
+        start.moved = true; setIsPanning(true);
+        // 끌기가 시작된 지금 캡처 — 캔버스 밖으로 나가도 이동·놓기 이벤트를 계속 받는다
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      }
       el.scrollLeft = start.scrollLeft - dx;
       el.scrollTop = start.scrollTop - dy;
     };
@@ -9480,6 +9814,10 @@ function App() {
       if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         e.preventDefault(); setOutlineView(false); setChartView(v => v === 'timeline' ? null : 'timeline'); return;
       }
+      // I: 아이디어 보관함 열고 입력칸으로(다시 누르면 닫기). 물리 키(e.code) 기준이라 한글 자판에서도 동작.
+      if ((e.code === 'KeyI' || e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault(); toggleInbox(); return;
+      }
 
       // +/− : 화면 배율 조정 (수식키 없이 · 맵 화면에서만). Ctrl+±은 브라우저 줌이라 건드리지 않음.
       if (!outlineView && !chartView && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -9640,8 +9978,8 @@ function App() {
         // _autoLabel 제거 — 붙여넣은 ★샘플★ 편집-취소 시 전체 소멸 방지(v3.105.0).
         walk(dup, n => { n.id = `p${stamp}_${++seq}`; delete n._autoLabel; delete n._x; delete n._y; delete n._w; delete n._h; delete n._subH; });
         delete dup.pinnedSide; delete dup.autoSide;
-        // 루트 전용 데이터(관계선·경계·그룹)는 자식으로 붙으면 무의미하므로 제거
-        delete dup.links; delete dup.boundaries; delete dup.groups;
+        // 루트 전용 데이터(관계선·경계·그룹·보관함)는 자식으로 붙으면 무의미하므로 제거
+        delete dup.links; delete dup.boundaries; delete dup.groups; delete dup.inbox;
         parent.children.push(dup);
         newTopIds.push(dup.id);
         walk(dup, () => cnt++);
@@ -10652,6 +10990,16 @@ function App() {
           >
             🕒 <span className="btn-label">타임라인</span>
           </button>
+          {/* 아이디어 보관함 — 미니멀/모바일에서도 항상 보이게 (inbox-btn). 맵의 노드를 끌어다 놓으면 보관함으로 보낸다 */}
+          <button
+            className={`btn icon-btn inbox-btn${inboxOpen ? ' active' : ''}${inboxDropHover ? ' drop-hover' : ''}`}
+            onClick={toggleInbox}
+            {...inboxDropProps}
+            title="아이디어 보관함 (I) — 자리를 정하지 않은 생각을 일단 적어 두는 곳"
+          >
+            💡 <span className="btn-label">보관함</span>
+            {inboxItems.length > 0 && <span className="inbox-count">{inboxItems.length}</span>}
+          </button>
           {settings.showToolbarButtons !== false && settings.minimalHeader !== true && (
           <>
           <button
@@ -10947,6 +11295,130 @@ function App() {
                 <span className="leb-sep" />
                 <button className="leb-del" onClick={() => { removeLink(f, t); setSelectedLinkKey(null); }} title="관계선 삭제">삭제</button>
                 <button className="leb-close" onClick={() => setSelectedLinkKey(null)} title="닫기">✕</button>
+              </div>
+            );
+          })()}
+
+          {/* ===== 아이디어 보관함 — 캔버스 좌상단에 뜨는 패널 =====
+              자리를 정하지 않은 생각을 적어 두었다가, 노드에 끌어다 놓거나 ➜로 꺼내 가지에 편입한다.
+              맵의 노드를 이 패널에 끌어다 놓으면 반대로 보관함으로 들어온다. */}
+          {inboxOpen && tree && (() => {
+            const locked = viewMode === 'immerse';
+            const targetNode = (selectedId && findNode(tree, selectedId)) || tree;
+            const targetName = ((targetNode.label || '').split('\n')[0].trim() || '(이름 없음)');
+            const targetShort = targetName.length > 14 ? targetName.slice(0, 14) + '…' : targetName;
+            const commitDraft = () => {
+              if (addInboxItems([inboxDraft]) > 0) setInboxDraft('');
+            };
+            return (
+              <div
+                className={`inbox-panel${inboxDropHover ? ' drop-hover' : ''}`}
+                onClick={(e) => e.stopPropagation()}
+                onContextMenu={(e) => e.stopPropagation()}
+                {...inboxDropProps}
+              >
+                <div className="inbox-head">
+                  <span>💡 아이디어 보관함</span>
+                  {inboxItems.length > 0 && <span className="inbox-count">{inboxItems.length}</span>}
+                  <button className="inbox-close" onClick={() => setInboxOpen(false)} title="닫기 (I)">✕</button>
+                </div>
+                <div className="inbox-add">
+                  <input
+                    ref={inboxInputRef}
+                    className="inbox-input"
+                    type="text"
+                    value={inboxDraft}
+                    disabled={locked}
+                    maxLength={SANITIZE_MAX_LABEL}
+                    placeholder={locked ? '몰입 모드에서는 잠겨 있어요' : '떠오른 생각을 적고 Enter'}
+                    onChange={(e) => setInboxDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      // 한글 조합 중 Enter는 글자 확정용 — 그때 추가하면 마지막 글자가 중복돼 들어간다
+                      if (e.isComposing || e.keyCode === 229) return;
+                      if (e.key === 'Enter') { e.preventDefault(); commitDraft(); }
+                      else if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); setInboxOpen(false); }
+                    }}
+                    onPaste={(e) => {
+                      // 여러 줄을 붙여넣으면 줄마다 한 항목으로 (한 줄이면 평소처럼 입력칸에 들어간다)
+                      const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+                      if (!/\r?\n/.test(text.trim())) return;
+                      e.preventDefault();
+                      const lines = splitInboxLines(text).slice(0, 200);
+                      const n = addInboxItems(lines);
+                      if (n > 0) showToast(`💡 ${n}개를 보관함에 넣었어요`);
+                    }}
+                  />
+                </div>
+                {inboxItems.length === 0 ? (
+                  <div className="inbox-empty">
+                    자리는 나중에 정해도 돼요.<br />일단 적어 두고, 정리할 때 노드로 끌어다 놓으세요.
+                  </div>
+                ) : (
+                  <div className="inbox-list">
+                    {inboxItems.map(it => {
+                      let kids = 0;
+                      walk(it, () => kids++);
+                      kids -= 1;
+                      const editing = inboxEditId === it.id;
+                      return (
+                        <div
+                          key={it.id}
+                          className={`inbox-item${dragInfo && dragInfo.inboxId === it.id ? ' dragging' : ''}`}
+                          draggable={!editing && !locked}
+                          onDragStart={(e) => handleInboxDragStart(e, it.id)}
+                          onDragEnd={() => { setDragInfo(null); setDropTargetId(null); }}
+                          title={editing ? undefined : '노드에 끌어다 놓으면 그 노드의 자식이 돼요 · 더블클릭 = 고치기'}
+                        >
+                          {editing ? (
+                            <input
+                              className="inbox-edit"
+                              type="text"
+                              autoFocus
+                              value={inboxEditDraft}
+                              maxLength={SANITIZE_MAX_LABEL}
+                              onChange={(e) => setInboxEditDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.isComposing || e.keyCode === 229) return;
+                                // 저장은 blur 한 곳에서만 — Enter는 포커스를 빼서 blur로 넘긴다(이중 저장 방지)
+                                if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                                else if (e.key === 'Escape') { e.preventDefault(); inboxEditCancelRef.current = true; setInboxEditId(null); }
+                              }}
+                              onBlur={() => {
+                                if (inboxEditCancelRef.current) { inboxEditCancelRef.current = false; setInboxEditId(null); return; }
+                                renameInboxItem(it.id, inboxEditDraft);
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className="inbox-text"
+                              onDoubleClick={() => {
+                                if (locked) return;
+                                inboxEditCancelRef.current = false;
+                                setInboxEditId(it.id); setInboxEditDraft(it.label || '');
+                              }}
+                            >{(it.label || '').trim() ? it.label : '(이름 없음)'}</span>
+                          )}
+                          {kids > 0 && <span className="inbox-kids" title={`하위 노드 ${kids}개가 함께 들어 있어요`}>+{kids}</span>}
+                          {!editing && !locked && (
+                            <>
+                              <button
+                                className="inbox-act"
+                                onClick={() => placeInboxItem(it.id, selectedId)}
+                                title={`‘${targetName}’ 아래로 꺼내기`}
+                              >➜</button>
+                              <button className="inbox-act del" onClick={() => deleteInboxItem(it.id)} title="지우기">✕</button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {inboxItems.length > 0 && (
+                  <div className="inbox-foot">
+                    노드에 끌어다 놓거나 <b>➜</b> 를 누르면 <b>‘{targetShort}’</b> 아래로 들어가요
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -11546,6 +12018,7 @@ function App() {
                   <div><b>Shift + Alt(⌥) + T</b> — 현재 시간 삽입 (21:12)</div>
                   <div><b>Ctrl/⌘ + C</b> — 선택한 노드 복사 (하위 포함)</div>
                   <div><b>Ctrl/⌘ + V</b> — 복사한 노드를 선택한 노드의 자식으로 붙여넣기</div>
+                  <div><b>I</b> — 아이디어 보관함 열기/닫기</div>
                   <div><b>Ctrl + 휠</b> — 확대 / 축소</div>
                   <div><b>빈 공간 드래그</b> — 화면 이동</div>
                   <div><b>Esc</b> — 선택 해제</div>
@@ -12104,7 +12577,7 @@ function App() {
             onContextMenu={(e) => { e.preventDefault(); setBgMenu(null); }}
           />
           <div style={{
-            position: 'fixed', left: Math.min(bgMenu.x, window.innerWidth - 220), top: Math.min(bgMenu.y, window.innerHeight - (bgMenu.nodeId ? 392 : 288)),
+            position: 'fixed', left: Math.min(bgMenu.x, window.innerWidth - 220), top: Math.max(8, Math.min(bgMenu.y, window.innerHeight - (bgMenu.nodeId ? 432 : 288))),
             zIndex: 1200, background: 'var(--panel)', border: '1px solid var(--line)',
             borderRadius: 10, boxShadow: '0 8px 28px rgba(0,0,0,0.22)', padding: 6, minWidth: 200,
           }}>
@@ -12153,6 +12626,22 @@ function App() {
                 >
                   <span>🔲</span><span>{hasBoundary(bgMenu.nodeId) ? '경계 해제' : '경계로 묶기'}</span>
                 </button>
+                {/* 보관함으로 보내기 — 지우긴 아깝고 자리는 아직 못 정한 가지를 잠시 빼 둔다 (중심 노드 제외) */}
+                {tree && bgMenu.nodeId !== tree.id && viewMode !== 'immerse' && (
+                  <button
+                    onClick={() => { sendNodeToInbox(bgMenu.nodeId); setBgMenu(null); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                      cursor: 'pointer', background: 'transparent', border: 'none', borderRadius: 7,
+                      padding: '9px 10px', color: 'var(--ink)', fontSize: 13.5, fontWeight: 600,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    title="이 노드(하위 포함)를 지도에서 떼어 보관함에 넣어 둡니다"
+                  >
+                    <span>💡</span><span>보관함으로 보내기</span>
+                  </button>
+                )}
                 {/* 노드 복사 — 형식을 고르면 하위 노드 포함으로 클립보드에 복사 (PDF는 파일 저장) */}
                 <button
                   onClick={() => setBgMenu(m => m ? { ...m, copyOpen: !m.copyOpen } : m)}
@@ -12544,6 +13033,7 @@ const SHORTCUT_SECTIONS = [
     ['Ctrl/⌘ + F', '노드 검색 (Enter = 다음, Shift+Enter = 이전)'],
     ['F', '지도 ↔ 아웃라인 전환'],
     ['G / T', '간트 차트 / 타임라인 전환'],
+    ['I', '아이디어 보관함 열기/닫기 — 자리를 정하지 않은 생각을 적어 두는 곳'],
     ['+ / −', '확대 / 축소'],
     ['Ctrl + 휠', '커서 위치 기준 확대/축소'],
     ['빈 공간 드래그', '화면 이동'],
