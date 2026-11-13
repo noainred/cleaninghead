@@ -492,6 +492,10 @@ SANITIZE_MAX_LABEL = <span class="n">5000</span>  <span class="c">// 라벨 글�
 
     <h4>⑥ 편집 UX · 보안 하드닝</h4>
     <p>선택 노드를 앵커로 한 확대/축소(<code>zoomAtAnchor</code>), 패널 폭 드래그(CSS 변수 <code>--left-w/--right-w</code> + settings 영속), 다중 선택 일괄 편집(<code>bulkUpdateSelected</code>), 태그 라이브러리(<code>allTags/tagCounts</code> + 전체 이름변경/삭제). 보안은 3축 병렬 감사 후 모바일 SVG id XSS 수정, <strong>JS 프레임버스팅(클릭재킹)</strong>·부분 CSP(<code>object-src 'none'; base-uri 'self'</code>)·모바일 토큰 revoke·가져오기 화이트리스트 재구성을 적용(자세한 내용은 <code>SECURITY.md</code>).</p>
+
+    <h4>⑦ 아이디어 보관함 — 루트 전용 데이터 <code>root.inbox</code> (v3.114.0)</h4>
+    <p>아직 가지에 넣지 않은 노드를 모아 두는 목록. 항목은 <strong>일반 노드와 같은 객체</strong>(하위 포함 가능)라 편입·보관이 "배열 사이의 이동"일 뿐이고, 관계선·경계·그룹처럼 <strong>루트에 실려</strong> 문서와 함께 저장·동기화된다(<code>sanitizeNode</code>는 깊이 0에서만 <code>inbox</code>를 받고, 항목은 트리와 <code>seenIds</code>를 공유해 id 충돌을 재발급으로 푼다). 핵심 규칙은 <strong>id 네임스페이스 분리</strong>다: 트리의 <code>n&lt;숫자&gt;</code> id는 텍스트 패널을 고칠 때마다 <code>n1..nN</code>으로 재발급되므로, 보관함에 들어오는 노드는 항상 전용 id(<code>genInboxId</code>, <code>i…</code>)로 다시 발급한다(<code>toInboxNode</code>) — 그대로 두면 나중에 꺼낼 때 트리와 반드시 겹친다. <code>healDuplicateIds</code>도 보관함을 함께 검사한다. 텍스트 재파싱(<code>preserveMetadata</code>)과 병합(<code>mergeRemoteIntoLocal</code>)은 보관함을 그대로 넘기거나 이어 붙인다.</p>
+    <div class="callout"><span class="ic">⚠</span><div><strong>루트 전용 데이터를 늘릴 때의 체크리스트</strong>: ① <code>sanitizeNode</code> ② <code>preserveMetadata</code>(텍스트 재파싱) ③ <code>mergeRemoteIntoLocal</code> ④ 붙여넣기 시 제거 목록 ⑤ <strong><code>mobile.html</code>의 <code>keepRootExtras</code></strong>. ⑤를 빠뜨리면 모바일에서 저장하는 순간 그 데이터가 문서에서 사라진다 — v3.95.3~v3.112.1에서 관계선·경계·그룹이 실제로 그렇게 유실됐다.</div></div>
   </section>
 
   <footer>
